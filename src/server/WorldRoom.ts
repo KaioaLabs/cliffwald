@@ -74,6 +74,26 @@ export class WorldRoom extends Room<GameState> {
             client.send("pong", timestamp);
         });
 
+        // Chat
+        this.onMessage("chat", (client, message) => {
+            if (typeof message === 'string' && message.length > 0) {
+                const player = this.state.players.get(client.sessionId);
+                const senderName = player ? player.username : client.sessionId;
+                this.broadcast("chat", { sender: senderName, text: message.substring(0, 100) });
+            }
+        });
+
+        this.onMessage("equip", (client, itemId) => {
+            const entity = this.entities.get(client.sessionId);
+            if (entity && entity.equipment && typeof itemId === 'string') {
+                // Simplified: Just set it if it looks like a sword
+                if (itemId.includes("sword")) {
+                    entity.equipment.weapon = itemId;
+                    if (entity.combat) entity.combat.damage = 25; // Bonus
+                }
+            }
+        });
+
         this.setSimulationInterval((dt) => {
             const dtSeconds = dt / 1000;
 
@@ -125,6 +145,14 @@ export class WorldRoom extends Room<GameState> {
                             }
                         });
                     }
+                    
+                    // Equipment Sync
+                    if (entity.equipment) {
+                        const w = entity.equipment.weapon || "";
+                        const a = entity.equipment.armor || "";
+                        if (playerState.weapon !== w) playerState.weapon = w;
+                        if (playerState.armor !== a) playerState.armor = a;
+                    }
                 }
             });
         }, 1000 / CONFIG.SERVER_FPS);
@@ -135,7 +163,8 @@ export class WorldRoom extends Room<GameState> {
         
         // 1. Auth / DB Load
         const username = options.username || `Guest_${client.sessionId}`;
-        
+        const skin = options.skin || "player_idle";
+
         let user = await db.user.findUnique({ where: { username } });
         if (!user) {
             user = await db.user.create({
@@ -145,7 +174,8 @@ export class WorldRoom extends Room<GameState> {
                     player: {
                         create: {
                             x: this.spawnPos.x + (Math.random() * 20 - 10),
-                            y: this.spawnPos.y + (Math.random() * 20 - 10)
+                            y: this.spawnPos.y + (Math.random() * 20 - 10),
+                            skin: skin
                         }
                     }
                 },
@@ -159,8 +189,15 @@ export class WorldRoom extends Room<GameState> {
                 data: {
                     userId: user.id,
                     x: this.spawnPos.x,
-                    y: this.spawnPos.y
+                    y: this.spawnPos.y,
+                    skin: skin
                 }
+            });
+        } else if (dbPlayer.skin !== skin) {
+            // Update skin if changed in selector
+             dbPlayer = await db.player.update({
+                where: { id: dbPlayer.id },
+                data: { skin: skin }
             });
         }
 
@@ -169,8 +206,10 @@ export class WorldRoom extends Room<GameState> {
         // 2. Init State
         const playerState = new Player();
         playerState.id = client.sessionId;
+        playerState.username = username;
         playerState.x = dbPlayer.x;
         playerState.y = dbPlayer.y;
+        playerState.skin = dbPlayer.skin;
         
         // Load stats from DB
         playerState.hp = dbPlayer.health;
@@ -194,6 +233,7 @@ export class WorldRoom extends Room<GameState> {
             player: { sessionId: client.sessionId },
             stats: { hp: dbPlayer.health, maxHp: dbPlayer.maxHealth, speed: 5 },
             combat: { cooldown: 0, range: 30, damage: 10 },
+            equipment: { weapon: "sword_wood" },
             inventory: { 
                 items: [ 
                     { itemId: "sword_wood", count: 1 }, 

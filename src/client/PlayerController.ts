@@ -15,22 +15,25 @@ export class PlayerController {
         this.physicsWorld = physicsWorld;
     }
 
-    addPlayer(sessionId: string, x: number, y: number, isLocal: boolean = false) {
+    addPlayer(sessionId: string, x: number, y: number, isLocal: boolean = false, skin: string = "player_idle", username: string = "") {
         // 1. Create Sprite using the idle spritesheet initially
         const sprite = this.scene.add.sprite(x, y, 'player_idle', 0);
         sprite.setOrigin(0.5, 0.75); // Pivot at feet for better depth sorting
         sprite.setScale(CONFIG.PLAYER_SCALE);
         
-        // 2. Visual Styling
-        if (!isLocal) {
-            sprite.setTint(Phaser.Display.Color.RandomRGB().color);
+        // 2. Visual Styling (Skin)
+        if (skin === "player_red") {
+            sprite.setTint(0xff7777);
+        } else if (skin === "player_blue") {
+            sprite.setTint(0x7777ff);
         } else {
-            // No tint for local player - show original sprite colors
+            // No tint for default
             sprite.clearTint();
         }
 
         // 3. Name Tag
-        const nameTag = this.scene.add.text(x, y + CONFIG.NAME_TAG_Y_OFFSET, sessionId.slice(0, 4), {
+        const displayName = username || sessionId.slice(0, 4);
+        const nameTag = this.scene.add.text(x, y + CONFIG.NAME_TAG_Y_OFFSET, displayName, {
             fontSize: '10px',
             color: '#ffffff',
             stroke: '#000000',
@@ -39,7 +42,11 @@ export class PlayerController {
         }).setOrigin(0.5);
         sprite.setData('nameTag', nameTag);
 
-        // 4. Data Binding
+        // 4. HP Bar
+        const hpBar = this.scene.add.graphics();
+        sprite.setData('hpBar', hpBar);
+
+        // 5. Data Binding
         sprite.setData('serverX', x);
         sprite.setData('serverY', y);
         sprite.setData('lastDir', 'down');
@@ -76,6 +83,8 @@ export class PlayerController {
         if (sprite) {
             const nameTag = sprite.getData('nameTag');
             if (nameTag) nameTag.destroy();
+            const hpBar = sprite.getData('hpBar');
+            if (hpBar) hpBar.destroy();
             sprite.destroy();
             this.entities.delete(sessionId);
         }
@@ -100,11 +109,16 @@ export class PlayerController {
         }
     }
 
-    updatePlayerState(sessionId: string, x: number, y: number) {
+    updatePlayerState(sessionId: string, data: any) {
         const sprite = this.entities.get(sessionId);
         if (sprite) {
+            const x = data.x;
+            const y = data.y;
+            
             sprite.setData('serverX', x);
             sprite.setData('serverY', y);
+            sprite.setData('hp', data.hp ?? 100);
+            sprite.setData('maxHp', data.maxHp ?? 100);
             
             const buffer = sprite.getData('positionBuffer');
             if (buffer) {
@@ -232,6 +246,22 @@ export class PlayerController {
             if (nameTag) {
                 nameTag.setPosition(finalX, finalY + CONFIG.NAME_TAG_Y_OFFSET);
                 nameTag.setDepth(finalY + 100);
+            }
+
+            const hpBar = sprite.getData('hpBar');
+            if (hpBar) {
+                hpBar.clear();
+                const hp = sprite.getData('hp') ?? 100;
+                const maxHp = sprite.getData('maxHp') ?? 100;
+                const pct = Math.max(0, hp / maxHp);
+                
+                hpBar.fillStyle(0x000000, 0.8);
+                hpBar.fillRect(finalX - 10, finalY + CONFIG.NAME_TAG_Y_OFFSET + 12, 20, 4);
+                
+                hpBar.fillStyle(pct > 0.5 ? 0x00ff00 : (pct > 0.2 ? 0xffff00 : 0xff0000), 1);
+                hpBar.fillRect(finalX - 10, finalY + CONFIG.NAME_TAG_Y_OFFSET + 12, 20 * pct, 4);
+                
+                hpBar.setDepth(finalY + 101);
             }
 
             this.handleAnimation(sprite, dx, dy, sessionId);

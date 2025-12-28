@@ -7,8 +7,14 @@ export class InventoryItem extends Schema {
 
 export class Player extends Schema {
     @type("string") id: string = "";
+    @type("string") username: string = "Guest";
+    @type("string") skin: string = "player_idle";
     @type("number") x: number = 0;
     @type("number") y: number = 0;
+
+    // Equipment
+    @type("string") weapon: string = "";
+    @type("string") armor: string = "";
 
     // Stats
     @type("number") hp: number = 100;

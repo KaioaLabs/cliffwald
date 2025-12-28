@@ -28,6 +28,8 @@ model Player {
   x         Float    @default(0)
   y         Float    @default(0)
   
+  skin      String   @default("player_idle") // e.g. "player_red", "player_blue"
+
   // Future proofing for Phase 2
   health    Int      @default(100)
   maxHealth Int      @default(100)

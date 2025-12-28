@@ -75,7 +75,7 @@ class GameScene extends Phaser.Scene {
             this.debugGraphics = this.add.graphics().setDepth(10000);
 
             // 6. Connect
-            this.connect();
+            this.createLoginUI();
 
             // 7. Events
             this.scale.on('resize', this.handleResize, this);
@@ -89,17 +89,103 @@ class GameScene extends Phaser.Scene {
         }
     }
 
-    async connect() {
-        try {
-            // Persistent Identity (Phase 1)
-            let username = localStorage.getItem("my_username");
-            if (!username) {
-                username = "Player_" + Math.floor(Math.random() * 10000);
-                localStorage.setItem("my_username", username);
-            }
+    createLoginUI() {
+        const ui = document.getElementById('ui-layer');
+        if (!ui) return;
+        
+        ui.innerHTML = `
+            <div id="login-screen">
+                <h1>Cliffwald 2D</h1>
+                <label>Username:</label>
+                <input type="text" id="username-input" placeholder="Hero Name" />
+                
+                <label>Class (Skin):</label>
+                <select id="skin-select">
+                    <option value="player_idle">Adventurer (Green)</option>
+                    <option value="player_red">Warrior (Red)</option>
+                    <option value="player_blue">Mage (Blue)</option>
+                </select>
+                
+                <button id="play-btn">ENTER WORLD</button>
+            </div>
+        `;
+        
+        const savedName = localStorage.getItem("my_username");
+        const nameInput = document.getElementById('username-input') as HTMLInputElement;
+        if (savedName) nameInput.value = savedName;
+        
+        const btn = document.getElementById('play-btn');
+        if (btn) {
+            btn.addEventListener('click', () => {
+                 const username = nameInput.value.trim();
+                 const skin = (document.getElementById('skin-select') as HTMLSelectElement).value;
+                 
+                 if (username.length < 3) return alert("Name too short!");
+                 
+                 localStorage.setItem("my_username", username);
+                 
+                 ui.innerHTML = ''; 
+                 this.setupHUD(ui);
+                 
+                 this.connect(username, skin);
+            });
+        }
+    }
 
-            this.room = await this.client.joinOrCreate("world", { username });
+    setupHUD(container: HTMLElement) {
+        container.innerHTML = `
+            <div id="hud-layer">
+                <div id="chat-container">
+                    <div id="chat-messages"></div>
+                    <input type="text" id="chat-input" placeholder="Press Enter to chat..." class="pointer-events-auto" />
+                </div>
+            </div>
+            
+            <div id="inventory-container" class="hidden pointer-events-auto">
+                <div style="display:flex; justify-content:space-between;">
+                    <h3>Backpack</h3>
+                    <small>(Press I)</small>
+                </div>
+                <div id="inventory-grid"></div>
+            </div>
+        `;
+        
+        const input = document.getElementById('chat-input') as HTMLInputElement;
+        input?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && input.value.trim().length > 0) {
+                if (this.room) {
+                    this.room.send("chat", input.value.trim());
+                    input.value = '';
+                }
+            }
+            e.stopPropagation(); 
+        });
+
+        // Inventory Toggle
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'i' || e.key === 'I') {
+                const inv = document.getElementById('inventory-container');
+                if (inv && document.activeElement !== input) {
+                    inv.classList.toggle('hidden');
+                }
+            }
+        });
+    }
+
+    async connect(username: string, skin: string) {
+        try {
+            this.room = await this.client.joinOrCreate("world", { username, skin });
             console.log("Connected to World:", this.room.sessionId, "as", username);
+
+            this.room.onMessage("chat", (message) => {
+                const chat = document.getElementById('chat-messages');
+                if (chat) {
+                    const line = document.createElement('div');
+                    line.innerText = `${message.sender}: ${message.text}`;
+                    chat.appendChild(line);
+                    chat.scrollTop = chat.scrollHeight;
+                }
+            });
 
             // Start Ping Loop (Every 2 seconds)
             this.pingInterval = setInterval(() => {
@@ -191,16 +277,15 @@ class GameScene extends Phaser.Scene {
     private syncPlayer(sessionId: string, data: any) {
         if (!this.playerController.entities.has(sessionId)) {
             const isLocal = sessionId === this.room?.sessionId;
-            // Use 'player_rpg' texture (our procedural asset) instead of the old 'player' atlas
-            const sprite = this.playerController.addPlayer(sessionId, data.x, data.y, isLocal);
-            // Override texture to use the new simple spritesheet
-            sprite.setTexture('player_idle'); 
+            // Pass skin
+            const sprite = this.playerController.addPlayer(sessionId, data.x, data.y, isLocal, data.skin);
+            // Texture is set inside addPlayer now (if needed) or defaulted
             
             if (isLocal) {
                 this.cameras.main.startFollow(sprite, true, 0.1, 0.1);
             }
         } else {
-            this.playerController.updatePlayerState(sessionId, data.x, data.y);
+            this.playerController.updatePlayerState(sessionId, data);
         }
     }
 
@@ -245,11 +330,29 @@ class GameScene extends Phaser.Scene {
             else if (this.currentLatency < 200) this.uiText.setColor('#ffff00');
             else this.uiText.setColor('#ff0000');
 
-             // Inventory
-            if (this.inventoryText && myState.inventory) {
-                 const items = myState.inventory.map((i: any) => `${i.itemId} x${i.count}`).join('\n');
-                 this.inventoryText.setText(`INVENTORY:\n${items || '(empty)'}`);
-            }
+             // Inventory Grid Update
+             const grid = document.getElementById('inventory-grid');
+             // Only update if visible to save DOM perf? No, update always for now.
+             if (grid && myState.inventory) {
+                 grid.innerHTML = '';
+                 myState.inventory.forEach((item: any) => {
+                     const slot = document.createElement('div');
+                     slot.className = 'inv-slot';
+                     const name = item.itemId.split('_')[1] || item.itemId; // "sword_wood" -> "wood"
+                     slot.innerText = `${name}\n${item.count}`;
+                     
+                     if (myState.weapon === item.itemId) {
+                         slot.classList.add('equipped');
+                         slot.style.borderColor = "#0f0";
+                     }
+                     
+                     slot.onclick = () => {
+                         this.room?.send("equip", item.itemId);
+                     };
+                     
+                     grid.appendChild(slot);
+                 });
+             }
         }
     }
 

@@ -47,4 +47,9 @@ export interface Entity {
         items: { itemId: string; count: number }[]; // Array of items
         capacity: number;
     };
+
+    equipment?: {
+        weapon?: string;
+        armor?: string;
+    };
 }
