@@ -18,6 +18,12 @@ export interface Entity {
     
     facing?: { x: number; y: number };
 
+    ai?: {
+        state: 'idle' | 'patrol' | 'chase';
+        targetId?: string;
+        lastStateChange: number;
+    };
+
     // Combat
     combat?: {
         cooldown: number;

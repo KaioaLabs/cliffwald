@@ -6,6 +6,7 @@ import { buildPhysics } from "../shared/MapParser";
 import { world } from "../shared/ecs/world";
 import { MovementSystem } from "../shared/systems/MovementSystem";
 import { CombatSystem } from "../shared/systems/CombatSystem";
+import { AISystem } from "../shared/systems/AISystem";
 import { Entity } from "../shared/ecs/components";
 import * as fs from "fs";
 import { db } from "./db";
@@ -30,6 +31,32 @@ export class WorldRoom extends Room<GameState> {
             this.spawnPos = physicsData.spawnPos;
         }
 
+        // Spawn Test NPC
+        const npcBodyDesc = RAPIER.RigidBodyDesc.kinematicVelocityBased()
+             .setTranslation(this.spawnPos.x + 40, this.spawnPos.y);
+        const npcBody = this.physicsWorld.createRigidBody(npcBodyDesc);
+        npcBody.userData = { sessionId: "NPC_1" };
+        this.physicsWorld.createCollider(RAPIER.ColliderDesc.ball(CONFIG.PLAYER_RADIUS), npcBody);
+        
+        const npcEntity = world.add({
+            body: npcBody,
+            input: { left: false, right: false, up: false, down: false, attack: false },
+            stats: { hp: 50, maxHp: 50, speed: 2 },
+            ai: { state: 'idle', lastStateChange: Date.now() },
+            player: { sessionId: "NPC_1" },
+            combat: { cooldown: 0, range: 20, damage: 5 },
+            facing: { x: 0, y: 1 }
+        });
+        this.entities.set("NPC_1", npcEntity);
+        
+        const npcState = new Player();
+        npcState.id = "NPC_1";
+        npcState.x = this.spawnPos.x + 40;
+        npcState.y = this.spawnPos.y;
+        npcState.hp = 50;
+        npcState.maxHp = 50;
+        this.state.players.set("NPC_1", npcState);
+
         this.onMessage("move", (client, input) => {
             const entity = this.entities.get(client.sessionId);
             if (entity && entity.input && input) {
@@ -52,6 +79,7 @@ export class WorldRoom extends Room<GameState> {
 
             // 1. Run ECS Systems
             MovementSystem();
+            AISystem(dtSeconds);
             CombatSystem(dtSeconds, this.physicsWorld, this.entities);
             // InventorySystem(); // TODO: Implement if logic needed (auto-heal etc)
 
