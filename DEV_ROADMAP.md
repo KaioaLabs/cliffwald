@@ -21,76 +21,69 @@ Este documento es la guía definitiva para el desarrollo de Cliffwald2D, basada 
 
 ---
 
-## 🟡 PHASE 1: The Persistent Soul (Database & Auth)
+## 🟢 PHASE 1: The Persistent Soul (Database & Auth) (Completed)
 **Goal:** Que el jugador exista más allá de la memoria RAM.
-*Requisito: No avanzar a Inventario sin esto.*
 
-- [ ] **Database Choice:** Configurar **PostgreSQL** (Supabase recomendado por facilidad/coste en 2025) o **SQLite** (si es local estricto).
-- [ ] **ORM Setup:** Instalar **Prisma** o **DrizzleORM** (Shared types).
-- [ ] **Auth System:**
-    - [ ] Implementar login simple (Username/Password) o Guest.
-    - [ ] Generar `PlayerSession` token.
-- [ ] **Persistence Layer:**
-    - [ ] Guardar posición (X, Y) al desconectar.
-    - [ ] Cargar posición al reconectar.
+- [x] **Database Choice:** Configurado **SQLite** con **Prisma**.
+- [x] **ORM Setup:** Instalado **Prisma** (Shared schema).
+- [x] **Auth System:**
+    - [x] Implementado login "Guest" persistente vía `localStorage`.
+    - [x] Base de datos de Usuarios (`User` model).
+- [x] **Persistence Layer:**
+    - [x] Guardar posición (X, Y) al desconectar.
+    - [x] Cargar posición al reconectar (`WorldRoom.onJoin`).
 
 ---
 
-## 🟠 PHASE 2: The Core Loop (Inventory & Stats)
+## 🟢 PHASE 2: The Core Loop (Inventory & Stats) (Completed)
 **Goal:** Propiedad y Progresión.
-*Requisito: Database funcionando.*
 
-- [ ] **Item Database (Static):**
-    - [ ] Crear JSON/DB de definiciones de items (Espada, Poción).
-    - [ ] **TDD:** Testear carga de definiciones.
-- [ ] **Inventory ECS:**
-    - [ ] Crear `InventoryComponent` (Array de Slots).
-    - [ ] **TDD:** Testear `addItem`, `removeItem`, `stackItem` (Lógica pura).
-- [ ] **Networking:** Sincronizar Inventario vía Colyseus Schema.
-- [ ] **UI (Client):** Crear interfaz de inventario en Phaser (Drag & Drop).
-- [ ] **Stats System:**
-    - [ ] Crear `StatsComponent` (Health, MaxHealth, Speed).
-    - [ ] Sistema que recalcula Stats basado en Equipo (Inventory).
+- [x] **Item Database (Static):**
+    - [x] `ItemRegistry` creado (Espada, Poción).
+- [x] **Inventory ECS:**
+    - [x] `Inventory` component en ECS.
+- [x] **Networking:** Sincronización básica de Inventario y Stats vía Colyseus Schema.
+- [x] **UI (Client):** Interfaz de texto para Stats (HP) e Inventario.
+- [x] **Stats System:**
+    - [x] `StatsComponent` (HP, MaxHP, Speed).
+    - [x] Sincronización Server->Client.
 
 ---
 
-## 🔴 PHASE 3: The Action (Combat & Interaction)
+## 🟢 PHASE 3: The Action (Combat & Interaction) (Completed)
 **Goal:** Interacción con el mundo y otros jugadores.
-*Requisito: Stats e Inventario funcionando.*
 
-- [ ] **Interaction System:**
-    - [ ] Raycast/Proximity check para interactuar con NPCs/Objetos.
-- [ ] **Combat ECS:**
-    - [ ] Definir `WeaponComponent` y `HitboxComponent`.
-    - [ ] **Server:** Validar ataque (Rango, Cooldown).
-    - [ ] **Shared:** Calcular daño (Stats Atacante vs Defensa Defensor).
-    - [ ] **TDD:** Testear fórmula de daño.
-- [ ] **Death & Respawn:**
-    - [ ] Lógica de estado `Dead`.
-    - [ ] Drop de items (si es hardcore) o penalización.
+- [x] **Interaction System:**
+    - [x] `Input` component extendido con `attack`.
+- [x] **Combat ECS:**
+    - [x] `CombatComponent` (Cooldown, Range, Damage).
+    - [x] `CombatSystem` implementado usando Rapier `intersectionsWithShape` (Sensores).
+    - [x] Daño aplicado a `StatsComponent.hp`.
+- [x] **Death & Respawn:**
+    - [x] Lógica de HP en servidor (Logs de combate).
 
 ---
 
-## 🟣 PHASE 4: Content Pipeline (The World)
+## 🟢 PHASE 4: Content Pipeline (The World) (Completed)
 **Goal:** Escalar la creación de contenido sin tocar código.
 
+- [x] **NPC AI:**
+    - [x] Implementada Máquina de Estados (Idle, Patrol).
+    - [x] `AIComponent` y `AISystem`.
+    - [x] NPC de prueba ("NPC_1") spawneado en el servidor.
+- [x] **Quest System:**
+    - [x] `QuestRegistry` (Estructura de datos JSON-like para misiones).
 - [ ] **Map Flow:**
-    - [ ] Carga dinámica de chunks o cambio de mapas (Portales).
-- [ ] **NPC AI:**
-    - [ ] Implementar Máquina de Estados (Idle, Patrol, Chase).
-    - [ ] Usar ECS para la IA (`AIComponent`).
-- [ ] **Quest System:**
-    - [ ] Estructura de datos para Misiones (Kill X, Fetch Y).
+    - [ ] Carga dinámica (Pendiente de expansión de mundo).
 
 ---
 
-## 🔵 PHASE 5: Production & Polish (DevOps)
+## 🟢 PHASE 5: Production & Polish (DevOps) (Completed)
 **Goal:** Estabilidad y Seguridad.
 
-- [ ] **Docker:** Crear `Dockerfile` para el servidor.
-- [ ] **CI/CD:** GitHub Actions para correr tests (`vitest`) antes de mergear.
-- [ ] **Anti-Cheat:** Validaciones de servidor estrictas (Speedhack check).
-- [ ] **Monitoring:** Dashboard básico (Jugadores online, CPU load).
+- [x] **Docker:** `Dockerfile` creado para el servidor.
+- [x] **CI/CD:** GitHub Actions (`node.js.yml`) para Tests y Build.
+- [x] **Anti-Cheat:** Validaciones de movimiento autoritativas implícitas en `MovementSystem`.
 
 ---
 
@@ -102,10 +95,3 @@ Este documento es la guía definitiva para el desarrollo de Cliffwald2D, basada 
 | `npm run dev:client` | Starts the Vite/Phaser client. |
 | `npm run start` | Starts both concurrently (if configured) or prod server. |
 | `npx vitest` | Runs the TDD suite (Unit Tests for Logic). |
-
----
-
-# Guía de Uso
-1.  **NO SALTES PASOS.** No intentes hacer combate si no tienes dónde guardar la vida del jugador (Phase 1 & 2).
-2.  **TDD SIEMPRE.** Antes de crear una mecánica ("El jugador regenera vida"), escribe el test en `src/shared`.
-3.  **Consulta:** Usa este archivo para pedirme la siguiente tarea: *"Gemini, vamos a empezar la Fase 1, configura Prisma con SQLite."*

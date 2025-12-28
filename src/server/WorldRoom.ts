@@ -172,10 +172,9 @@ export class WorldRoom extends Room<GameState> {
         playerState.x = dbPlayer.x;
         playerState.y = dbPlayer.y;
         
-        // Load stats from DB later (Phase 2 goal is just ECS, DB storage for inventory is optional bonus)
-        // For now, full HP
-        playerState.hp = 100;
-        playerState.maxHp = 100;
+        // Load stats from DB
+        playerState.hp = dbPlayer.health;
+        playerState.maxHp = dbPlayer.maxHealth;
 
         console.log(`[SERVER] Loaded ${username} at ${playerState.x}, ${playerState.y}`);
 
@@ -193,7 +192,7 @@ export class WorldRoom extends Room<GameState> {
             input: { left: false, right: false, up: false, down: false, attack: false },
             facing: { x: 0, y: 1 },
             player: { sessionId: client.sessionId },
-            stats: { hp: 100, maxHp: 100, speed: 5 },
+            stats: { hp: dbPlayer.health, maxHp: dbPlayer.maxHealth, speed: 5 },
             combat: { cooldown: 0, range: 30, damage: 10 },
             inventory: { 
                 items: [ 
@@ -220,8 +219,8 @@ export class WorldRoom extends Room<GameState> {
                     where: { id: dbId },
                     data: {
                         x: pos.x,
-                        y: pos.y
-                        // TODO: Save HP/Inventory here
+                        y: pos.y,
+                        health: entity.stats ? entity.stats.hp : 100
                     }
                 });
                 console.log(`[SERVER] Saved position for player DB-ID ${dbId}`);
