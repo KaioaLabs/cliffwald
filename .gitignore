@@ -17,3 +17,7 @@ C:/Users/xabie/.gemini/tmp/
 # Environment
 .env
 .env.local
+
+# Generated
+src/generated/
+*.db

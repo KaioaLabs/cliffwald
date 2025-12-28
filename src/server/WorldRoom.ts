@@ -7,10 +7,12 @@ import { world } from "../shared/ecs/world";
 import { MovementSystem } from "../shared/systems/MovementSystem";
 import { Entity } from "../shared/ecs/components";
 import * as fs from "fs";
+import { db } from "./db";
 
 export class WorldRoom extends Room<GameState> {
     private physicsWorld!: RAPIER.World;
     private entities: Map<string, Entity> = new Map();
+    private playerDbIds: Map<string, number> = new Map(); // Maps sessionId to DB Player ID
     private spawnPos = CONFIG.SPAWN_POINT;
 
     async onCreate() {
@@ -62,13 +64,54 @@ export class WorldRoom extends Room<GameState> {
         }, 1000 / CONFIG.SERVER_FPS);
     }
 
-    onJoin(client: Client) {
-        console.log(`[SERVER] Player ${client.sessionId} joined! Current players: ${this.state.players.size + 1}`);
+    async onJoin(client: Client, options: any) {
+        console.log(`[SERVER] Player ${client.sessionId} joined!`);
         
+        // 1. Auth / DB Load
+        const username = options.username || `Guest_${client.sessionId}`;
+        
+        // Upsert User (Create if new, get if exists)
+        // Note: In a real app, use findUnique + create with password check.
+        // For Phase 1, we just sync by username.
+        let user = await db.user.findUnique({ where: { username } });
+        if (!user) {
+            user = await db.user.create({
+                data: {
+                    username,
+                    password: "default_password", // Placeholder
+                    player: {
+                        create: {
+                            x: this.spawnPos.x + (Math.random() * 20 - 10),
+                            y: this.spawnPos.y + (Math.random() * 20 - 10)
+                        }
+                    }
+                },
+                include: { player: true } // Return the created player
+            });
+        }
+
+        // If user existed, ensure they have a player record
+        let dbPlayer = await db.player.findUnique({ where: { userId: user.id } });
+        if (!dbPlayer) {
+             dbPlayer = await db.player.create({
+                data: {
+                    userId: user.id,
+                    x: this.spawnPos.x,
+                    y: this.spawnPos.y
+                }
+            });
+        }
+
+        // Store Mapping
+        this.playerDbIds.set(client.sessionId, dbPlayer.id);
+
+        // 2. Init State
         const playerState = new Player();
         playerState.id = client.sessionId;
-        playerState.x = this.spawnPos.x + (Math.random() * 20 - 10);
-        playerState.y = this.spawnPos.y + (Math.random() * 20 - 10);
+        playerState.x = dbPlayer.x;
+        playerState.y = dbPlayer.y;
+
+        console.log(`[SERVER] Loaded ${username} at ${playerState.x}, ${playerState.y}`);
 
         // Create Physics Body
         const bodyDesc = RAPIER.RigidBodyDesc.kinematicVelocityBased()
@@ -88,13 +131,33 @@ export class WorldRoom extends Room<GameState> {
         this.state.players.set(client.sessionId, playerState);
     }
 
-    onLeave(client: Client) {
+    async onLeave(client: Client) {
         const entity = this.entities.get(client.sessionId);
+        const dbId = this.playerDbIds.get(client.sessionId);
+
+        // Save Position
+        if (entity && entity.body && dbId) {
+            const pos = entity.body.translation();
+            try {
+                await db.player.update({
+                    where: { id: dbId },
+                    data: {
+                        x: pos.x,
+                        y: pos.y
+                    }
+                });
+                console.log(`[SERVER] Saved position for player DB-ID ${dbId}`);
+            } catch (e) {
+                console.error(`[SERVER] Failed to save player ${dbId}:`, e);
+            }
+        }
+
         if (entity) {
             if (entity.body) this.physicsWorld.removeRigidBody(entity.body);
             world.remove(entity);
             this.entities.delete(client.sessionId);
         }
+        this.playerDbIds.delete(client.sessionId);
         this.state.players.delete(client.sessionId);
     }
 }

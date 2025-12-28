@@ -90,8 +90,15 @@ class GameScene extends Phaser.Scene {
 
     async connect() {
         try {
-            this.room = await this.client.joinOrCreate("world");
-            console.log("Connected to World:", this.room.sessionId);
+            // Persistent Identity (Phase 1)
+            let username = localStorage.getItem("my_username");
+            if (!username) {
+                username = "Player_" + Math.floor(Math.random() * 10000);
+                localStorage.setItem("my_username", username);
+            }
+
+            this.room = await this.client.joinOrCreate("world", { username });
+            console.log("Connected to World:", this.room.sessionId, "as", username);
 
             // Start Ping Loop (Every 2 seconds)
             this.pingInterval = setInterval(() => {
@@ -186,7 +193,7 @@ class GameScene extends Phaser.Scene {
             // Use 'player_rpg' texture (our procedural asset) instead of the old 'player' atlas
             const sprite = this.playerController.addPlayer(sessionId, data.x, data.y, isLocal);
             // Override texture to use the new simple spritesheet
-            sprite.setTexture('player_rpg'); 
+            sprite.setTexture('player_idle'); 
             
             if (isLocal) {
                 this.cameras.main.startFollow(sprite, true, 0.1, 0.1);
