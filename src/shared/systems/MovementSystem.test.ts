@@ -24,7 +24,7 @@ describe('MovementSystem', () => {
         
         const entity = world.add({
             body: body,
-            input: { left: false, right: true, up: false, down: false }
+            input: { left: false, right: true, up: false, down: false, attack: false }
         });
 
         // 3. Run System
@@ -42,7 +42,7 @@ describe('MovementSystem', () => {
 
         world.add({
             body: body,
-            input: { left: false, right: true, up: false, down: true } // Down-Right
+            input: { left: false, right: true, up: false, down: true, attack: false } // Down-Right
         });
 
         MovementSystem();

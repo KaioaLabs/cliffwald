@@ -307,10 +307,10 @@ class GameScene extends Phaser.Scene {
     }
 
     // State to track previous input to avoid spamming server but ensure stop is sent
-    lastInputState = { left: false, right: false, up: false, down: false };
+    lastInputState = { left: false, right: false, up: false, down: false, attack: false };
 
     handleInput() {
-        if (!this.room || !this.cursors) return { left: false, right: false, up: false, down: false };
+        if (!this.room || !this.cursors) return { left: false, right: false, up: false, down: false, attack: false };
         const keys: any = this.input.keyboard?.addKeys('W,S,A,D');
         
         const input = {
@@ -318,6 +318,7 @@ class GameScene extends Phaser.Scene {
             right: this.cursors.right.isDown || keys.D.isDown,
             up: this.cursors.up.isDown || keys.W.isDown,
             down: this.cursors.down.isDown || keys.S.isDown,
+            attack: this.cursors.space.isDown
         };
 
         const isMoving = input.left || input.right || input.up || input.down;
@@ -333,7 +334,8 @@ class GameScene extends Phaser.Scene {
             input.left !== this.lastInputState.left ||
             input.right !== this.lastInputState.right ||
             input.up !== this.lastInputState.up ||
-            input.down !== this.lastInputState.down;
+            input.down !== this.lastInputState.down ||
+            input.attack !== this.lastInputState.attack;
 
         if (inputChanged || (isMoving && this.game.loop.frame % 10 === 0)) { // Heartbeat input every 10 frames if moving
             this.room.send("move", input);

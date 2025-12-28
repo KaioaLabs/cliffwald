@@ -5,6 +5,7 @@ import RAPIER from "@dimforge/rapier2d-compat";
 import { buildPhysics } from "../shared/MapParser";
 import { world } from "../shared/ecs/world";
 import { MovementSystem } from "../shared/systems/MovementSystem";
+import { CombatSystem } from "../shared/systems/CombatSystem";
 import { Entity } from "../shared/ecs/components";
 import * as fs from "fs";
 import { db } from "./db";
@@ -37,6 +38,7 @@ export class WorldRoom extends Room<GameState> {
                 entity.input.right = !!input.right;
                 entity.input.up = !!input.up;
                 entity.input.down = !!input.down;
+                entity.input.attack = !!input.attack;
             }
         });
 
@@ -46,8 +48,11 @@ export class WorldRoom extends Room<GameState> {
         });
 
         this.setSimulationInterval((dt) => {
+            const dtSeconds = dt / 1000;
+
             // 1. Run ECS Systems
             MovementSystem();
+            CombatSystem(dtSeconds, this.physicsWorld, this.entities);
             // InventorySystem(); // TODO: Implement if logic needed (auto-heal etc)
 
             // 2. Step Physics
@@ -150,15 +155,18 @@ export class WorldRoom extends Room<GameState> {
         const bodyDesc = RAPIER.RigidBodyDesc.kinematicVelocityBased()
             .setTranslation(playerState.x, playerState.y);
         const body = this.physicsWorld.createRigidBody(bodyDesc);
+        body.userData = { sessionId: client.sessionId };
         const colliderDesc = RAPIER.ColliderDesc.ball(CONFIG.PLAYER_RADIUS);
         this.physicsWorld.createCollider(colliderDesc, body);
 
         // Create ECS Entity
         const entity = world.add({
             body: body,
-            input: { left: false, right: false, up: false, down: false },
+            input: { left: false, right: false, up: false, down: false, attack: false },
+            facing: { x: 0, y: 1 },
             player: { sessionId: client.sessionId },
             stats: { hp: 100, maxHp: 100, speed: 5 },
+            combat: { cooldown: 0, range: 30, damage: 10 },
             inventory: { 
                 items: [ 
                     { itemId: "sword_wood", count: 1 }, 

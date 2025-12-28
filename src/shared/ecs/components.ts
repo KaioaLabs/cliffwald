@@ -13,6 +13,16 @@ export interface Entity {
         right: boolean;
         up: boolean;
         down: boolean;
+        attack: boolean;
+    };
+    
+    facing?: { x: number; y: number };
+
+    // Combat
+    combat?: {
+        cooldown: number;
+        range: number;
+        damage: number;
     };
     
     // Gameplay

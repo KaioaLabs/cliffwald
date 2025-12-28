@@ -21,5 +21,12 @@ export const MovementSystem = () => {
         }
 
         body.setLinvel({ x: vx, y: vy }, true);
+
+        // Update Facing
+        if ((vx !== 0 || vy !== 0) && entity.facing) {
+            const len = Math.sqrt(vx*vx + vy*vy);
+            entity.facing.x = vx / len;
+            entity.facing.y = vy / len;
+        }
     }
 };

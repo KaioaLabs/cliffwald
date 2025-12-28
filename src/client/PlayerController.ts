@@ -66,7 +66,7 @@ export class PlayerController {
         const ecsEntity = world.add({
             id: sessionId,
             body: body,
-            input: { left: false, right: false, up: false, down: false }
+            input: { left: false, right: false, up: false, down: false, attack: false }
         });
         this.ecsEntities.set(sessionId, ecsEntity);
     }
