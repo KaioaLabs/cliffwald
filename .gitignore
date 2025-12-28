@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+.npm/
+
+# Build/Output
+dist/
+.temp/
+C:/Users/xabie/.gemini/tmp/
+
+# OS/IDEs
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.log
+
+# Environment
+.env
+.env.local
