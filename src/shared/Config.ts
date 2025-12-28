@@ -13,6 +13,7 @@ export const CONFIG = {
 
     // Networking / Interpolation
     INTERPOLATION_FACTOR: 0.2, // 20% lerp per frame
+    VIEW_DISTANCE: 600,
     
     // Map
     SPAWN_POINT: { x: 128, y: 128 },

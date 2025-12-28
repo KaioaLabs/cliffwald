@@ -1,4 +1,5 @@
 import { Schema, type, MapSchema, ArraySchema } from "@colyseus/schema";
+import { CONFIG } from "./Config";
 
 export class InventoryItem extends Schema {
     @type("string") itemId: string = "";
