@@ -19,4 +19,16 @@ export interface Entity {
     player?: {
         sessionId: string;
     };
+
+    // RPG
+    stats?: {
+        hp: number;
+        maxHp: number;
+        speed: number;
+    };
+
+    inventory?: {
+        items: { itemId: string; count: number }[]; // Array of items
+        capacity: number;
+    };
 }

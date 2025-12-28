@@ -17,6 +17,7 @@ class GameScene extends Phaser.Scene {
     
     // UI & Entities
     uiText?: Phaser.GameObjects.Text;
+    inventoryText?: Phaser.GameObjects.Text;
     debugGraphics?: Phaser.GameObjects.Graphics;
     
     // Telemetry
@@ -214,16 +215,28 @@ class GameScene extends Phaser.Scene {
         });
         this.uiText.setScrollFactor(0);
         this.uiText.setDepth(1000);
+
+        this.inventoryText = this.add.text(10, 60, 'Inventory...', {
+            fontFamily: 'monospace',
+            fontSize: '10px',
+            color: '#ffff00',
+            backgroundColor: '#00000088'
+        });
+        this.inventoryText.setScrollFactor(0);
+        this.inventoryText.setDepth(1000);
     }
 
     updateUI() {
         if (!this.uiText || !this.room) return;
-        const mySprite = this.playerController.entities.get(this.room.sessionId);
-        if (mySprite) {
+        
+        const state = this.room.state as any;
+        const myState = state.players ? state.players.get(this.room.sessionId) : null;
+
+        if (myState) {
             this.uiText.setText(
-                `POS: ${Math.round(mySprite.x)},${Math.round(mySprite.y)}
+                `POS: ${Math.round(myState.x)},${Math.round(myState.y)}
 ` +
-                `FPS: ${Math.round(this.game.loop.actualFps)}
+                `HP: ${myState.hp}/${myState.maxHp}
 ` +
                 `PING: ${this.currentLatency}ms`
             );
@@ -231,6 +244,12 @@ class GameScene extends Phaser.Scene {
             if (this.currentLatency < 100) this.uiText.setColor('#00ff00');
             else if (this.currentLatency < 200) this.uiText.setColor('#ffff00');
             else this.uiText.setColor('#ff0000');
+
+             // Inventory
+            if (this.inventoryText && myState.inventory) {
+                 const items = myState.inventory.map((i: any) => `${i.itemId} x${i.count}`).join('\n');
+                 this.inventoryText.setText(`INVENTORY:\n${items || '(empty)'}`);
+            }
         }
     }
 
