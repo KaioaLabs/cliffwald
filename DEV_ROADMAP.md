@@ -87,6 +87,21 @@ Este documento es la guía definitiva para el desarrollo de Cliffwald2D, basada 
 
 ---
 
+## 🟢 PHASE 6: Expansion (Identity & Social) (Completed)
+**Goal:** Convertir el prototipo técnico en un juego multijugador real.
+
+- [x] **Identidad:**
+    - [x] Pantalla de Login con Selector de Clase/Skin.
+    - [x] Persistencia de Skin en Base de Datos.
+- [x] **Social:**
+    - [x] Sistema de Chat Global (Interfaz HTML overlay + Protocolo).
+    - [x] NameTags mejorados con Barra de Vida sobre el personaje.
+- [x] **UI/UX RPG:**
+    - [x] Inventario Visual en Grilla (Toggle con tecla 'I').
+    - [x] Sistema de Equipamiento (Clic para equipar, cambia stats en servidor).
+
+---
+
 # Development Commands
 
 | Command | Description |

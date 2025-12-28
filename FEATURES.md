@@ -70,3 +70,22 @@ Este documento detalla todas las características y sistemas implementados en el
 *   **Dockerización:** `Dockerfile` optimizado para Node.js, incluyendo la generación del cliente de Prisma.
 *   **CI (Integración Continua):** GitHub Actions configurado para ejecutar `npm test` y `tsc --noEmit` en cada push, garantizando que el código no se rompa.
 *   **Seguridad:** Validación de inputs en el servidor y movimiento autoritativo para evitar speedhacks.
+
+---
+
+## 🟢 Phase 6: Expansion (Identity, Social & UI)
+**Meta:** Experiencia de usuario completa.
+
+*   **Identidad y Persistencia Visual:**
+    *   **Selector:** Pantalla HTML/CSS superpuesta para elegir Nombre y Clase (Skin).
+    *   **Persistencia:** El campo `skin` se guarda en base de datos. Al reconectar, mantienes tu apariencia.
+*   **Sistema de Chat:**
+    *   **Protocolo:** Mensajes `chat` broadcasted por el servidor.
+    *   **Interfaz:** Historial de chat con scroll y input box.
+*   **Inventario Visual (Grid):**
+    *   **UI:** Grilla 4xN generada dinámicamente con CSS.
+    *   **Equipamiento:** Clic en un item envía mensaje `equip` al servidor.
+    *   **Feedback:** Los items equipados muestran un borde verde.
+*   **HUD Avanzado:**
+    *   **NameTags:** Muestran el nombre real del jugador (no ID).
+    *   **Barras de Vida:** Renderizadas dinámicamente sobre el personaje, actualizadas en tiempo real.
