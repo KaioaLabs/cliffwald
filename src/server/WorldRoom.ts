@@ -155,6 +155,36 @@ export class WorldRoom extends Room<GameState> {
                     }
                 }
             });
+
+            // 4. AoI / View Management (Manual filtering for @view)
+            this.clients.forEach(client => {
+                const myPlayer = this.state.players.get(client.sessionId);
+                if (!myPlayer) return;
+
+                // Ensure view object exists (Colyseus Schema 3)
+                if ((client as any).view) {
+                    this.state.players.forEach((otherPlayer, id) => {
+                        // Always see self
+                        if (id === client.sessionId) {
+                             if (!(client as any).view.has(otherPlayer)) (client as any).view.add(otherPlayer);
+                             return;
+                        }
+
+                        const dx = Math.abs(myPlayer.x - otherPlayer.x);
+                        const dy = Math.abs(myPlayer.y - otherPlayer.y);
+                        
+                        if (dx < CONFIG.VIEW_DISTANCE && dy < CONFIG.VIEW_DISTANCE) {
+                            if (!(client as any).view.has(otherPlayer)) {
+                                (client as any).view.add(otherPlayer);
+                            }
+                        } else {
+                            if ((client as any).view.has(otherPlayer)) {
+                                (client as any).view.remove(otherPlayer);
+                            }
+                        }
+                    });
+                }
+            });
         }, 1000 / CONFIG.SERVER_FPS);
     }
 

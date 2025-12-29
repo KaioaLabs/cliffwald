@@ -1,4 +1,4 @@
-import { Schema, type, MapSchema, ArraySchema } from "@colyseus/schema";
+import { Schema, type, MapSchema, ArraySchema, view } from "@colyseus/schema";
 import { CONFIG } from "./Config";
 
 export class InventoryItem extends Schema {
@@ -26,5 +26,6 @@ export class Player extends Schema {
 }
 
 export class GameState extends Schema {
+    @view()
     @type({ map: Player }) players = new MapSchema<Player>();
 }
