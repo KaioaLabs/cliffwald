@@ -13,7 +13,6 @@ export interface Entity {
         right: boolean;
         up: boolean;
         down: boolean;
-        attack: boolean;
     };
     
     facing?: { x: number; y: number };
@@ -21,26 +20,25 @@ export interface Entity {
     ai?: {
         state: 'idle' | 'patrol' | 'chase';
         targetId?: string;
-        lastStateChange: number;
-    };
-
-    // Combat
-    combat?: {
-        cooldown: number;
-        range: number;
-        damage: number;
+        timer: number;
+        home?: { x: number; y: number };
     };
     
     // Gameplay
     player?: {
         sessionId: string;
     };
-
+    
     // RPG
     stats?: {
         hp: number;
         maxHp: number;
         speed: number;
+        mp: number;
+        maxMp: number;
+        level: number;
+        exp: number;
+        expToNext: number;
     };
 
     inventory?: {
@@ -51,5 +49,11 @@ export interface Entity {
     equipment?: {
         weapon?: string;
         armor?: string;
+    };
+    
+    // Quests
+    quests?: {
+        active: string[];
+        completed: string[];
     };
 }

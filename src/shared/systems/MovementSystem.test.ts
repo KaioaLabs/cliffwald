@@ -1,36 +1,32 @@
 import { describe, it, expect, beforeEach, beforeAll } from 'vitest';
 import RAPIER from '@dimforge/rapier2d-compat';
-import { world } from '../ecs/world';
+import { createWorld, ECSWorld } from '../ecs/world';
 import { MovementSystem } from './MovementSystem';
 import { CONFIG } from '../Config';
 
 describe('MovementSystem', () => {
+    let world: ECSWorld;
+
     beforeAll(async () => {
-        // Initialize Rapier once before tests
         await RAPIER.init();
     });
 
     beforeEach(() => {
-        world.clear();
+        world = createWorld();
     });
 
     it('should apply velocity when input is active', () => {
-        // 1. Setup Physics World
-        const physicsWorld = new RAPIER.World({ x: 0, y: 0 });
+        const physicsWorld = new RAPIER.World({ x: 0.0, y: 0.0 });
+        const body = physicsWorld.createRigidBody(RAPIER.RigidBodyDesc.kinematicVelocityBased());
         
-        // 2. Create Entity
-        const bodyDesc = RAPIER.RigidBodyDesc.kinematicVelocityBased();
-        const body = physicsWorld.createRigidBody(bodyDesc);
-        
-        const entity = world.add({
+        world.add({
             body: body,
-            input: { left: false, right: true, up: false, down: false, attack: false }
+            input: { left: false, right: true, up: false, down: false },
+            stats: { hp: 100, maxHp: 100, speed: CONFIG.PLAYER_SPEED, mp: 100, maxMp: 100, level: 1, exp: 0, expToNext: 100 }
         });
 
-        // 3. Run System
-        MovementSystem();
+        MovementSystem(world);
 
-        // 4. Verify
         const velocity = body.linvel();
         expect(velocity.x).toBe(CONFIG.PLAYER_SPEED);
         expect(velocity.y).toBe(0);
@@ -42,10 +38,11 @@ describe('MovementSystem', () => {
 
         world.add({
             body: body,
-            input: { left: false, right: true, up: false, down: true, attack: false } // Down-Right
+            input: { left: false, right: true, up: false, down: true },
+            stats: { hp: 100, maxHp: 100, speed: CONFIG.PLAYER_SPEED, mp: 100, maxMp: 100, level: 1, exp: 0, expToNext: 100 }
         });
 
-        MovementSystem();
+        MovementSystem(world);
 
         const velocity = body.linvel();
         const expectedSpeed = CONFIG.PLAYER_SPEED * Math.SQRT1_2;

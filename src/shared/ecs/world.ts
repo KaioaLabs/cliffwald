@@ -1,8 +1,6 @@
 import { World } from "miniplex";
 import { Entity } from "./components";
 
-// The Global ECS World
-export const world = new World<Entity>();
+export type ECSWorld = World<Entity>;
 
-// Archetypes (Pre-filtered queries for performance)
-export const movingEntities = world.with("body", "input");
+export const createWorld = () => new World<Entity>();

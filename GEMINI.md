@@ -23,3 +23,9 @@
 - **Estilo**: No usar clases de ES6 innecesarias si una estructura de datos simple basta, pero respetar la arquitectura de clases de Colyseus (Schema).
 - **IA (NPCs)**: Behavior Trees (Árboles de Comportamiento). NO usar redes neuronales generativas en tiempo de ejecución.
 - **Generación**: El código de carga de mapas y esquemas debe ser generado automáticamente cuando sea posible.
+
+## Protocolo de Verificación (MANDATORIO)
+- **Verificación Dual**: Prohibido emitir un veredicto de "Éxito" basándose solo en texto/logs.
+- **Ciclo de Cambio**: Cambio de Código -> Reinicio/Refresco -> `tools/snap.ps1` -> Análisis Visual.
+- **Evidencia Visual**: Siempre revisar `screenshots/` tras un cambio.
+- **Criterio de Fallo**: Una pantalla negra, sprites invisibles o UI rota se considera un FALLO CRÍTICO, independientemente de que el servidor reporte `Connected` o `Joined`.

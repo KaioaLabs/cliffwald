@@ -10,7 +10,7 @@ Este documento detalla todas las características y sistemas implementados en el
 *   **Arquitectura Isomórfica:** El código en `src/shared` es compartido por el servidor (Node.js) y el cliente (Phaser), permitiendo que ambos ejecuten la misma lógica de física y ECS.
 *   **Networking (Colyseus):** Servidor autoritativo que gestiona el estado global (`GameState`) y lo sincroniza con los clientes.
 *   **Física (Rapier2D):** Integración de Rapier para colisiones y movimiento dinámico.
-*   **ECS (Miniplex):** Sistema de Entidades-Componentes para gestionar la lógica de juego de forma desacoplada.
+*   **ECS (Miniplex):** Sistema de Entidades-Componentes para gestionar la lógica de juego de forma desacoplada. Se utiliza **Inyección de Dependencias** (`createWorld`) para evitar singletons globales.
 *   **Client Prediction & Reconciliation:** El cliente predice su propio movimiento localmente y se reconcilia con la posición del servidor si hay discrepancias mayores a 2px.
 *   **Snapshot Interpolation:** Los jugadores remotos se renderizan usando un buffer de 150ms para suavizar el movimiento a pesar de la latencia.
 
@@ -21,6 +21,7 @@ Este documento detalla todas las características y sistemas implementados en el
 
 *   **Motor de BD:** SQLite (archivo local `prisma/dev.db`).
 *   **ORM (Prisma):** Modelado de datos en `prisma/schema.prisma`.
+*   **Service Layer:** `PlayerService` encapsula toda la lógica de base de datos para garantizar transacciones seguras (`upsert`) y evitar condiciones de carrera.
 *   **Autenticación Guest:**
     *   **Cliente:** Genera un nombre de usuario aleatorio y lo persiste en `localStorage`.
     *   **Servidor:** Al unir/crear la sesión, se busca el usuario en la DB; si no existe, se crea un registro de `User` y `Player`.
@@ -41,24 +42,12 @@ Este documento detalla todas las características y sistemas implementados en el
 
 ---
 
-## 🟢 Phase 3: The Action (Combate e Interacción)
-**Meta:** Interacción con el mundo y otros jugadores.
-
-*   **Sistema de Combate Melee:**
-    *   **Input:** Activado por la tecla `Espacio`.
-    *   **Detección de Hits:** Uso de sensores circulares en Rapier (`intersectionsWithShape`) proyectados frente al jugador basándose en su dirección (`facing`).
-    *   **Cooldown:** Sistema de enfriamiento de 500ms entre ataques.
-*   **Direccionamiento (Facing):** El sistema de movimiento actualiza automáticamente el componente `facing` para que el jugador ataque siempre hacia donde se movió por última vez.
-
----
-
 ## 🟢 Phase 4: Content Pipeline (NPCs y Quests)
 **Meta:** Escalar la creación de contenido.
 
 *   **IA de NPCs:**
     *   **AISystem:** Procesa entidades con el componente `ai`.
-    *   **Máquina de Estados:** Soporta estados `idle` y `patrol`. Los NPCs eligen direcciones al azar y patrullan su zona de spawn.
-    *   **Spawn:** NPC de prueba ("NPC_1") configurado como "Village Elder".
+    *   **Máquina de Estados:** Soporta estados `idle` y `patrol`. Los NPCs eligen direcciones al azar y patrullan su zona de spawn usando temporizadores deterministas basados en `dt`.
 *   **Estructura de Quests:**
     *   `QuestRegistry.ts` define la estructura de misiones, pasos, objetivos (NPCs) y recompensas.
 
@@ -89,3 +78,7 @@ Este documento detalla todas las características y sistemas implementados en el
 *   **HUD Avanzado:**
     *   **NameTags:** Muestran el nombre real del jugador (no ID).
     *   **Barras de Vida:** Renderizadas dinámicamente sobre el personaje, actualizadas en tiempo real.
+*   **Echos (Ghost AI):**
+    *   **Persistencia Viva:** Cuando un jugador se desconecta, su personaje se convierte automáticamente en un NPC "Echo".
+    *   **Comportamiento:** El Echo patrulla la zona donde se desconectó el jugador.
+    *   **Reconexión:** Al volver a iniciar sesión, el jugador recupera el control de su Echo instantáneamente, manteniendo posición y estado.

@@ -1,11 +1,19 @@
+import { ECSWorld } from "../ecs/world";
 import { CONFIG } from "../Config";
-import { movingEntities } from "../ecs/world";
 
-export const MovementSystem = () => {
+export const MovementSystem = (world: ECSWorld) => {
     // Iterate over all entities that HAVE a body AND input
+    const movingEntities = world.with("body", "input");
+    
     for (const entity of movingEntities) {
         const { body, input } = entity;
-        const speed = CONFIG.PLAYER_SPEED;
+        let speed = CONFIG.PLAYER_SPEED;
+        
+        // Apply speed modifier from stats if available
+        if (entity.stats) {
+            speed = entity.stats.speed;
+        }
+        
         let vx = 0;
         let vy = 0;
 

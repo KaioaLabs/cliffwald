@@ -1,38 +1,55 @@
 import Phaser from 'phaser';
 import { CONFIG } from '../shared/Config';
+import { PlayerInput, PositionUpdate } from '../shared/types/NetworkTypes';
 import RAPIER from '@dimforge/rapier2d-compat';
-import { world } from '../shared/ecs/world';
+import { createWorld, ECSWorld } from '../shared/ecs/world';
 import { Entity } from '../shared/ecs/components';
 
 export class PlayerController {
     scene: Phaser.Scene;
     physicsWorld?: RAPIER.World;
+    public world: ECSWorld; // Public so Scene can access it for Systems
     entities: Map<string, Phaser.GameObjects.Sprite> = new Map();
     ecsEntities: Map<string, Entity> = new Map();
 
     constructor(scene: Phaser.Scene, physicsWorld?: RAPIER.World) {
         this.scene = scene;
         this.physicsWorld = physicsWorld;
+        this.world = createWorld();
     }
 
     addPlayer(sessionId: string, x: number, y: number, isLocal: boolean = false, skin: string = "player_idle", username: string = "") {
+        console.log(`[DEBUG] Adding Player: ${sessionId} at ${x},${y} (Local: ${isLocal})`);
         // 1. Create Sprite using the idle spritesheet initially
         const sprite = this.scene.add.sprite(x, y, 'player_idle', 0);
+        
+        // Debug Visuals
+        if (!sprite.texture || sprite.texture.key === '__MISSING') {
+            console.error(`[CRITICAL] Sprite texture missing for 'player_idle'!`);
+        } else {
+             console.log(`[DEBUG] Sprite created. Frame: ${sprite.frame.name}, Texture: ${sprite.texture.key}, Visible: ${sprite.visible}, Alpha: ${sprite.alpha}, Depth: ${sprite.depth}`);
+        }
+
         sprite.setOrigin(0.5, 0.75); // Pivot at feet for better depth sorting
         sprite.setScale(CONFIG.PLAYER_SCALE);
         
-        // 2. Visual Styling (Skin)
-        if (skin === "player_red") {
+        // 3. Name Tag (Moved up for logic)
+        const displayName = username || sessionId.slice(0, 4);
+
+        // 2. Visual Styling (Skin / Echo)
+        const isEcho = displayName.startsWith("Echo of");
+        
+        if (isEcho) {
+            sprite.setTint(0x8888ff);
+            sprite.setAlpha(0.6);
+        } else if (skin === "player_red") {
             sprite.setTint(0xff7777);
         } else if (skin === "player_blue") {
             sprite.setTint(0x7777ff);
         } else {
-            // No tint for default
             sprite.clearTint();
         }
 
-        // 3. Name Tag
-        const displayName = username || sessionId.slice(0, 4);
         const nameTag = this.scene.add.text(x, y + CONFIG.NAME_TAG_Y_OFFSET, displayName, {
             fontSize: '10px',
             color: '#ffffff',
@@ -41,10 +58,6 @@ export class PlayerController {
             align: 'center'
         }).setOrigin(0.5);
         sprite.setData('nameTag', nameTag);
-
-        // 4. HP Bar
-        const hpBar = this.scene.add.graphics();
-        sprite.setData('hpBar', hpBar);
 
         // 5. Data Binding
         sprite.setData('serverX', x);
@@ -70,10 +83,10 @@ export class PlayerController {
         const colliderDesc = RAPIER.ColliderDesc.ball(CONFIG.PLAYER_RADIUS);
         this.physicsWorld!.createCollider(colliderDesc, body);
 
-        const ecsEntity = world.add({
+        const ecsEntity = this.world.add({
             id: sessionId,
             body: body,
-            input: { left: false, right: false, up: false, down: false, attack: false }
+            input: { left: false, right: false, up: false, down: false }
         });
         this.ecsEntities.set(sessionId, ecsEntity);
     }
@@ -83,8 +96,6 @@ export class PlayerController {
         if (sprite) {
             const nameTag = sprite.getData('nameTag');
             if (nameTag) nameTag.destroy();
-            const hpBar = sprite.getData('hpBar');
-            if (hpBar) hpBar.destroy();
             sprite.destroy();
             this.entities.delete(sessionId);
         }
@@ -94,12 +105,12 @@ export class PlayerController {
             if (ecsEntity.body && this.physicsWorld) {
                 this.physicsWorld.removeRigidBody(ecsEntity.body);
             }
-            world.remove(ecsEntity);
+            this.world.remove(ecsEntity);
             this.ecsEntities.delete(sessionId);
         }
     }
 
-    applyInput(sessionId: string, input: any) {
+    applyInput(sessionId: string, input: PlayerInput) {
         const ecsEntity = this.ecsEntities.get(sessionId);
         if (ecsEntity && ecsEntity.input) {
             ecsEntity.input.left = input.left;
@@ -109,7 +120,7 @@ export class PlayerController {
         }
     }
 
-    updatePlayerState(sessionId: string, data: any) {
+    updatePlayerState(sessionId: string, data: PositionUpdate) {
         const sprite = this.entities.get(sessionId);
         if (sprite) {
             const x = data.x;
@@ -138,14 +149,14 @@ export class PlayerController {
                     // If drift is small (> 2px), nudge gently.
                     // If drift is large (> 50px), teleport.
                     
-                    if (dist > 50) {
+                    if (dist > CONFIG.RECONCILIATION_THRESHOLD_LARGE) {
                         console.log("Reconciling large drift:", dist);
                         ecsEntity.body.setTranslation({ x, y }, true);
-                    } else if (dist > 2) { 
+                    } else if (dist > CONFIG.RECONCILIATION_THRESHOLD_SMALL) { 
                         // Only correct if drift is noticeable (> 2 pixels)
                         // This prevents the "snap back" when stopping
-                        const lerpX = Phaser.Math.Linear(localPos.x, x, 0.1);
-                        const lerpY = Phaser.Math.Linear(localPos.y, y, 0.1);
+                        const lerpX = Phaser.Math.Linear(localPos.x, x, CONFIG.RECONCILIATION_SMOOTHING);
+                        const lerpY = Phaser.Math.Linear(localPos.y, y, CONFIG.RECONCILIATION_SMOOTHING);
                         ecsEntity.body.setTranslation({ x: lerpX, y: lerpY }, true);
                     }
                 }
@@ -153,11 +164,56 @@ export class PlayerController {
         }
     }
 
+    // --- Public Helpers ---
+
+    getPosition(sessionId: string): Phaser.Math.Vector2 | null {
+        const sprite = this.entities.get(sessionId);
+        if (sprite) return new Phaser.Math.Vector2(sprite.x, sprite.y);
+        return null;
+    }
+
+    getFacingVector(sessionId: string): Phaser.Math.Vector2 {
+        const sprite = this.entities.get(sessionId);
+        if (!sprite) return new Phaser.Math.Vector2(0, 1); // Default down
+
+        const dir = sprite.getData('lastDir') || 'down';
+        const vec = new Phaser.Math.Vector2(0, 0);
+
+        switch (dir) {
+            case 'up': vec.y = -1; break;
+            case 'down': vec.y = 1; break;
+            case 'left': vec.x = -1; break; // Handled via flipX usually, but logic remains
+            case 'right': vec.x = 1; break;
+            case 'up-right': vec.x = 1; vec.y = -1; break;
+            case 'up-left': vec.x = -1; vec.y = -1; break;
+            case 'down-right': vec.x = 1; vec.y = 1; break;
+            case 'down-left': vec.x = -1; vec.y = 1; break;
+            default: vec.y = 1;
+        }
+        
+        // Handle FlipX for pure left/right which might be stored simply
+        // logic in handleAnimation sets 'lastDir' to specific strings, so we rely on that.
+        // However, handleAnimation uses 'right' with flipX for left.
+        
+        // Correction based on handleAnimation:
+        // dir = 'right' + flipX=true  => Left
+        // dir = 'right' + flipX=false => Right
+        
+        if (dir === 'right' || dir.includes('right')) {
+             if (sprite.flipX) {
+                 vec.x = -1; // It's actually left
+                 if (dir.includes('up')) vec.y = -1;
+                 if (dir.includes('down')) vec.y = 1;
+             }
+        }
+
+        return vec.normalize();
+    }
+
     // Called every frame
     updateVisuals() {
-        const RENDER_DELAY = 150; // Increased to 150ms (3 server ticks at 20fps) to prevent buffer starvation
         const now = Date.now();
-        const renderTime = now - RENDER_DELAY;
+        const renderTime = now - CONFIG.RENDER_DELAY;
 
         this.entities.forEach((sprite, sessionId) => {
             const isLocal = sprite.getData('isLocal');
@@ -205,10 +261,10 @@ export class PlayerController {
                             const velocityY = (t1.y - t0.y) / total;
                             const extrapolationTime = renderTime - t1.timestamp;
                             
-                            // Limit extrapolation to 150ms and apply decay
+                            // Limit extrapolation and apply decay
                             // Decay ensures we don't overshoot wildly if the player actually stopped
-                            if (extrapolationTime < 150) {
-                                const decay = Math.max(0, 1 - (extrapolationTime / 100)); // Slow down to stop over 100ms
+                            if (extrapolationTime < CONFIG.EXTRAPOLATION_MAX_TIME) {
+                                const decay = Math.max(0, 1 - (extrapolationTime / CONFIG.EXTRAPOLATION_DECAY_BASE)); // Slow down
                                 newX = t1.x + velocityX * extrapolationTime * decay;
                                 newY = t1.y + velocityY * extrapolationTime * decay;
                             } else {
@@ -235,7 +291,7 @@ export class PlayerController {
 
             // Final Visual Smoothing: Instead of snapping to newX/newY, 
             // we lerp gently to the target to absorb micro-jitter.
-            const lerpFactor = isLocal ? 1.0 : 0.25; // Local is instant (prediction), Remote is smoothed
+            const lerpFactor = isLocal ? CONFIG.LERP_FACTOR_LOCAL : CONFIG.LERP_FACTOR_REMOTE; // Local is instant (prediction), Remote is smoothed
             const finalX = Phaser.Math.Linear(sprite.x, newX, lerpFactor);
             const finalY = Phaser.Math.Linear(sprite.y, newY, lerpFactor);
 
@@ -246,22 +302,6 @@ export class PlayerController {
             if (nameTag) {
                 nameTag.setPosition(finalX, finalY + CONFIG.NAME_TAG_Y_OFFSET);
                 nameTag.setDepth(finalY + 100);
-            }
-
-            const hpBar = sprite.getData('hpBar');
-            if (hpBar) {
-                hpBar.clear();
-                const hp = sprite.getData('hp') ?? 100;
-                const maxHp = sprite.getData('maxHp') ?? 100;
-                const pct = Math.max(0, hp / maxHp);
-                
-                hpBar.fillStyle(0x000000, 0.8);
-                hpBar.fillRect(finalX - 10, finalY + CONFIG.NAME_TAG_Y_OFFSET + 12, 20, 4);
-                
-                hpBar.fillStyle(pct > 0.5 ? 0x00ff00 : (pct > 0.2 ? 0xffff00 : 0xff0000), 1);
-                hpBar.fillRect(finalX - 10, finalY + CONFIG.NAME_TAG_Y_OFFSET + 12, 20 * pct, 4);
-                
-                hpBar.setDepth(finalY + 101);
             }
 
             this.handleAnimation(sprite, dx, dy, sessionId);

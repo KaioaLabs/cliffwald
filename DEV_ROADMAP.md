@@ -50,20 +50,6 @@ Este documento es la guía definitiva para el desarrollo de Cliffwald2D, basada 
 
 ---
 
-## 🟢 PHASE 3: The Action (Combat & Interaction) (Completed)
-**Goal:** Interacción con el mundo y otros jugadores.
-
-- [x] **Interaction System:**
-    - [x] `Input` component extendido con `attack`.
-- [x] **Combat ECS:**
-    - [x] `CombatComponent` (Cooldown, Range, Damage).
-    - [x] `CombatSystem` implementado usando Rapier `intersectionsWithShape` (Sensores).
-    - [x] Daño aplicado a `StatsComponent.hp`.
-- [x] **Death & Respawn:**
-    - [x] Lógica de HP en servidor (Logs de combate).
-
----
-
 ## 🟢 PHASE 4: Content Pipeline (The World) (Completed)
 **Goal:** Escalar la creación de contenido sin tocar código.
 

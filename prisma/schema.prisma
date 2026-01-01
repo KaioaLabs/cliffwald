@@ -33,4 +33,17 @@ model Player {
   // Future proofing for Phase 2
   health    Int      @default(100)
   maxHealth Int      @default(100)
+
+  inventory InventoryItem[]
+}
+
+model InventoryItem {
+  id        Int    @id @default(autoincrement())
+  playerId  Int
+  player    Player @relation(fields: [playerId], references: [id])
+  
+  itemId    String // e.g. "sword_wood", "potion_hp"
+  count     Int    @default(1)
+  
+  equipped  Boolean @default(false) // Is this item currently equipped?
 }
