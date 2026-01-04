@@ -29,3 +29,9 @@
 - **Ciclo de Cambio**: Cambio de Código -> Reinicio/Refresco -> `tools/snap.ps1` -> Análisis Visual.
 - **Evidencia Visual**: Siempre revisar `screenshots/` tras un cambio.
 - **Criterio de Fallo**: Una pantalla negra, sprites invisibles o UI rota se considera un FALLO CRÍTICO, independientemente de que el servidor reporte `Connected` o `Joined`.
+
+## Security & Performance Standards
+- **Tick Rate**: Server locked to 30 FPS (`Config.ts`) to ensure stability.
+- **Validation**: Strict server-side checks for Spells (Cooldowns, Ownership) via `WorldRoom` & `SpellRegistry`.
+- **Persistence**: Database saves on logout are Async (Fire-and-forget) to prevent blocking the game loop.
+- **Memory**: Echoes (Offline players) are capped at 50 (`SpawnManager.ts`). FIFO cleanup policy.
