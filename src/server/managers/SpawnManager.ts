@@ -87,13 +87,7 @@ export class SpawnManager {
                 state: 'patrol',
                 timer: Math.random() * 2,
                 home: { x, y }
-            },
-            stats: {
-                hp: 100, maxHp: 100, speed: CONFIG.PLAYER_SPEED * 0.8, // Slightly slower
-                mp: 100, maxMp: 100, level: 1, exp: 0, expToNext: 100
-            },
-            equipment: { weapon: "sword_wood" },
-            inventory: { items: [], capacity: 10 }
+            }
         });
         this.entities.set(id, entity);
         
@@ -104,8 +98,6 @@ export class SpawnManager {
         playerState.x = x;
         playerState.y = y;
         playerState.skin = skin;
-        playerState.hp = 100;
-        playerState.maxHp = 100;
         
         this.state.players.set(id, playerState);
     }

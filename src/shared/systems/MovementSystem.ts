@@ -9,11 +9,6 @@ export const MovementSystem = (world: ECSWorld) => {
         const { body, input } = entity;
         let speed = CONFIG.PLAYER_SPEED;
         
-        // Apply speed modifier from stats if available
-        if (entity.stats) {
-            speed = entity.stats.speed;
-        }
-        
         let vx = 0;
         let vy = 0;
 

@@ -1,5 +1,5 @@
 import { Room, Client } from "colyseus";
-import { GameState, Player, InventoryItem, ChatMessage, Projectile } from "../shared/SchemaDef";
+import { GameState, Player, ChatMessage } from "../shared/SchemaDef";
 import { CONFIG } from "../shared/Config";
 import { PlayerInput, JoinOptions, ChatMessagePayload } from "../shared/types/NetworkTypes";
 import RAPIER from "@dimforge/rapier2d-compat";
@@ -7,30 +7,22 @@ import { buildPhysics } from "../shared/MapParser";
 import { createWorld, ECSWorld } from "../shared/ecs/world";
 import { MovementSystem } from "../shared/systems/MovementSystem";
 import { AISystem } from "../shared/systems/AISystem";
-import { StatsSystem } from "../shared/systems/StatsSystem";
-import { InventorySystem } from "../shared/systems/InventorySystem";
-import { CombatSystem } from "./systems/CombatSystem";
 import { Entity } from "../shared/ecs/components";
 import { AuthService } from "./services/AuthService";
 import { PersistenceManager } from "./managers/PersistenceManager";
 import { SpawnManager } from "./managers/SpawnManager";
 import { PlayerService } from "./services/PlayerService";
-import { SPELL_REGISTRY } from "../shared/items/SpellRegistry";
 import * as fs from "fs/promises";
 
 export class WorldRoom extends Room<GameState> {
     physicsWorld!: RAPIER.World;
     eventQueue!: RAPIER.EventQueue;
     world!: ECSWorld;
-    combatSystem!: CombatSystem;
     spawnManager!: SpawnManager;
     entities = new Map<string, Entity>();
     playerDbIds = new Map<string, number>();
     spawnPos = { x: 300, y: 300 };
     
-    // Security: Cooldown Tracking
-    lastCastTimes = new Map<string, number>();
-
     async onAuth(client: Client, options: JoinOptions, request: any) {
         if (!options.token) return false;
         const userData = AuthService.verifyToken(options.token);
@@ -52,7 +44,6 @@ export class WorldRoom extends Room<GameState> {
         this.eventQueue = new RAPIER.EventQueue(true);
 
         this.world = createWorld();
-        this.combatSystem = new CombatSystem(this, this.physicsWorld, this.eventQueue);
         this.spawnManager = new SpawnManager(this.world, this.physicsWorld, this.state, this.entities);
 
         try {
@@ -71,8 +62,6 @@ export class WorldRoom extends Room<GameState> {
         this.setSimulationInterval((deltaTime) => {
             MovementSystem(this.world);
             AISystem(this.world, deltaTime);
-            StatsSystem(this.world);
-            InventorySystem(this.world);
             this.physicsWorld.step(this.eventQueue);
 
             logTimer += deltaTime;
@@ -97,8 +86,6 @@ export class WorldRoom extends Room<GameState> {
                     }
                 }
             });
-
-            this.combatSystem.update(deltaTime);
         });
 
         this.onMessage("move", (client, input: PlayerInput) => {
@@ -109,48 +96,6 @@ export class WorldRoom extends Room<GameState> {
                 entity.input.up = !!input.up;
                 entity.input.down = !!input.down;
             }
-        });
-
-        this.onMessage("cast", (client, data: { spellId: string, vx: number, vy: number }) => {
-            const entity = this.entities.get(client.sessionId);
-            if (!entity || !entity.body) return;
-
-            // Security: Validate Spell
-            const spellConfig = SPELL_REGISTRY[data.spellId];
-            if (!spellConfig) {
-                console.warn(`[CHEAT] Player ${client.sessionId} tried to cast invalid spell: ${data.spellId}`);
-                return;
-            }
-
-            // Security: Check Cooldown
-            const now = Date.now();
-            const lastCast = this.lastCastTimes.get(client.sessionId) || 0;
-            if (now - lastCast < spellConfig.cooldown) {
-                // Cooldown active, ignore
-                return;
-            }
-            this.lastCastTimes.set(client.sessionId, now);
-
-            const pos = entity.body.translation();
-            const mag = Math.sqrt(data.vx * data.vx + data.vy * data.vy);
-            const vx = (mag > 0) ? (data.vx / mag) * spellConfig.speed : spellConfig.speed;
-            const vy = (mag > 0) ? (data.vy / mag) * spellConfig.speed : 0;
-
-            const id = `proj_${client.sessionId}_${Date.now()}`;
-            const proj = new Projectile();
-            proj.id = id;
-            proj.spellId = data.spellId;
-            proj.x = pos.x;
-            proj.y = pos.y;
-            proj.startX = pos.x;
-            proj.startY = pos.y;
-            proj.vx = vx;
-            proj.vy = vy;
-            proj.maxRange = 600;
-            proj.ownerId = client.sessionId;
-            proj.creationTime = now;
-
-            this.state.projectiles.set(id, proj);
         });
 
         this.onMessage("ping", (client, timestamp) => {
@@ -189,7 +134,7 @@ export class WorldRoom extends Room<GameState> {
             console.log(`[SERVER] Player ${client.sessionId} joined (Auth: ${authUser.username})`);
             
             // 2. Initialize Session
-            const { dbPlayer, inventory } = await PlayerService.initializeSession(authUser.userId, authUser.username, options);
+            const { dbPlayer } = await PlayerService.initializeSession(authUser.userId, authUser.username, options);
 
             this.playerDbIds.set(client.sessionId, dbPlayer.id);
 
@@ -200,11 +145,6 @@ export class WorldRoom extends Room<GameState> {
             playerState.x = dbPlayer.x;
             playerState.y = dbPlayer.y;
             playerState.skin = dbPlayer.skin;
-            playerState.hp = dbPlayer.health;
-            playerState.maxHp = dbPlayer.maxHealth;
-
-            const schemaItems = PlayerService.mapInventoryToSchema(inventory);
-            schemaItems.forEach(item => playerState.inventory.push(item));
 
             console.log(`[SERVER] Loaded ${authUser.username} at ${playerState.x}, ${playerState.y}`);
 
@@ -220,22 +160,7 @@ export class WorldRoom extends Room<GameState> {
                body: body,
                input: { left: false, right: false, up: false, down: false },
                facing: { x: 0, y: 1 },
-               player: { sessionId: client.sessionId },
-               stats: {
-                   hp: dbPlayer.health,
-                   maxHp: dbPlayer.maxHealth,
-                   speed: CONFIG.PLAYER_SPEED,
-                   mp: 100,
-                   maxMp: 100,
-                   level: 1,
-                   exp: 0,
-                   expToNext: 100
-               },
-               equipment: { weapon: "sword_wood" },
-               inventory: {
-                   items: inventory.map(item => ({ itemId: item.itemId, count: item.count })),
-                   capacity: 10
-               }
+               player: { sessionId: client.sessionId }
            });
 
             this.entities.set(client.sessionId, entity);
@@ -249,9 +174,6 @@ export class WorldRoom extends Room<GameState> {
     async onLeave(client: Client) {
         const entity = this.entities.get(client.sessionId);
         const dbId = this.playerDbIds.get(client.sessionId);
-
-        // Cleanup Validation
-        this.lastCastTimes.delete(client.sessionId);
 
         if (entity && entity.body && dbId) {
             // 1. Fire-and-forget save (Non-blocking)

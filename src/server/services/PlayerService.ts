@@ -1,15 +1,13 @@
 import { db } from "../db";
-import { InventoryItem } from "../../shared/SchemaDef";
 
 export interface SessionData {
     dbPlayer: any;
-    inventory: any[]; // Raw DB items
 }
 
 export class PlayerService {
     /**
      * Prepares all necessary data for a player joining the world.
-     * Handles creation, skin updates, and inventory fetching.
+     * Handles creation and skin updates.
      */
     static async initializeSession(userId: number, username: string, options: { skin?: string }): Promise<SessionData> {
         // 1. Fetch Player
@@ -38,29 +36,7 @@ export class PlayerService {
             });
         }
 
-        // 3. Fetch Inventory
-        let dbInventory: any[] = [];
-        try {
-            dbInventory = await db.inventoryItem.findMany({
-                where: { playerId: dbPlayer.id }
-            });
-        } catch (e) {
-            console.error(`[DB] Inventory fetch failed for ${username}:`, e);
-        }
-
-        return { dbPlayer, inventory: dbInventory };
-    }
-
-    /**
-     * Converts DB Inventory format to Colyseus Schema format
-     */
-    static mapInventoryToSchema(dbItems: any[]): InventoryItem[] {
-        return dbItems.map(item => {
-            const schemaItem = new InventoryItem();
-            schemaItem.itemId = item.itemId;
-            schemaItem.count = item.count;
-            return schemaItem;
-        });
+        return { dbPlayer };
     }
 
     // --- Legacy / Dev Methods ---

@@ -29,7 +29,8 @@
     "miniplex": "^2.0.0",
     "phaser": "^3.90.0",
     "recast-navigation": "^0.43.0",
-    "reflect-metadata": "^0.2.2"
+    "reflect-metadata": "^0.2.2",
+    "tweakpane": "^4.0.5"
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0",

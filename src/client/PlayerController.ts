@@ -84,7 +84,6 @@ export class PlayerController {
         this.physicsWorld!.createCollider(colliderDesc, body);
 
         const ecsEntity = this.world.add({
-            id: sessionId,
             body: body,
             input: { left: false, right: false, up: false, down: false }
         });
@@ -128,8 +127,6 @@ export class PlayerController {
             
             sprite.setData('serverX', x);
             sprite.setData('serverY', y);
-            sprite.setData('hp', data.hp ?? 100);
-            sprite.setData('maxHp', data.maxHp ?? 100);
             
             const buffer = sprite.getData('positionBuffer');
             if (buffer) {

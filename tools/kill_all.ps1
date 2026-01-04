@@ -10,6 +10,17 @@ $signatures = @(
     'tools/screenshot_monitor.ps1'      # Nuestro monitor visual
 )
 
+# Kill Design Tools (Aggressive)
+$tools = @('tiled', 'aseprite')
+foreach ($t in $tools) {
+    $p = Get-Process -Name $t -ErrorAction SilentlyContinue
+    if ($p) {
+        Write-Host "[DETECTADO] Herramienta de Diseño: $($p.Name)"
+        Stop-Process -InputObject $p -Force
+        $killedCount++
+    }
+}
+
 $processes = Get-CimInstance Win32_Process
 $killedCount = 0
 

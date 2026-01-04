@@ -1,18 +1,14 @@
 import 'reflect-metadata';
 import Phaser from 'phaser';
 // Colyseus import moved to top by previous edit, removing duplicate here if any, or ensuring clean imports.
-// Actually, I see I added it at line 3 AND it existed at line 126?
-// Let's just consolidation imports at the top.
 import * as Colyseus from "colyseus.js";
 import { CONFIG } from "../shared/Config";
 import { PlayerController } from "./PlayerController";
 import RAPIER from "@dimforge/rapier2d-compat";
 import { buildPhysics } from "../shared/MapParser";
 import { MovementSystem } from "../shared/systems/MovementSystem";
-import { GestureManager } from './GestureManager';
 import { VirtualJoystick } from './VirtualJoystick';
 import { NetworkManager } from './NetworkManager';
-import { SPELL_REGISTRY, SpellType, getSpellType } from "../shared/items/SpellRegistry";
 import { DebugManager } from './DebugManager';
 
 class UIScene extends Phaser.Scene {
@@ -54,13 +50,13 @@ class UIScene extends Phaser.Scene {
     
             // PvP Status Text (Below Clock)
     
-            this.pvpStatusText = this.add.text(this.scale.width - 20, 55, 'PVP: ON', {
+            this.pvpStatusText = this.add.text(this.scale.width - 20, 55, 'PVP: OFF', {
     
                 fontFamily: 'monospace',
     
                 fontSize: '12px',
     
-                color: '#ff0000',
+                color: '#aaaaaa',
     
                 backgroundColor: '#00000088',
     
@@ -141,11 +137,9 @@ export class GameScene extends Phaser.Scene {
     cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
     wasd?: { W: Phaser.Input.Keyboard.Key, A: Phaser.Input.Keyboard.Key, S: Phaser.Input.Keyboard.Key, D: Phaser.Input.Keyboard.Key };
     physicsWorld?: RAPIER.World;
-    gestureManager?: GestureManager;
     
     // UI & Entities
     uiText?: Phaser.GameObjects.Text;
-    inventoryText?: Phaser.GameObjects.Text;
     debugGraphics?: Phaser.GameObjects.Graphics;
     debugManager?: DebugManager;
     
@@ -212,9 +206,6 @@ export class GameScene extends Phaser.Scene {
         this.load.on('loaderror', (file: any) => console.error('Asset Load Error:', file.src));
     }
 
-    // Registry for networked projectiles
-    visualProjectiles = new Map<string, Phaser.GameObjects.Shape>();
-
     async create() {
         try {
             console.log("Scene Create Start");
@@ -260,47 +251,6 @@ export class GameScene extends Phaser.Scene {
             this.playerController = new PlayerController(this, this.physicsWorld);
             this.createAnimations();
             this.wasd = this.input.keyboard?.addKeys('W,A,S,D') as any;
-
-            // 2b. Gestures
-            this.gestureManager = new GestureManager(this, uiScene);
-            this.gestureManager.onGestureRecognized = (id, score, centroid) => {
-                const sessionId = this.room?.sessionId || "";
-                const playerPos = this.playerController.getPosition(sessionId);
-
-                if (playerPos && centroid) {
-                    const worldPoint = this.cameras.main.getWorldPoint(centroid.x, centroid.y);
-                    const aimVector = new Phaser.Math.Vector2(worldPoint.x - playerPos.x, worldPoint.y - playerPos.y).normalize();
-
-                    // MULTIPLAYER CAST: Send to server
-                    if (this.room) {
-                        this.room.send("cast", {
-                            spellId: id,
-                            vx: aimVector.x * 400, // Speed hint (Server validates)
-                            vy: aimVector.y * 400
-                        });
-                    }
-
-                    // Local Feedback: Spawn Projectile locally (Client Prediction)
-                    // It travels from Player towards the Gesture Centroid
-                    const projData = {
-                        x: playerPos.x,
-                        y: playerPos.y,
-                        spellId: id,
-                        vx: aimVector.x,
-                        vy: aimVector.y
-                    };
-                    const visualProj = this.createProjectileSprite(projData);
-                    
-                    // Animate it flying
-                    this.tweens.add({
-                        targets: visualProj,
-                        x: playerPos.x + aimVector.x * 1200, // Fly outwards
-                        y: playerPos.y + aimVector.y * 1200,
-                        duration: 3000,
-                        onComplete: () => visualProj.destroy()
-                    });
-                }
-            };
 
             // ... (Rest of create)
             this.updateCameraZoom();
@@ -434,68 +384,13 @@ export class GameScene extends Phaser.Scene {
             console.log("[DEBUG] Step 1: Room Joined. Registering Message Handlers...");
 
             // 1. REGISTER MESSAGE HANDLERS FIRST (Critical Priority)
-            this.room.onMessage("hit", (data: { targetId: string }) => {
-                console.log(`[CLIENT] Received HIT for: ${data.targetId}`);
-                const sprite = this.playerController.entities.get(data.targetId);
-                
-                if (sprite) {
-                    console.log(`[CLIENT] Visual flash triggered on sprite.`);
-                    
-                    // Create an explicit explosion effect ON TOP of the sprite
-                    const explosion = this.add.circle(sprite.x, sprite.y, 40, 0xffffff, 1);
-                    explosion.setDepth(9999); 
-                    
-                    // DEBUG: Flash Camera
-                    this.cameras.main.flash(50, 255, 255, 255);
-
-                    this.tweens.add({
-                        targets: explosion,
-                        scale: 2.0,
-                        alpha: 0,
-                        duration: 300,
-                        ease: 'Power2',
-                        onComplete: () => explosion.destroy()
-                    });
-                } else {
-                    console.warn(`[CLIENT] Target sprite not found for ID: ${data.targetId}. IDs:`, Array.from(this.playerController.entities.keys()));
-                }
-            });
-
             this.room.onMessage("pong", (timestamp) => {
                 this.currentLatency = Date.now() - timestamp;
             });
 
             console.log("[DEBUG] Step 2: Message Handlers Registered. Setting up State Sync...");
 
-            // 2. PROJECTILES SYNC
-            const state = this.room.state as any;
-            
-            // Safety check
-            if (!state.projectiles) {
-                console.error("[CRITICAL] state.projectiles is UNDEFINED! Check SchemaDef.");
-            } else {
-                state.projectiles.onAdd = (proj: any, id: string) => {
-                    // Ignore our own projectiles (handled by local prediction)
-                    if (this.room && proj.ownerId === this.room.sessionId) return;
-                    
-                    const visual = this.createProjectileSprite({
-                        x: proj.x,
-                        y: proj.y,
-                        spellId: proj.spellId,
-                        vx: proj.vx,
-                        vy: proj.vy
-                    });
-                    this.visualProjectiles.set(id, visual);
-                };
-
-                state.projectiles.onRemove = (proj: any, id: string) => {
-                    const visual = this.visualProjectiles.get(id);
-                    if (visual) {
-                        visual.destroy();
-                        this.visualProjectiles.delete(id);
-                    }
-                };
-            }
+            // 2. PROJECTILES SYNC REMOVED
             
             console.log("[DEBUG] Step 3: State Sync Ready. Starting Ping Loop...");
 
@@ -535,14 +430,6 @@ export class GameScene extends Phaser.Scene {
                     <input type="text" id="chat-input" placeholder="Press Enter to chat..." class="pointer-events-auto" />
                 </div>
             </div>
-            
-            <div id="inventory-container" class="hidden pointer-events-auto">
-                <div style="display:flex; justify-content:space-between;">
-                    <h3>Backpack</h3>
-                    <small>(Press I)</small>
-                </div>
-                <div id="inventory-grid"></div>
-            </div>
         `;
         
         const input = document.getElementById('chat-input') as HTMLInputElement;
@@ -578,61 +465,6 @@ export class GameScene extends Phaser.Scene {
                 input?.focus();
             }
         });
-
-        // Inventory Toggle
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'i' || e.key === 'I') {
-                const inv = document.getElementById('inventory-container');
-                if (inv && document.activeElement !== input) {
-                    inv.classList.toggle('hidden');
-                }
-            }
-        });
-    }
-
-    createProjectileSprite(data: any): Phaser.GameObjects.Shape {
-        let projectile: Phaser.GameObjects.Shape;
-        const angle = Math.atan2(data.vy, data.vx);
-        
-        // Match Spell ID to Registry
-        // data.spellId might be "triangle#1", we need to match "triangle"
-        let config = SPELL_REGISTRY['circle']; // Default fallback
-        
-        for (const key in SPELL_REGISTRY) {
-            if (data.spellId.includes(key)) {
-                config = SPELL_REGISTRY[key];
-                break;
-            }
-        }
-
-        const color = config.color;
-
-        if (config.shape === 'triangle') {
-            // Centered Centroid: Shifted X to balance the shape visually around (0,0)
-            projectile = this.add.triangle(data.x, data.y, -7, -10, 13, 0, -7, 10, color);
-        } else if (config.shape === 'square') {
-            projectile = this.add.rectangle(data.x, data.y, 16, 16, color);
-        } else if (config.shape === 'line') {
-            projectile = this.add.rectangle(data.x, data.y, 24, 6, color);
-        } else {
-            projectile = this.add.circle(data.x, data.y, 8, color);
-        }
-
-        projectile.setStrokeStyle(2, 0xffffff);
-        projectile.setDepth(2000);
-        projectile.setRotation(angle);
-        
-        // Visual spin for shapes
-        if (config.shape !== 'line' && config.shape !== 'circle') {
-            this.tweens.add({
-                targets: projectile,
-                rotation: angle + Math.PI * 4,
-                duration: 2000,
-                repeat: -1
-            });
-        }
-
-        return projectile;
     }
 
     update(time: number, delta: number) {
@@ -640,47 +472,6 @@ export class GameScene extends Phaser.Scene {
 
         const input = this.handleInput();
         this.syncNetworkState();
-
-        // --- PROJECTILE POLLING SYNC ---
-        const serverIds = new Set<string>();
-        
-        if (this.network.room.state.projectiles) {
-            this.network.room.state.projectiles.forEach((proj: any, id: string) => {
-                serverIds.add(id);
-                
-                let visual = this.visualProjectiles.get(id);
-                
-                // Create if missing
-                if (!visual) {
-                    // Ignore our own projectiles (handled by local prediction)
-                    if (proj.ownerId === this.network.room?.sessionId) return;
-
-                    visual = this.createProjectileSprite({
-                        x: proj.x,
-                        y: proj.y,
-                        spellId: proj.spellId,
-                        vx: proj.vx,
-                        vy: proj.vy
-                    });
-                    this.visualProjectiles.set(id, visual);
-                }
-                
-                // Update position
-                if (visual) {
-                    visual.setPosition(proj.x, proj.y);
-                }
-            });
-        }
-
-        // Cleanup: Remove visuals that no longer exist on server
-        this.visualProjectiles.forEach((_, id) => {
-            if (!serverIds.has(id)) {
-                const visual = this.visualProjectiles.get(id);
-                if (visual) visual.destroy();
-                this.visualProjectiles.delete(id);
-            }
-        });
-        // -------------------------------
 
         this.playerController.applyInput(this.network.room.sessionId, input);
         
@@ -779,7 +570,6 @@ export class GameScene extends Phaser.Scene {
         const myState = state.players ? state.players.get(this.network.room.sessionId) : null;
         if (myState) {
             this.uiText.setText(`POS: ${Math.round(myState.x)},${Math.round(myState.y)}
-HP: ${myState.hp}/${myState.maxHp}
 PING: ${this.currentLatency}ms`);
             if (this.currentLatency < 100) this.uiText.setColor('#00ff00');
             else if (this.currentLatency < 200) this.uiText.setColor('#ffff00');

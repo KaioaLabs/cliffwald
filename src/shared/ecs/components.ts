@@ -1,59 +1,33 @@
 import RAPIER from "@dimforge/rapier2d-compat";
 
+export interface InputComponent {
+    left: boolean;
+    right: boolean;
+    up: boolean;
+    down: boolean;
+}
+
+export interface FacingComponent {
+    x: number;
+    y: number;
+}
+
+export interface PlayerComponent {
+    sessionId: string;
+}
+
+export interface AIComponent {
+    state: 'patrol' | 'chase' | 'attack' | 'idle';
+    timer: number;
+    home: { x: number, y: number };
+    targetId?: string;
+}
+
 export interface Entity {
-    // Identity
-    id?: string; // Optional because miniplex adds one internally if needed, but useful for networking
-
-    // Physics
+    id?: number;
     body?: RAPIER.RigidBody;
-    
-    // Logic
-    input?: {
-        left: boolean;
-        right: boolean;
-        up: boolean;
-        down: boolean;
-    };
-    
-    facing?: { x: number; y: number };
-
-    ai?: {
-        state: 'idle' | 'patrol' | 'chase';
-        targetId?: string;
-        timer: number;
-        home?: { x: number; y: number };
-    };
-    
-    // Gameplay
-    player?: {
-        sessionId: string;
-    };
-    
-    // RPG
-    stats?: {
-        hp: number;
-        maxHp: number;
-        speed: number;
-        mp: number;
-        maxMp: number;
-        level: number;
-        exp: number;
-        expToNext: number;
-    };
-
-    inventory?: {
-        items: { itemId: string; count: number }[]; // Array of items
-        capacity: number;
-    };
-
-    equipment?: {
-        weapon?: string;
-        armor?: string;
-    };
-    
-    // Quests
-    quests?: {
-        active: string[];
-        completed: string[];
-    };
+    input?: InputComponent;
+    facing?: FacingComponent;
+    player?: PlayerComponent;
+    ai?: AIComponent;
 }

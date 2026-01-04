@@ -32,16 +32,12 @@ Unique engine capabilities developed for this MMO.
 
 ### Core Loop
 *   **Movement:** WASD + Velocity-based physics.
-*   **Combat:** Skillshot based (Projectiles). Hit-scan detection.
-*   **Security:** Server-side Cooldowns & Spell Validation (Anti-Cheat).
 *   **Interaction:** "E" to interact (Chat, NPCs - Placeholder).
 
 ### Persistence (Phase 1 & 2)
 *   **Database:** SQLite + Prisma.
-*   **Inventory:** Saved to DB on logout.
 *   **Position:** Saved to DB on logout.
 *   **Echo System:** Disconnected players become AI Bots (Max 50). Oldest removed first.
 
 ### Visuals
 *   **Dynamic Lighting:** Phaser 3 Lights pipeline enabled.
-*   **Gestures:** Mouse gestures for spell casting (Line, Circle, Triangle).

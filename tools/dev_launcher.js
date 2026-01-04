@@ -42,12 +42,32 @@ setTimeout(() => {
     // ADDED: --disable-translate --disable-features=Translate,TranslateUI
     const commonFlags = '--new-window --no-first-run --no-default-browser-check --enable-logging --v=1 --disable-translate --disable-features=Translate,TranslateUI';
     
-    // Alice (Top)
-    // Note: We use the new ?dev_user param
-    const cmdAlice = `${chromeCmd} ${commonFlags} --window-position=-1060,0 --window-size=960,540 --user-data-dir="${tmpDir1}" "http://localhost:3000/?dev_user=Alice&skin=player_idle"`;
+    // Alice (Top-Left)
+    // Adjusted coordinates for single monitor visibility (0,0)
+    const cmdAlice = `${chromeCmd} ${commonFlags} --window-position=0,0 --window-size=960,540 --user-data-dir="${tmpDir1}" "http://localhost:3000/?dev_user=Alice&skin=player_idle"`;
     
-    // Bob (Bottom)
-    const cmdBob = `${chromeCmd} ${commonFlags} --window-position=-1060,600 --window-size=960,540 --user-data-dir="${tmpDir2}" "http://localhost:3000/?dev_user=Bob&skin=player_run"`;
+    // Bob (Bottom-Left)
+    const cmdBob = `${chromeCmd} ${commonFlags} --window-position=0,540 --window-size=960,540 --user-data-dir="${tmpDir2}" "http://localhost:3000/?dev_user=Bob&skin=player_run"`;
+
+    // Design Tools (Try to open with associated apps)
+    const mapPath = path.join(rootDir, 'assets', 'maps', 'world.json');
+    const spritePath = path.join(rootDir, 'assets', 'sprites', 'player_idle.png');
+    
+    // COMMENTED OUT: Too intrusive. User should open tools when needed.
+    /*
+    console.log('[LAUNCHER] Opening Design Tools...');
+    // Use 'start' to launch associated application
+    exec(`start "" "${mapPath}"`, (err) => {
+        if (err) console.log('[LAUNCHER] Could not open map editor automatically.');
+    });
+    
+    // Slight delay for sprite editor
+    setTimeout(() => {
+        exec(`start "" "${spritePath}"`, (err) => {
+            if (err) console.log('[LAUNCHER] Could not open sprite editor automatically.');
+        });
+    }, 500);
+    */
 
     exec(cmdAlice, (err) => {
         if (err) console.error('[LAUNCHER] Error opening Alice:', err);

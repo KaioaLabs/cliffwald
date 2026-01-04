@@ -21,8 +21,7 @@ describe('MovementSystem', () => {
         
         world.add({
             body: body,
-            input: { left: false, right: true, up: false, down: false },
-            stats: { hp: 100, maxHp: 100, speed: CONFIG.PLAYER_SPEED, mp: 100, maxMp: 100, level: 1, exp: 0, expToNext: 100 }
+            input: { left: false, right: true, up: false, down: false }
         });
 
         MovementSystem(world);
@@ -38,8 +37,7 @@ describe('MovementSystem', () => {
 
         world.add({
             body: body,
-            input: { left: false, right: true, up: false, down: true },
-            stats: { hp: 100, maxHp: 100, speed: CONFIG.PLAYER_SPEED, mp: 100, maxMp: 100, level: 1, exp: 0, expToNext: 100 }
+            input: { left: false, right: true, up: false, down: true }
         });
 
         MovementSystem(world);
