@@ -1,5 +1,8 @@
 import 'reflect-metadata';
 import Phaser from 'phaser';
+// Colyseus import moved to top by previous edit, removing duplicate here if any, or ensuring clean imports.
+// Actually, I see I added it at line 3 AND it existed at line 126?
+// Let's just consolidation imports at the top.
 import * as Colyseus from "colyseus.js";
 import { CONFIG } from "../shared/Config";
 import { PlayerController } from "./PlayerController";
@@ -10,6 +13,7 @@ import { GestureManager } from './GestureManager';
 import { VirtualJoystick } from './VirtualJoystick';
 import { NetworkManager } from './NetworkManager';
 import { SPELL_REGISTRY, SpellType, getSpellType } from "../shared/items/SpellRegistry";
+import { DebugManager } from './DebugManager';
 
 class UIScene extends Phaser.Scene {
     clockText?: Phaser.GameObjects.Text;
@@ -122,8 +126,17 @@ class UIScene extends Phaser.Scene {
     }
 }
 
-class GameScene extends Phaser.Scene {
+
+
+
+export class GameScene extends Phaser.Scene {
     network!: NetworkManager; // Use Manager
+    
+    // Colyseus Direct Access (Legacy/Hybrid)
+    client!: Colyseus.Client;
+    room?: Colyseus.Room;
+    pingInterval?: any;
+
     playerController!: PlayerController;
     cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
     wasd?: { W: Phaser.Input.Keyboard.Key, A: Phaser.Input.Keyboard.Key, S: Phaser.Input.Keyboard.Key, D: Phaser.Input.Keyboard.Key };
@@ -134,6 +147,7 @@ class GameScene extends Phaser.Scene {
     uiText?: Phaser.GameObjects.Text;
     inventoryText?: Phaser.GameObjects.Text;
     debugGraphics?: Phaser.GameObjects.Graphics;
+    debugManager?: DebugManager;
     
     // Telemetry
     currentLatency: number = 0;
@@ -148,6 +162,13 @@ class GameScene extends Phaser.Scene {
 
     constructor() {
         super('GameScene');
+        // Initialize Colyseus Client
+        const protocol = window.location.protocol.replace("http", "ws");
+        const endpoint = window.location.hostname === "localhost" 
+            ? "ws://localhost:2568" 
+            : `${protocol}//${window.location.hostname}:2568`;
+        this.client = new Colyseus.Client(endpoint);
+
         this.setupRemoteLogging();
         
         // GLOBAL ERROR TRAP
@@ -213,6 +234,28 @@ class GameScene extends Phaser.Scene {
                 if (ground) ground.setPipeline('Light2D');
             }
             buildPhysics(this.physicsWorld, this.cache.tilemap.get('map').data);
+
+            // --- DYNAMIC LIGHTING FROM TILED ---
+            const lightsLayer = map.getObjectLayer('Lights');
+            if (lightsLayer) {
+                console.log(`[LIGHTS] Found ${lightsLayer.objects.length} lights in map.`);
+                lightsLayer.objects.forEach(obj => {
+                    const colorHex = obj.properties?.find((p:any) => p.name === 'color')?.value || '#ffffff';
+                    const radius = obj.properties?.find((p:any) => p.name === 'radius')?.value || 100;
+                    const intensity = obj.properties?.find((p:any) => p.name === 'intensity')?.value || 1.0;
+                    
+                    // Convert Hex String to Integer
+                    const color = parseInt(colorHex.replace('#', '0x'), 16);
+                    
+                    // Tiled Objects originate top-left, Lights are centered usually? 
+                    // Point objects in Tiled have x/y.
+                    if (obj.x !== undefined && obj.y !== undefined) {
+                        this.lights.addLight(obj.x, obj.y, radius, color, intensity);
+                    }
+                });
+            } else {
+                console.warn("[LIGHTS] No 'Lights' object layer found in Tiled map.");
+            }
 
             this.playerController = new PlayerController(this, this.physicsWorld);
             this.createAnimations();
@@ -303,6 +346,9 @@ class GameScene extends Phaser.Scene {
                 this.input.keyboard?.resetKeys();
                 if (this.room) this.room.send("move", { left: false, right: false, up: false, down: false });
             });
+
+            // 8. Debug Tools
+            this.debugManager = new DebugManager(this);
 
         } catch (e: any) {
             console.error("Create Crash:", e);
@@ -430,7 +476,7 @@ class GameScene extends Phaser.Scene {
             } else {
                 state.projectiles.onAdd = (proj: any, id: string) => {
                     // Ignore our own projectiles (handled by local prediction)
-                    if (proj.ownerId === this.room.sessionId) return;
+                    if (this.room && proj.ownerId === this.room.sessionId) return;
                     
                     const visual = this.createProjectileSprite({
                         x: proj.x,
@@ -455,7 +501,25 @@ class GameScene extends Phaser.Scene {
 
             // 3. Ping Loop
             this.pingInterval = setInterval(() => {
+                this.room?.send("ping", Date.now());
+            }, 1000); // 1s Ping
 
+            // 4. Auto-Reconnect Logic
+            this.room.onLeave((code) => {
+                console.warn(`[NETWORK] Disconnected (Code: ${code}). Attempting Auto-Reconnect...`);
+                // Clear state
+                this.playerController.entities.forEach((sprite) => sprite.destroy());
+                this.playerController.entities.clear();
+                this.playerController.ecsEntities.clear();
+                
+                // Show Reconnecting UI
+                if (this.uiText) this.uiText.setText("RECONNECTING TO SERVER...");
+                
+                // Retry Loop
+                setTimeout(() => {
+                    this.connect(); // Recursive re-connect
+                }, 2000);
+            });
 
         } catch (e) {
             console.error("Join Error:", e);
@@ -629,6 +693,8 @@ class GameScene extends Phaser.Scene {
         
         this.playerController.updateVisuals();
         this.updateUI();
+
+        if (this.debugManager) this.debugManager.update();
 
         // Update Clock UI (Client-Side Calculation)
         if (this.network.room && this.network.room.state.worldStartTime > 0) {

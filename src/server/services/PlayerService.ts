@@ -1,54 +1,75 @@
 import { db } from "../db";
+import { InventoryItem } from "../../shared/SchemaDef";
+
+export interface SessionData {
+    dbPlayer: any;
+    inventory: any[]; // Raw DB items
+}
 
 export class PlayerService {
-    static async findOrCreateUser(username: string, skin: string, spawnPos: { x: number, y: number }) {
-        const user = await db.user.upsert({
-            where: { username },
-            update: {},
-            create: {
-                username,
-                password: "default_password",
-                player: {
-                    create: {
-                        x: spawnPos.x + (Math.random() * 20 - 10),
-                        y: spawnPos.y + (Math.random() * 20 - 10),
-                        skin: skin
-                    }
-                }
-            },
-            include: { player: true }
+    /**
+     * Prepares all necessary data for a player joining the world.
+     * Handles creation, skin updates, and inventory fetching.
+     */
+    static async initializeSession(userId: number, username: string, options: { skin?: string }): Promise<SessionData> {
+        // 1. Fetch Player
+        let dbPlayer = await db.player.findUnique({
+            where: { userId: userId }
         });
 
-        let dbPlayer = user.player;
         if (!dbPlayer) {
-             dbPlayer = await db.player.create({
+            // Self-healing: If user exists but player record missing (rare edge case)
+            console.warn(`[DB] Player record missing for user ${userId}, creating fallback.`);
+            dbPlayer = await db.player.create({
                 data: {
-                    userId: user.id,
-                    x: spawnPos.x,
-                    y: spawnPos.y,
-                    skin: skin
+                    userId: userId,
+                    x: 300, 
+                    y: 300,
+                    skin: options.skin || "player_idle"
                 }
             });
-        } else if (dbPlayer.skin !== skin) {
-             dbPlayer = await db.player.update({
+        }
+
+        // 2. Update Skin if changed
+        if (options.skin && options.skin !== dbPlayer.skin) {
+            dbPlayer = await db.player.update({
                 where: { id: dbPlayer.id },
-                data: { skin: skin }
+                data: { skin: options.skin }
             });
         }
-        return dbPlayer;
+
+        // 3. Fetch Inventory
+        let dbInventory: any[] = [];
+        try {
+            dbInventory = await db.inventoryItem.findMany({
+                where: { playerId: dbPlayer.id }
+            });
+        } catch (e) {
+            console.error(`[DB] Inventory fetch failed for ${username}:`, e);
+        }
+
+        return { dbPlayer, inventory: dbInventory };
     }
 
+    /**
+     * Converts DB Inventory format to Colyseus Schema format
+     */
+    static mapInventoryToSchema(dbItems: any[]): InventoryItem[] {
+        return dbItems.map(item => {
+            const schemaItem = new InventoryItem();
+            schemaItem.itemId = item.itemId;
+            schemaItem.count = item.count;
+            return schemaItem;
+        });
+    }
+
+    // --- Legacy / Dev Methods ---
     static async savePlayerPosition(dbId: number, x: number, y: number, hp: number) {
         try {
             await db.player.update({
                 where: { id: dbId },
-                data: {
-                    x,
-                    y,
-                    health: hp
-                }
+                data: { x, y, health: hp }
             });
-            console.log(`[DB] Saved player ${dbId}`);
         } catch (e) {
             console.error(`[DB] Failed to save player ${dbId}:`, e);
         }

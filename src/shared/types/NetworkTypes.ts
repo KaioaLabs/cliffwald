@@ -8,6 +8,7 @@ export interface PlayerInput {
 export interface JoinOptions {
     username?: string;
     skin?: string;
+    token?: string;
 }
 
 export interface ChatMessagePayload {
