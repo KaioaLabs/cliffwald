@@ -8,6 +8,7 @@
     "dev:client": "vite --host --port 3000 --strictPort > logs_client.txt 2>&1",
     "dev:server": "nodemon --watch src/server --watch src/shared -e ts,json --exec \"ts-node src/server/index.ts\" > logs_server.txt 2>&1",
     "predev": "npx kill-port 2567 2568 3000",
+    "map": "start ./Tiled/tiled.exe ./assets/maps/world.json",
     "test": "vitest run"
   },
   "keywords": [],

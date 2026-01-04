@@ -2,8 +2,9 @@
 
 ## Arquitectura
 - **Servidor Autoritativo**: Node.js + Colyseus. La verdad reside aquí.
-- **Cliente Tonto**: Phaser 3. Solo renderiza e interpola estados.
+- **Cliente Tonto**: Phaser 3 (Web 2D Top-Down). Solo renderiza e interpola estados.
 - **Comunicación**: State Synchronization (Schema) y Delta Compression.
+- **ADVERTENCIA GDD**: El documento .docx original menciona Godot/3D. IGNORAR ESAS REFERENCIAS TÉCNICAS. El proyecto es estrictamente 2D/Web. Solo tomar del GDD los conceptos de juego (hechizos, casas, rutinas).
 
 ## Física y Determinismo
 - **Motor Físico**: Rapier.js (lado servidor).

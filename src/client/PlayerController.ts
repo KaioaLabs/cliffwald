@@ -16,26 +16,47 @@ export class PlayerController {
         this.scene = scene;
         this.physicsWorld = physicsWorld;
         this.world = createWorld();
+
+        // Create a tiny pixelated shadow texture if it doesn't exist
+        if (!this.scene.textures.exists('shadow-tex')) {
+            const canvas = this.scene.textures.createCanvas('shadow-tex', 8, 8);
+            if (canvas) {
+                const ctx = canvas.getContext();
+                ctx.fillStyle = '#000000';
+                // Draw a blocky circle
+                ctx.fillRect(2, 0, 4, 1);
+                ctx.fillRect(1, 1, 6, 1);
+                ctx.fillRect(0, 2, 8, 4);
+                ctx.fillRect(1, 6, 6, 1);
+                ctx.fillRect(2, 7, 4, 1);
+                canvas.refresh();
+            }
+        }
     }
 
     addPlayer(sessionId: string, x: number, y: number, isLocal: boolean = false, skin: string = "player_idle", username: string = "") {
         console.log(`[DEBUG] Adding Player: ${sessionId} at ${x},${y} (Local: ${isLocal})`);
-        // 1. Create Sprite using the idle spritesheet initially
-        const sprite = this.scene.add.sprite(x, y, 'player_idle', 0);
         
-        // Debug Visuals
-        if (!sprite.texture || sprite.texture.key === '__MISSING') {
-            console.error(`[CRITICAL] Sprite texture missing for 'player_idle'!`);
-        } else {
-             console.log(`[DEBUG] Sprite created. Frame: ${sprite.frame.name}, Texture: ${sprite.texture.key}, Visible: ${sprite.visible}, Alpha: ${sprite.alpha}, Depth: ${sprite.depth}`);
-        }
+        const displayName = username || sessionId.slice(0, 4);
+
+        // 1. Create Silhouette Shadow Sprite (Mirrors the main sprite)
+        const shadow = this.scene.add.sprite(x, y, 'player_idle', 0);
+        shadow.setTint(0x000000);
+        shadow.setAlpha(0.3);
+        shadow.setOrigin(0.5, 1.0); // Origin at feet for projection
+        
+        // 2. Create Main Sprite
+        const sprite = this.scene.add.sprite(x, y, 'player_idle', 0);
+        sprite.setPipeline('Light2D'); 
+        
+        // ... (rest of addPlayer)
 
         sprite.setOrigin(0.5, 0.75); // Pivot at feet for better depth sorting
         sprite.setScale(CONFIG.PLAYER_SCALE);
         
-        // 3. Name Tag (Moved up for logic)
-        const displayName = username || sessionId.slice(0, 4);
-
+        // Save shadow reference
+        sprite.setData('shadow', shadow);
+        
         // 2. Visual Styling (Skin / Echo)
         const isEcho = displayName.startsWith("Echo of");
         
@@ -95,6 +116,8 @@ export class PlayerController {
         if (sprite) {
             const nameTag = sprite.getData('nameTag');
             if (nameTag) nameTag.destroy();
+            const shadow = sprite.getData('shadow');
+            if (shadow) shadow.destroy();
             sprite.destroy();
             this.entities.delete(sessionId);
         }
@@ -293,7 +316,42 @@ export class PlayerController {
             const finalY = Phaser.Math.Linear(sprite.y, newY, lerpFactor);
 
             sprite.setPosition(finalX, finalY);
-            sprite.setDepth(finalY); // Y-Sorting
+            sprite.setDepth(finalY + 100); // Shift all characters UP in depth
+
+            // --- DYNAMIC SILHOUETTE SHADOW PROJECTION ---
+            const shadow = sprite.getData('shadow') as Phaser.GameObjects.Sprite;
+            if (shadow) {
+                const pointer = this.scene.input.activePointer;
+                const worldPoint = this.scene.cameras.main.getWorldPoint(pointer.x, pointer.y);
+                
+                // 1. Sync Visuals
+                shadow.setTexture(sprite.texture.key);
+                shadow.setFrame(sprite.frame.name);
+                shadow.setFlipX(sprite.flipX);
+                shadow.setVisible(sprite.visible);
+
+                // 2. Calculate Projection Base (Feet)
+                // Use a safer displayHeight check
+                const h = sprite.displayHeight || 20;
+                const footX = finalX;
+                const footY = finalY + (h * 0.22); 
+
+                // Vector from Light to Feet
+                const dx = footX - worldPoint.x;
+                const dy = footY - worldPoint.y;
+                const dist = Math.sqrt(dx * dx + dy * dy) || 0.1; 
+                const angle = Math.atan2(dy, dx);
+                
+                // 3. Apply Deformation
+                const shadowStretch = Math.min(dist / 300, 1.5); 
+                
+                shadow.setPosition(footX, footY);
+                shadow.setRotation(angle + Math.PI / 2); 
+                shadow.setScale(sprite.scaleX, sprite.scaleY * shadowStretch);
+                
+                shadow.setAlpha(Math.max(0.05, 0.3 - (dist / 3000)));
+                shadow.setDepth(sprite.depth - 1); // Directly below its owner
+            }
 
             const nameTag = sprite.getData('nameTag');
             if (nameTag) {

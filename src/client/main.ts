@@ -10,133 +10,145 @@ import { MovementSystem } from "../shared/systems/MovementSystem";
 import { VirtualJoystick } from './VirtualJoystick';
 import { NetworkManager } from './NetworkManager';
 import { DebugManager } from './DebugManager';
+import { GestureManager } from './GestureManager';
+import { SPELL_REGISTRY } from '../shared/items/SpellRegistry';
 
 class UIScene extends Phaser.Scene {
     clockText?: Phaser.GameObjects.Text;
     pvpStatusText?: Phaser.GameObjects.Text;
     joystick?: VirtualJoystick;
 
+    // Prestige UI
+    pillars: Map<string, { fill: Phaser.GameObjects.Rectangle, text: Phaser.GameObjects.Text }> = new Map();
+
     constructor() {
         super({ key: 'UIScene' });
     }
     
-        create() {
-    
-            console.log("UIScene Created");
-    
-            this.cameras.main.setScroll(0, 0);
-    
-            this.cameras.main.setZoom(1);
-    
-            
-    
-            // Clock Text (Top Right)
-    
-            this.clockText = this.add.text(this.scale.width - 20, 20, '00:00', {
-    
-                fontFamily: 'monospace',
-    
-                fontSize: '18px',
-    
-                color: '#ffffff',
-    
-                backgroundColor: '#00000088',
-    
-                padding: { x: 10, y: 5 }
-    
-            }).setOrigin(1, 0); // Anchor top-right
-    
-    
-    
-            // PvP Status Text (Below Clock)
-    
-            this.pvpStatusText = this.add.text(this.scale.width - 20, 55, 'PVP: OFF', {
-    
-                fontFamily: 'monospace',
-    
-                fontSize: '12px',
-    
-                color: '#aaaaaa',
-    
-                backgroundColor: '#00000088',
-    
-                padding: { x: 10, y: 3 }
-    
-            }).setOrigin(1, 0);
-    
-    
-    
-            // --- MOBILE CHECK ---
-    
-            const isMobile = !this.sys.game.device.os.desktop;
-    
-            
-    
-            if (isMobile) {
-    
-                console.log("Mobile detected: Enabling Dynamic Virtual Joystick");
-    
-                // Position is irrelevant now, it floats
-    
-                this.joystick = new VirtualJoystick(this, 0, 0);
-    
-            }
-    
-    
-    
-            // Ensure UI matches screen size on resize
-    
-            this.scale.on('resize', (gameSize: any) => {
-    
-                this.cameras.main.setViewport(0, 0, gameSize.width, gameSize.height);
-    
-                if (this.clockText) {
-    
-                    this.clockText.setPosition(gameSize.width - 20, 20);
-    
-                }
-    
-                if (this.pvpStatusText) {
-    
-                    this.pvpStatusText.setPosition(gameSize.width - 20, 55);
-    
-                }
-    
-                // Joystick manages its own position dynamically
-    
-            });
-    
+    create() {
+        console.log("UIScene Created");
+        this.cameras.main.setScroll(0, 0);
+        this.cameras.main.setZoom(1);
+
+        // Clock Text (Top Right)
+        this.clockText = this.add.text(this.scale.width - 20, 20, '00:00', {
+            fontFamily: 'monospace',
+            fontSize: '18px',
+            color: '#ffffff',
+            backgroundColor: '#00000088',
+            padding: { x: 10, y: 5 }
+        }).setOrigin(1, 0); 
+
+        // Prestige Pillars Container (Left of Clock)
+        this.createPrestigeUI();
+
+        // PvP Status Text (Below Clock)
+        this.pvpStatusText = this.add.text(this.scale.width - 20, 55, 'PVP: OFF', {
+            fontFamily: 'monospace',
+            fontSize: '12px',
+            color: '#aaaaaa',
+            backgroundColor: '#00000088',
+            padding: { x: 10, y: 3 }
+        }).setOrigin(1, 0);
+
+        // ... mobile logic ...
+        const isMobile = !this.sys.game.device.os.desktop;
+        if (isMobile) {
+            this.joystick = new VirtualJoystick(this, 0, 0);
         }
 
-    updateTime(totalSeconds: number) {
+        this.scale.on('resize', (gameSize: any) => {
+            this.cameras.main.setViewport(0, 0, gameSize.width, gameSize.height);
+            if (this.clockText) this.clockText.setPosition(gameSize.width - 20, 20);
+            if (this.pvpStatusText) this.pvpStatusText.setPosition(gameSize.width - 20, 55);
+            this.repositionPrestigeUI(gameSize.width);
+        });
+    }
+
+    createPrestigeUI() {
+        const startX = this.scale.width - 160;
+        const startY = 20;
+        const houses = [
+            { id: 'ignis', color: 0xff0000, label: 'I' },
+            { id: 'axiom', color: 0x00aaff, label: 'A' },
+            { id: 'vesper', color: 0xaa00ff, label: 'V' }
+        ];
+
+        houses.forEach((house, index) => {
+            const x = startX + (index * 25);
+            
+            // Background
+            this.add.rectangle(x, startY + 20, 15, 40, 0x000000, 0.5).setOrigin(0.5, 0);
+            
+            // Fill
+            const fill = this.add.rectangle(x, startY + 60, 15, 0, house.color).setOrigin(0.5, 1);
+            
+            // Label
+            const text = this.add.text(x, startY + 5, '0', {
+                fontSize: '10px',
+                fontFamily: 'monospace',
+                color: '#ffffff'
+            }).setOrigin(0.5);
+
+            this.pillars.set(house.id, { fill, text });
+        });
+    }
+
+    repositionPrestigeUI(width: number) {
+        const startX = width - 160;
+        const houses = ['ignis', 'axiom', 'vesper'];
+        houses.forEach((id, index) => {
+            const p = this.pillars.get(id);
+            if (p) {
+                const x = startX + (index * 25);
+                p.fill.x = x;
+                p.text.x = x;
+                // Update background too? (Better to use a container, but this is simple)
+            }
+        });
+    }
+
+    updatePoints(ignis: number, axiom: number, vesper: number) {
+        const maxDisplay = Math.max(ignis, axiom, vesper, 100); // Scale relative to max
+        
+        const updatePillar = (id: string, val: number) => {
+            const p = this.pillars.get(id);
+            if (p) {
+                const height = (val / maxDisplay) * 40;
+                p.fill.height = height;
+                p.text.setText(val.toString());
+            }
+        };
+
+        updatePillar('ignis', ignis);
+        updatePillar('axiom', axiom);
+        updatePillar('vesper', vesper);
+    }
+
+    updateTime(totalSeconds: number, course: number, month: string) {
         if (!this.clockText) return;
         
-        // Convert total seconds (0-86400) to HH:MM
         const hours = Math.floor(totalSeconds / 3600);
         const minutes = Math.floor((totalSeconds % 3600) / 60);
-        
         const hStr = hours.toString().padStart(2, '0');
         const mStr = minutes.toString().padStart(2, '0');
         
-        this.clockText.setText(`${hStr}:${mStr}`);
+        this.clockText.setText(`${hStr}:${mStr}\nCourse ${course}\n${month}`);
     }
 }
 
-
-
-
 export class GameScene extends Phaser.Scene {
-    network!: NetworkManager; // Use Manager
+    network: NetworkManager;
     
     // Colyseus Direct Access (Legacy/Hybrid)
-    client!: Colyseus.Client;
     room?: Colyseus.Room;
-    pingInterval?: any;
 
     playerController!: PlayerController;
+    cameraTarget!: Phaser.GameObjects.PointLight | Phaser.GameObjects.Image; // Using a dummy point
     cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
     wasd?: { W: Phaser.Input.Keyboard.Key, A: Phaser.Input.Keyboard.Key, S: Phaser.Input.Keyboard.Key, D: Phaser.Input.Keyboard.Key };
     physicsWorld?: RAPIER.World;
+    gestureManager?: GestureManager;
     
     // UI & Entities
     uiText?: Phaser.GameObjects.Text;
@@ -156,13 +168,7 @@ export class GameScene extends Phaser.Scene {
 
     constructor() {
         super('GameScene');
-        // Initialize Colyseus Client
-        const protocol = window.location.protocol.replace("http", "ws");
-        const endpoint = window.location.hostname === "localhost" 
-            ? "ws://localhost:2568" 
-            : `${protocol}//${window.location.hostname}:2568`;
-        this.client = new Colyseus.Client(endpoint);
-
+        this.network = new NetworkManager(this);
         this.setupRemoteLogging();
         
         // GLOBAL ERROR TRAP
@@ -199,12 +205,25 @@ export class GameScene extends Phaser.Scene {
         this.load.tilemapTiledJSON('map', '/maps/world.json');
         this.load.image('tiles', '/maps/tilesets/placeholder_tiles.png');
         
-        // REAL ASSETS (Confirmed: Idle 80x100 -> 4x5, Run 120x100 -> 6x5. Both 20x20)
-        this.load.spritesheet('player_idle', '/sprites/player_idle.png', { frameWidth: 20, frameHeight: 20 });
-        this.load.spritesheet('player_run', '/sprites/player_run.png', { frameWidth: 20, frameHeight: 20 });
+        // REAL ASSETS WITH NORMAL MAPS
+        this.load.spritesheet({
+            key: 'player_idle',
+            url: '/sprites/player_idle.png',
+            normalMap: '/sprites/player_idle_n.png',
+            frameConfig: { frameWidth: 20, frameHeight: 20 }
+        });
+        this.load.spritesheet({
+            key: 'player_run',
+            url: '/sprites/player_run.png',
+            normalMap: '/sprites/player_run_n.png',
+            frameConfig: { frameWidth: 20, frameHeight: 20 }
+        });
         
         this.load.on('loaderror', (file: any) => console.error('Asset Load Error:', file.src));
     }
+
+    // Registry for networked projectiles
+    visualProjectiles = new Map<string, Phaser.GameObjects.Shape>();
 
     async create() {
         try {
@@ -222,7 +241,10 @@ export class GameScene extends Phaser.Scene {
             const tileset = map.addTilesetImage('placeholder_tiles', 'tiles');
             if (tileset) {
                 const ground = map.createLayer('Ground', tileset, 0, 0);
-                if (ground) ground.setPipeline('Light2D');
+                if (ground) {
+                    ground.setPipeline('Light2D');
+                    ground.setDepth(-100); // Ensure it's ALWAYS below characters
+                }
             }
             buildPhysics(this.physicsWorld, this.cache.tilemap.get('map').data);
 
@@ -232,54 +254,21 @@ export class GameScene extends Phaser.Scene {
                 console.log(`[LIGHTS] Found ${lightsLayer.objects.length} lights in map.`);
                 lightsLayer.objects.forEach(obj => {
                     const colorHex = obj.properties?.find((p:any) => p.name === 'color')?.value || '#ffffff';
-                    const radius = obj.properties?.find((p:any) => p.name === 'radius')?.value || 100;
+                    const radius = obj.properties?.find((p:any) => p.name === 'radius')?.value || 200; // Larger default
                     const intensity = obj.properties?.find((p:any) => p.name === 'intensity')?.value || 1.0;
                     
-                    // Convert Hex String to Integer
                     const color = parseInt(colorHex.replace('#', '0x'), 16);
-                    
-                    // Tiled Objects originate top-left, Lights are centered usually? 
-                    // Point objects in Tiled have x/y.
                     if (obj.x !== undefined && obj.y !== undefined) {
                         this.lights.addLight(obj.x, obj.y, radius, color, intensity);
                     }
                 });
-            } else {
-                console.warn("[LIGHTS] No 'Lights' object layer found in Tiled map.");
             }
 
-            this.playerController = new PlayerController(this, this.physicsWorld);
-            this.createAnimations();
-            this.wasd = this.input.keyboard?.addKeys('W,A,S,D') as any;
-
-            // ... (Rest of create)
-            this.updateCameraZoom();
-            this.cameras.main.setBackgroundColor('#1a1a1a'); 
-            this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
+            // ... rest of create ...
             
-            // Safety Camera Move (Fallback only)
-            this.time.delayedCall(5000, () => {
-                if (!this.playerController.entities.has(this.room?.sessionId || "")) {
-                    console.log("[DEBUG] No player joined yet, staying at spawn.");
-                    this.cameras.main.centerOn(300, 300); // Changed to 300,300 (Likely Spawn)
-                }
-            });
+            // FIX: Enable Lights with safer ambient color
+            this.lights.enable().setAmbientColor(0x555555); 
 
-            // 5. UI Setup
-            this.createUI();
-            this.debugGraphics = this.add.graphics().setDepth(10000);
-            
-            // FIX: Clicking on game world blurs chat
-            this.input.on('pointerdown', () => {
-                const input = document.getElementById('chat-input') as HTMLInputElement;
-                if (input) input.blur();
-            });
-
-            // Prevent context menu (right click menu) from appearing
-            this.input.mouse?.disableContextMenu();
-            
-            // FIX: Enable Lights so sprites are visible with Light2D pipeline
-            this.lights.enable().setAmbientColor(0x808080); // 50% gray ambient light
 
             // 6. Auto-Login based on URL
             this.autoLogin();
@@ -289,12 +278,12 @@ export class GameScene extends Phaser.Scene {
             
             // CLEANUP: Force disconnect on refresh/close
             window.addEventListener('beforeunload', () => {
-                if (this.room) this.room.leave();
+                this.network.disconnect();
             });
 
             window.addEventListener('blur', () => {
                 this.input.keyboard?.resetKeys();
-                if (this.room) this.room.send("move", { left: false, right: false, up: false, down: false });
+                this.network.sendMove({ left: false, right: false, up: false, down: false });
             });
 
             // 8. Debug Tools
@@ -374,47 +363,51 @@ export class GameScene extends Phaser.Scene {
     async connect() {
         try {
             console.log("Connecting to Colyseus...");
-            // Use the auth token from autoLogin
-            this.room = await this.client.joinOrCreate("world", { 
-                token: this.authToken,
-                skin: this.skin 
-            });
-
-            console.log("Joined successfully!", this.room.sessionId);
-            console.log("[DEBUG] Step 1: Room Joined. Registering Message Handlers...");
-
-            // 1. REGISTER MESSAGE HANDLERS FIRST (Critical Priority)
-            this.room.onMessage("pong", (timestamp) => {
-                this.currentLatency = Date.now() - timestamp;
-            });
-
-            console.log("[DEBUG] Step 2: Message Handlers Registered. Setting up State Sync...");
-
-            // 2. PROJECTILES SYNC REMOVED
+            const success = await this.network.connect(this.authToken, this.skin);
             
-            console.log("[DEBUG] Step 3: State Sync Ready. Starting Ping Loop...");
-
-            // 3. Ping Loop
-            this.pingInterval = setInterval(() => {
-                this.room?.send("ping", Date.now());
-            }, 1000); // 1s Ping
-
-            // 4. Auto-Reconnect Logic
-            this.room.onLeave((code) => {
-                console.warn(`[NETWORK] Disconnected (Code: ${code}). Attempting Auto-Reconnect...`);
-                // Clear state
-                this.playerController.entities.forEach((sprite) => sprite.destroy());
-                this.playerController.entities.clear();
-                this.playerController.ecsEntities.clear();
+            if (success && this.network.room) {
+                this.room = this.network.room;
+                console.log("Joined successfully!", this.room.sessionId);
                 
-                // Show Reconnecting UI
-                if (this.uiText) this.uiText.setText("RECONNECTING TO SERVER...");
-                
-                // Retry Loop
-                setTimeout(() => {
-                    this.connect(); // Recursive re-connect
-                }, 2000);
-            });
+                // Setup callbacks
+                this.network.onPong = (latency) => this.currentLatency = latency;
+
+                // PROJECTILES SYNC
+                const state = this.room.state as any;
+                if (state.projectiles) {
+                    state.projectiles.onAdd = (proj: any, id: string) => {
+                        if (this.room && proj.ownerId === this.room.sessionId) return;
+                        const visual = this.createProjectileSprite({
+                            x: proj.x, y: proj.y, spellId: proj.spellId, vx: proj.vx, vy: proj.vy
+                        });
+                        this.visualProjectiles.set(id, visual);
+                    };
+                    state.projectiles.onRemove = (_: any, id: string) => {
+                        const visual = this.visualProjectiles.get(id);
+                        if (visual) {
+                            visual.destroy();
+                            this.visualProjectiles.delete(id);
+                        }
+                    };
+                }
+
+                // 4. Auto-Reconnect Logic (delegated or kept hybrid)
+                this.room.onLeave((code) => {
+                    console.warn(`[NETWORK] Disconnected (Code: ${code}). Attempting Auto-Reconnect...`);
+                    // Clear state
+                    this.playerController.entities.forEach((sprite) => sprite.destroy());
+                    this.playerController.entities.clear();
+                    this.playerController.ecsEntities.clear();
+                    
+                    // Show Reconnecting UI
+                    if (this.uiText) this.uiText.setText("RECONNECTING TO SERVER...");
+                    
+                    // Retry Loop
+                    setTimeout(() => {
+                        this.connect(); // Recursive re-connect
+                    }, 2000);
+                });
+            }
 
         } catch (e) {
             console.error("Join Error:", e);
@@ -467,11 +460,63 @@ export class GameScene extends Phaser.Scene {
         });
     }
 
+    createProjectileSprite(data: any): Phaser.GameObjects.Shape {
+        let projectile: Phaser.GameObjects.Shape;
+        const angle = Math.atan2(data.vy, data.vx);
+        
+        let config = SPELL_REGISTRY['circle']; // Default fallback
+        for (const key in SPELL_REGISTRY) {
+            if (data.spellId.includes(key)) {
+                config = SPELL_REGISTRY[key];
+                break;
+            }
+        }
+
+        const color = config.color;
+        if (config.shape === 'triangle') {
+            projectile = this.add.triangle(data.x, data.y, -7, -10, 13, 0, -7, 10, color);
+        } else if (config.shape === 'square') {
+            projectile = this.add.rectangle(data.x, data.y, 16, 16, color);
+        } else {
+            projectile = this.add.circle(data.x, data.y, 8, color);
+        }
+
+        projectile.setStrokeStyle(2, 0xffffff);
+        projectile.setDepth(2000);
+        projectile.setRotation(angle);
+        
+        if (config.shape !== 'circle') {
+            this.tweens.add({
+                targets: projectile,
+                rotation: angle + Math.PI * 4,
+                duration: 2000,
+                repeat: -1
+            });
+        }
+
+        return projectile;
+    }
+
     update(time: number, delta: number) {
-        if (!this.playerController || !this.network.room) return;
+        if (!this.playerController || !this.network || !this.network.room) return;
+
+        // --- DYNAMIC CAMERA LOGIC ---
+        const localPlayer = this.playerController.entities.get(this.network.room.sessionId);
+        if (localPlayer && this.cameraTarget) {
+            if (!this.gestureManager?.isDrawing) {
+                const pointer = this.input.activePointer;
+                const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+                const targetX = (localPlayer.x * 0.85) + (worldPoint.x * 0.15);
+                const targetY = (localPlayer.y * 0.85) + (worldPoint.y * 0.15);
+                this.cameraTarget.setPosition(targetX, targetY);
+            }
+        }
 
         const input = this.handleInput();
         this.syncNetworkState();
+
+        // --- PROJECTILE SYNC ---
+        // Synchronized via callbacks in connect(). No polling needed.
 
         this.playerController.applyInput(this.network.room.sessionId, input);
         
@@ -498,7 +543,7 @@ export class GameScene extends Phaser.Scene {
             
             const uiScene = this.scene.get('UIScene') as UIScene;
             if (uiScene) {
-                uiScene.updateTime(wrappedTime);
+                uiScene.updateTime(wrappedTime, this.network.room.state.currentCourse, this.network.room.state.currentMonth);
             }
         }
 
@@ -543,11 +588,7 @@ export class GameScene extends Phaser.Scene {
     private syncPlayer(sessionId: string, data: any) {
         if (!this.playerController.entities.has(sessionId)) {
             const isLocal = sessionId === this.network.room?.sessionId;
-            const sprite = this.playerController.addPlayer(sessionId, data.x, data.y, isLocal, data.skin, data.username);
-            if (isLocal) {
-                console.log(`[CAMERA] Starting to follow local player: ${sessionId} at ${data.x},${data.y}`);
-                this.cameras.main.startFollow(sprite, true, 0.1, 0.1);
-            }
+            this.playerController.addPlayer(sessionId, data.x, data.y, isLocal, data.skin, data.username);
         } else {
             this.playerController.updatePlayerState(sessionId, data);
         }
@@ -565,9 +606,15 @@ export class GameScene extends Phaser.Scene {
     }
 
     updateUI() {
-        if (!this.uiText || !this.network.room) return;
+        if (!this.uiText || !this.network || !this.network.room) return;
         const state = this.network.room.state as any;
         const myState = state.players ? state.players.get(this.network.room.sessionId) : null;
+        
+        const uiScene = this.scene.get('UIScene') as UIScene;
+        if (uiScene) {
+            uiScene.updatePoints(state.ignisPoints || 0, state.axiomPoints || 0, state.vesperPoints || 0);
+        }
+
         if (myState) {
             this.uiText.setText(`POS: ${Math.round(myState.x)},${Math.round(myState.y)}
 PING: ${this.currentLatency}ms`);
@@ -651,9 +698,15 @@ PING: ${this.currentLatency}ms`);
 
 const config: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
-    scale: { mode: Phaser.Scale.RESIZE, width: '100%', height: '100%' },
+    scale: { 
+        mode: Phaser.Scale.FIT, 
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+        width: 640, 
+        height: 360 
+    },
     parent: 'app',
     pixelArt: true,
+    roundPixels: true,
     render: { maxLights: 50 },
     backgroundColor: '#000000',
     scene: [GameScene, UIScene],

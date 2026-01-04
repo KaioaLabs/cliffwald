@@ -51,25 +51,53 @@ export class SpawnManager {
     }
 
     public spawnEchoes(count: number, centerPos: { x: number, y: number }) {
-        console.log(`[SPAWN] Populating world with ${count} Echoes...`);
-        const skins = ["player_idle", "player_red", "player_blue"];
+        const houses: ('ignis' | 'axiom' | 'vesper')[] = ['ignis', 'axiom', 'vesper'];
+        console.log(`[SPAWN] Initializing magic school with 24 Fixed Student Slots (8 per house)...`);
         
-        for (let i = 1; i <= count; i++) {
-            this.enforceEchoLimit(); // Ensure room for each new one
-            
-            const id = `echo_bot_${Date.now()}_${i}`; // Unique ID
-            const skin = skins[Math.floor(Math.random() * skins.length)];
-            
-            // Random scatter around spawn
-            const x = centerPos.x + (Math.random() * 200 - 100);
-            const y = centerPos.y + (Math.random() * 200 - 100);
-            
-            this.createEchoEntity(id, x, y, skin, `Student_${i}`);
-        }
+        let globalIdCounter = 1;
+        const TILE_SIZE = 32;
+
+        houses.forEach(house => {
+            let dormPos = CONFIG.SCHOOL_LOCATIONS.DORM_IGNIS;
+            if (house === 'axiom') dormPos = CONFIG.SCHOOL_LOCATIONS.DORM_AXIOM;
+            if (house === 'vesper') dormPos = CONFIG.SCHOOL_LOCATIONS.DORM_VESPER;
+
+            for (let i = 1; i <= 8; i++) {
+                const id = `student_${house}_${i}`;
+                const numericId = globalIdCounter++;
+                const studentIndex = i - 1; // 0-7
+                const skin = house === 'ignis' ? "player_red" : (house === 'axiom' ? "player_blue" : "player_idle");
+                
+                // FIXED BED POSITION (Row of 8 beds)
+                const x = dormPos.x + (studentIndex - 3.5) * (TILE_SIZE * 2); 
+                const y = dormPos.y;
+                
+                this.createEchoEntity(id, x, y, skin, `${house.charAt(0).toUpperCase() + house.slice(1)} Student ${i}`, house, numericId);
+            }
+        });
         console.log(`[SPAWN] Population complete.`);
     }
 
-    public createEchoEntity(id: string, x: number, y: number, skin: string, username: string) {
+    public createEchoEntity(id: string, x: number, y: number, skin: string, username: string, house?: 'ignis' | 'axiom' | 'vesper', numericId?: number) {
+        const TILE_SIZE = 32;
+        const studentIndex = (numericId !== undefined) ? ((numericId - 1) % 8) : 0;
+
+        // PRE-ESTABLISH FIXED SPOTS
+        const eatPos = {
+            x: CONFIG.SCHOOL_LOCATIONS.GREAT_HALL.x + (studentIndex - 3.5) * TILE_SIZE,
+            y: CONFIG.SCHOOL_LOCATIONS.GREAT_HALL.y + (house === 'ignis' ? -64 : (house === 'vesper' ? 64 : 0))
+        };
+
+        const classPos = {
+            x: CONFIG.SCHOOL_LOCATIONS.ACADEMIC_WING.x + (studentIndex - 3.5) * (TILE_SIZE * 2),
+            y: CONFIG.SCHOOL_LOCATIONS.ACADEMIC_WING.y + (house === 'ignis' ? -64 : (house === 'vesper' ? 64 : 0))
+        };
+
+        const sleepPos = {
+            x: x, // Their spawn position in dorm is their "bed"
+            y: y
+        };
+
         // 1. Create Physics
         const bodyDesc = RAPIER.RigidBodyDesc.kinematicVelocityBased().setTranslation(x, y);
         const body = this.physicsWorld.createRigidBody(bodyDesc);
@@ -79,14 +107,21 @@ export class SpawnManager {
         
         // 2. Create ECS Entity
         const entity = this.world.add({
+            id: numericId,
             body: body,
             input: { left: false, right: false, up: false, down: false },
             facing: { x: 0, y: 1 },
             player: { sessionId: id },
             ai: {
-                state: 'patrol',
+                state: 'idle',
                 timer: Math.random() * 2,
-                home: { x, y }
+                home: { x, y },
+                house: house,
+                routineSpots: {
+                    sleep: sleepPos,
+                    class: classPos,
+                    eat: eatPos
+                }
             }
         });
         this.entities.set(id, entity);
@@ -108,18 +143,23 @@ export class SpawnManager {
         this.enforceEchoLimit();
 
         const pos = entity.body.translation();
-        const echoId = `echo_${dbId}_${Date.now()}`; // Ensure uniqueness
+        const echoId = `echo_${dbId}_${Date.now()}`;
         
         console.log(`[SPAWN] Converting player ${clientSessionId} to Echo ${echoId}`);
+
+        // Random house for players until we have it in DB
+        const houses: ('ignis' | 'axiom' | 'vesper')[] = ['ignis', 'axiom', 'vesper'];
+        const house = houses[Math.floor(Math.random() * houses.length)];
 
         // Remove from entities map (old session key)
         this.entities.delete(clientSessionId);
         
         // Add AI Component
         entity.ai = {
-            state: 'patrol',
+            state: 'idle',
             timer: 0,
-            home: pos // Patrol around where they left
+            home: pos,
+            house: house
         };
         
         // Reset Input

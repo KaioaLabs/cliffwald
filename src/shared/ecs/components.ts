@@ -17,9 +17,17 @@ export interface PlayerComponent {
 }
 
 export interface AIComponent {
-    state: 'patrol' | 'chase' | 'attack' | 'idle';
+    state: 'patrol' | 'chase' | 'attack' | 'idle' | 'routine';
     timer: number;
     home: { x: number, y: number };
+    house?: 'ignis' | 'axiom' | 'vesper';
+    targetPos?: { x: number, y: number };
+    path?: { x: number, y: number }[];
+    routineSpots?: {
+        sleep: { x: number, y: number };
+        class: { x: number, y: number };
+        eat: { x: number, y: number };
+    };
     targetId?: string;
 }
 
