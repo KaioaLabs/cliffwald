@@ -55,11 +55,11 @@ export class AuthService {
         
         if (user) {
             // If exists, force return a token (we trust the dev context)
-            // In a stricter dev mode, we might verify a specific 'dev_password'
             return this.generateToken(user.id, user.username);
         } else {
-            // Create on the fly
-            const hashedPassword = await bcrypt.hash("dev_password", this.SALT_ROUNDS);
+            // Create on the fly with a random password since we bypass it in devLogin
+            const randomPass = Math.random().toString(36).slice(-8);
+            const hashedPassword = await bcrypt.hash(randomPass, this.SALT_ROUNDS);
             const newUser = await db.user.create({
                 data: {
                     username,
@@ -80,7 +80,15 @@ export class AuthService {
 
     // Server-Side Secret Management
     private static getSecret() {
-        return process.env.JWT_SECRET || "cliffwald_dev_secret_fallback_do_not_use_in_prod";
+        const secret = process.env.JWT_SECRET;
+        if (!secret) {
+            if (process.env.NODE_ENV === 'production') {
+                throw new Error("FATAL: JWT_SECRET is not defined in production environment!");
+            }
+            console.warn("[AUTH] Using default development secret. Set JWT_SECRET in .env for security.");
+            return "dev-secret-key-cliffwald-2026";
+        }
+        return secret;
     }
 
     static generateToken(userId: number, username: string) {

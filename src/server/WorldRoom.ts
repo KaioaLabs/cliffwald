@@ -38,7 +38,7 @@ export class WorldRoom extends Room<GameState> {
         return userData;
     }
 
-    async onCreate(options: any) {
+    async onCreate(options: JoinOptions) {
         this.setMetadata({ name: "Cliffwald World" });
         this.setState(new GameState());
         
@@ -76,7 +76,7 @@ export class WorldRoom extends Room<GameState> {
             this.physicsWorld.step(this.eventQueue);
 
             logTimer += deltaTime;
-            if (logTimer > 10000) {
+            if (logTimer > CONFIG.LOG_INTERVAL) {
                 const players = Array.from(this.state.players.values());
                 const realPlayers = players.filter(p => !p.id.startsWith('echo_')).length;
                 const echoes = players.filter(p => p.id.startsWith('echo_')).length;

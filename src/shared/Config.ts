@@ -1,6 +1,6 @@
 export const CONFIG = {
     // Game Loop
-    SERVER_FPS: 60, // Increased for smoother physics sync
+    SERVER_FPS: 30, // Optimized for stability
     
     // Physics
     PLAYER_SPEED: 100,
@@ -39,4 +39,5 @@ export const CONFIG = {
 
     // Debug
     SHOW_COLLIDERS: false,
+    LOG_INTERVAL: 10000,
 };
