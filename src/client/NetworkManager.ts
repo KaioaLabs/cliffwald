@@ -1,19 +1,22 @@
 import * as Colyseus from "colyseus.js";
 import Phaser from "phaser";
 import { CONFIG } from "../shared/Config";
+import { GameState, Player, Projectile } from "../shared/SchemaDef";
+import { PlayerInput } from "../shared/types/NetworkTypes";
 
 export class NetworkManager {
     private client: Colyseus.Client;
-    public room?: Colyseus.Room;
+    public room?: Colyseus.Room<GameState>;
     private scene: Phaser.Scene;
     
     // Callbacks
-    public onPlayerAdd?: (player: any, id: string) => void;
+    public onPlayerAdd?: (player: Player, id: string) => void;
     public onPlayerRemove?: (id: string) => void;
-    public onProjectileAdd?: (proj: any, id: string) => void;
+    public onProjectileAdd?: (proj: Projectile, id: string) => void;
     public onProjectileRemove?: (id: string) => void;
     public onHit?: (targetId: string) => void;
     public onPong?: (latency: number) => void;
+    public onChatMessage?: (msg: { sender: string, text: string }) => void;
 
     private pingInterval?: any;
 
@@ -28,7 +31,7 @@ export class NetworkManager {
     async connect(token: string, skin: string): Promise<boolean> {
         try {
             console.log("[NET] Connecting to WorldRoom...");
-            this.room = await this.client.joinOrCreate("world", { token, skin });
+            this.room = await this.client.joinOrCreate<GameState>("world", { token, skin });
             console.log("[NET] Joined! Session ID:", this.room.sessionId);
 
             this.setupListeners();
@@ -54,25 +57,30 @@ export class NetworkManager {
             if (this.onPong) this.onPong(latency);
         });
 
-        // 2. State Sync
-        const state = this.room.state as any;
+        this.room.onMessage("chat", (msg: { sender: string, text: string }) => {
+            console.log("[NET] Chat Received:", msg);
+            if (this.onChatMessage) this.onChatMessage(msg);
+        });
 
-        if (state.players) {
-            state.players.onAdd = (player: any, id: string) => {
+        // 2. State Sync
+        if (this.room.state && this.room.state.players) {
+            (this.room.state.players as any).onAdd((player: Player, id: string) => {
                 if (this.onPlayerAdd) this.onPlayerAdd(player, id);
-            };
-            state.players.onRemove = (_: any, id: string) => {
+            });
+            (this.room.state.players as any).onRemove((_: Player, id: string) => {
                 if (this.onPlayerRemove) this.onPlayerRemove(id);
-            };
+            });
+        } else {
+            console.warn("[NET] Warning: state.players not available");
         }
 
-        if (state.projectiles) {
-            state.projectiles.onAdd = (proj: any, id: string) => {
+        if (this.room.state && this.room.state.projectiles) {
+            (this.room.state.projectiles as any).onAdd((proj: Projectile, id: string) => {
                 if (this.onProjectileAdd) this.onProjectileAdd(proj, id);
-            };
-            state.projectiles.onRemove = (_: any, id: string) => {
+            });
+            (this.room.state.projectiles as any).onRemove((_: Projectile, id: string) => {
                 if (this.onProjectileRemove) this.onProjectileRemove(id);
-            };
+            });
         }
     }
 
@@ -90,7 +98,7 @@ export class NetworkManager {
         }
     }
 
-    public sendMove(input: any) {
+    public sendMove(input: PlayerInput) {
         if (this.room) {
             this.room.send("move", input);
         }

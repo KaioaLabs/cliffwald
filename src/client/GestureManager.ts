@@ -6,7 +6,8 @@ export class GestureManager {
     private scene: Phaser.Scene;
     private uiScene: Phaser.Scene;
     private points: Point[];
-    private graphics: Phaser.GameObjects.Graphics;
+    private graphics?: Phaser.GameObjects.Graphics;
+    private emitter: Phaser.GameObjects.Particles.ParticleEmitter;
     public isDrawing: boolean = false;
     private templates: Map<string, Point[]> = new Map();
 
@@ -16,7 +17,24 @@ export class GestureManager {
         this.scene = scene;
         this.uiScene = uiScene;
         this.points = [];
+        
+        // Setup Line Graphics
         this.graphics = this.uiScene.add.graphics();
+        this.graphics.setDepth(100); // Ensure it's on top
+
+        // Setup Magic Particle Trail
+        this.emitter = this.uiScene.add.particles(0, 0, 'star', {
+            lifespan: { min: 300, max: 800 },
+            speed: { min: 50, max: 150 },
+            scale: { start: 0.6, end: 0 },
+            alpha: { start: 1, end: 0 },
+            rotate: { min: 0, max: 360 },
+            angle: { min: 0, max: 360 },
+            tint: [0xff0000, 0x00ff00, 0x0088ff, 0xffff00, 0xff00ff, 0x00ffff], // "Estrellas de distintos colores"
+            blendMode: 'ADD',
+            emitting: false
+        });
+
         this.setupTemplates();
         this.setupInput();
     }
@@ -26,37 +44,47 @@ export class GestureManager {
             if (pointer.rightButtonDown()) {
                 this.isDrawing = true;
                 this.points = [{ x: pointer.x, y: pointer.y }];
+                this.emitter.setPosition(pointer.x, pointer.y);
+                this.emitter.start();
+
+                if (this.graphics) {
+                    this.graphics.clear();
+                    this.graphics.lineStyle(4, 0x00ffff, 0.8);
+                    this.graphics.blendMode = Phaser.BlendModes.ADD;
+                    this.graphics.beginPath();
+                    this.graphics.moveTo(pointer.x, pointer.y);
+                }
             }
         });
 
         this.scene.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
             if (this.isDrawing) {
                 this.points.push({ x: pointer.x, y: pointer.y });
-                this.drawPath();
+                this.emitter.setPosition(pointer.x, pointer.y);
+                
+                if (this.graphics) {
+                    this.graphics.lineTo(pointer.x, pointer.y);
+                    this.graphics.strokePath();
+                }
             }
         });
 
         this.scene.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
             if (this.isDrawing) {
                 this.isDrawing = false;
+                this.emitter.stop();
+                
+                if (this.graphics) {
+                    this.graphics.clear();
+                }
+
                 this.recognizeGesture();
                 this.points = [];
-                this.graphics.clear();
             }
         });
     }
 
-    private drawPath() {
-        this.graphics.clear();
-        if (this.points.length < 2) return;
-        this.graphics.lineStyle(4, 0x00ffff, 0.8);
-        this.graphics.beginPath();
-        this.graphics.moveTo(this.points[0].x, this.points[0].y);
-        for (let i = 1; i < this.points.length; i++) {
-            this.graphics.lineTo(this.points[i].x, this.points[i].y);
-        }
-        this.graphics.strokePath();
-    }
+    // private drawPath() REMOVED
 
     private recognizeGesture() {
         if (this.points.length < 10) return;

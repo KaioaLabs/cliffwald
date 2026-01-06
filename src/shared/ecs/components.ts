@@ -5,6 +5,7 @@ export interface InputComponent {
     right: boolean;
     up: boolean;
     down: boolean;
+    analogDir?: { x: number, y: number };
 }
 
 export interface FacingComponent {
@@ -17,7 +18,7 @@ export interface PlayerComponent {
 }
 
 export interface AIComponent {
-    state: 'patrol' | 'chase' | 'attack' | 'idle' | 'routine';
+    state: 'patrol' | 'chase' | 'attack' | 'idle' | 'routine' | 'duel';
     timer: number;
     home: { x: number, y: number };
     house?: 'ignis' | 'axiom' | 'vesper';
@@ -31,6 +32,10 @@ export interface AIComponent {
     targetId?: string;
 }
 
+export interface VisualComponent {
+    sprite: any; // Reference to Phaser Sprite (Client only)
+}
+
 export interface Entity {
     id?: number;
     body?: RAPIER.RigidBody;
@@ -38,4 +43,5 @@ export interface Entity {
     facing?: FacingComponent;
     player?: PlayerComponent;
     ai?: AIComponent;
+    visual?: VisualComponent;
 }

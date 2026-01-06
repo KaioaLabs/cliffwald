@@ -9,10 +9,11 @@ export class PlayerService {
      * Prepares all necessary data for a player joining the world.
      * Handles creation and skin updates.
      */
-    static async initializeSession(userId: number, username: string, options: { skin?: string }): Promise<SessionData> {
-        // 1. Fetch Player
+    static async initializeSession(userId: number, username: string, options: { skin?: string, house?: string }): Promise<SessionData> {
+        // 1. Fetch Player with Inventory
         let dbPlayer = await db.player.findUnique({
-            where: { userId: userId }
+            where: { userId: userId },
+            include: { inventory: true }
         });
 
         if (!dbPlayer) {
@@ -23,8 +24,11 @@ export class PlayerService {
                     userId: userId,
                     x: 300, 
                     y: 300,
-                    skin: options.skin || "player_idle"
-                }
+                    skin: options.skin || "player_idle",
+                    house: options.house || "ignis",
+                    prestige: 0
+                },
+                include: { inventory: true }
             });
         }
 
@@ -32,7 +36,8 @@ export class PlayerService {
         if (options.skin && options.skin !== dbPlayer.skin) {
             dbPlayer = await db.player.update({
                 where: { id: dbPlayer.id },
-                data: { skin: options.skin }
+                data: { skin: options.skin },
+                include: { inventory: true }
             });
         }
 
@@ -40,11 +45,15 @@ export class PlayerService {
     }
 
     // --- Legacy / Dev Methods ---
-    static async savePlayerPosition(dbId: number, x: number, y: number, hp: number) {
+    static async savePlayerState(dbId: number, data: { x: number, y: number, prestige: number }) {
         try {
             await db.player.update({
                 where: { id: dbId },
-                data: { x, y, health: hp }
+                data: { 
+                    x: data.x, 
+                    y: data.y,
+                    prestige: data.prestige
+                }
             });
         } catch (e) {
             console.error(`[DB] Failed to save player ${dbId}:`, e);

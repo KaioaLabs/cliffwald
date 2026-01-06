@@ -75,7 +75,38 @@ export class SpawnManager {
                 this.createEchoEntity(id, x, y, skin, `${house.charAt(0).toUpperCase() + house.slice(1)} Student ${i}`, house, numericId);
             }
         });
+        
+        this.spawnTeachers();
         console.log(`[SPAWN] Population complete.`);
+    }
+
+    public spawnTeachers() {
+        const teachers = [
+            { x: 1584, y: 1250, name: "Professor Hecate", skin: "teacher" }, // Classroom
+            { x: 1600, y: 1600, name: "Headmaster Aris", skin: "teacher" },  // Hallway
+            { x: 1300, y: 1300, name: "Caretaker Filch", skin: "teacher" },  // Courtyard Entry
+            { x: 600,  y: 1000, name: "Matron Pomfrey", skin: "teacher" },   // Dorms
+            { x: 1600, y: 2880, name: "Baba Yaga", skin: "teacher" }         // Forest Witch
+        ];
+
+        teachers.forEach((t, i) => {
+            const id = `teacher_${i}`;
+            // Create teacher entity
+            this.createEchoEntity(id, t.x, t.y, t.skin, t.name, 'ignis', undefined);
+            
+            // Override AI to stay put (Static NPCs for now)
+            const entity = this.entities.get(id);
+            if (entity && entity.ai) {
+                entity.ai.routineSpots = undefined; 
+                entity.ai.home = { x: t.x, y: t.y };
+                entity.ai.state = 'idle';
+                
+                // Customization for Baba Yaga
+                if (t.name === "Baba Yaga") {
+                    // We can't set tint here (it's server), but the name will show.
+                }
+            }
+        });
     }
 
     public createEchoEntity(id: string, x: number, y: number, skin: string, username: string, house?: 'ignis' | 'axiom' | 'vesper', numericId?: number) {
@@ -88,9 +119,20 @@ export class SpawnManager {
             y: CONFIG.SCHOOL_LOCATIONS.GREAT_HALL.y + (house === 'ignis' ? -64 : (house === 'vesper' ? 64 : 0))
         };
 
+        // CALCULATE CLASS SEAT POSITION (Fixed Desks from Map)
+        // 12 Tables (3 rows x 4 cols). 2 Seats per table. Total 24 seats.
+        // Table Start: (1440, 1312). Spacing: 96x, 64y.
+        const seatId = (numericId !== undefined) ? (numericId - 1) : Math.floor(Math.random() * 24);
+        const seatRow = Math.floor((seatId % 24) / 8); // 0..2
+        const seatCol = Math.floor(((seatId % 24) % 8) / 2); // 0..3
+        const seatSide = seatId % 2; // 0 (Left), 1 (Right)
+
+        const tableX = 1440 + (seatCol * 96);
+        const tableY = 1312 + (seatRow * 64);
+        
         const classPos = {
-            x: CONFIG.SCHOOL_LOCATIONS.ACADEMIC_WING.x + (studentIndex - 3.5) * (TILE_SIZE * 2),
-            y: CONFIG.SCHOOL_LOCATIONS.ACADEMIC_WING.y + (house === 'ignis' ? -64 : (house === 'vesper' ? 64 : 0))
+            x: tableX + 16 + (seatSide * 32),
+            y: tableY + 40 // +40 places them "below" the table (higher Y), looking UP at it.
         };
 
         const sleepPos = {
@@ -98,8 +140,12 @@ export class SpawnManager {
             y: y
         };
 
-        // 1. Create Physics
-        const bodyDesc = RAPIER.RigidBodyDesc.kinematicVelocityBased().setTranslation(x, y);
+        // 1. Create Physics (DYNAMIC for authoritative collisions)
+        const bodyDesc = RAPIER.RigidBodyDesc.dynamic()
+            .setTranslation(x, y)
+            .setLinearDamping(10.0) // Prevents sliding
+            .lockRotations(); // Keeps sprites upright
+        
         const body = this.physicsWorld.createRigidBody(bodyDesc);
         body.userData = { sessionId: id };
         const colliderDesc = RAPIER.ColliderDesc.ball(CONFIG.PLAYER_RADIUS);
@@ -133,6 +179,7 @@ export class SpawnManager {
         playerState.x = x;
         playerState.y = y;
         playerState.skin = skin;
+        playerState.house = house || 'ignis';
         
         this.state.players.set(id, playerState);
     }
@@ -171,6 +218,7 @@ export class SpawnManager {
             const echoState = oldPlayerState.clone();
             echoState.username = `Echo of ${echoState.username}`;
             echoState.id = echoId; 
+            echoState.house = house;
             
             this.state.players.set(echoId, echoState);
             this.state.players.delete(clientSessionId);

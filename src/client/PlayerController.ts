@@ -1,16 +1,17 @@
 import Phaser from 'phaser';
 import { CONFIG } from '../shared/Config';
+import { THEME } from '../shared/Theme';
 import { PlayerInput, PositionUpdate } from '../shared/types/NetworkTypes';
 import RAPIER from '@dimforge/rapier2d-compat';
 import { createWorld, ECSWorld } from '../shared/ecs/world';
 import { Entity } from '../shared/ecs/components';
+import { ShadowUtils } from './ShadowUtils';
 
 export class PlayerController {
     scene: Phaser.Scene;
     physicsWorld?: RAPIER.World;
-    public world: ECSWorld; // Public so Scene can access it for Systems
-    entities: Map<string, Phaser.GameObjects.Sprite> = new Map();
-    ecsEntities: Map<string, Entity> = new Map();
+    public world: ECSWorld; 
+    players: Map<string, Entity> = new Map();
 
     constructor(scene: Phaser.Scene, physicsWorld?: RAPIER.World) {
         this.scene = scene;
@@ -23,7 +24,6 @@ export class PlayerController {
             if (canvas) {
                 const ctx = canvas.getContext();
                 ctx.fillStyle = '#000000';
-                // Draw a blocky circle
                 ctx.fillRect(2, 0, 4, 1);
                 ctx.fillRect(1, 1, 6, 1);
                 ctx.fillRect(0, 2, 8, 4);
@@ -34,418 +34,229 @@ export class PlayerController {
         }
     }
 
-    addPlayer(sessionId: string, x: number, y: number, isLocal: boolean = false, skin: string = "player_idle", username: string = "") {
-        console.log(`[DEBUG] Adding Player: ${sessionId} at ${x},${y} (Local: ${isLocal})`);
-        
-        const displayName = username || sessionId.slice(0, 4);
+    addPlayer(sessionId: string, x: number, y: number, isLocal: boolean = false, skin: string = "player_idle", username: string = "", house: string = "ignis") {
+        if (this.players.has(sessionId)) {
+            this.removePlayer(sessionId);
+        }
 
-        // 1. Create Silhouette Shadow Sprite (Mirrors the main sprite)
+        const displayName = username || sessionId.slice(0, 4);
+        
         const shadow = this.scene.add.sprite(x, y, 'player_idle', 0);
         shadow.setTint(0x000000);
         shadow.setAlpha(0.3);
-        shadow.setOrigin(0.5, 1.0); // Origin at feet for projection
+        shadow.setOrigin(0.5, 1.0); 
         
-        // 2. Create Main Sprite
         const sprite = this.scene.add.sprite(x, y, 'player_idle', 0);
         sprite.setPipeline('Light2D'); 
-        
-        // ... (rest of addPlayer)
-
-        sprite.setOrigin(0.5, 0.75); // Pivot at feet for better depth sorting
+        sprite.setOrigin(0.5, 0.75); 
         sprite.setScale(CONFIG.PLAYER_SCALE);
         
-        // Save shadow reference
-        sprite.setData('shadow', shadow);
-        
-        // 2. Visual Styling (Skin / Echo)
-        const isEcho = displayName.startsWith("Echo of");
-        
+        const isEcho = displayName.toLowerCase().includes("student") || displayName.startsWith("Echo of");
         if (isEcho) {
-            sprite.setTint(0x8888ff);
             sprite.setAlpha(0.6);
+            const echoTints: Record<string, number> = { 'ignis': THEME.HOUSES.IGNIS, 'axiom': THEME.HOUSES.AXIOM, 'vesper': THEME.HOUSES.VESPER };
+            sprite.setTint(echoTints[house] || THEME.HOUSES.DEFAULT);
         } else if (skin === "player_red") {
-            sprite.setTint(0xff7777);
+            sprite.setTint(THEME.HOUSES.IGNIS);
         } else if (skin === "player_blue") {
-            sprite.setTint(0x7777ff);
-        } else {
-            sprite.clearTint();
+            sprite.setTint(THEME.HOUSES.AXIOM);
+        } else if (skin === "teacher") {
+            sprite.setTexture('teacher_idle');
+            sprite.setOrigin(0.5, 0.9);
+            sprite.setData('isTeacher', true);
+            const tints = THEME.TEACHERS;
+            sprite.setTint(tints[Math.floor(Math.random() * tints.length)]);
         }
 
         const nameTag = this.scene.add.text(x, y + CONFIG.NAME_TAG_Y_OFFSET, displayName, {
             fontSize: '10px',
-            color: '#ffffff',
-            stroke: '#000000',
+            color: THEME.UI.TEXT_WHITE,
+            stroke: THEME.UI.TEXT_STROKE,
             strokeThickness: 2,
             align: 'center'
         }).setOrigin(0.5);
-        sprite.setData('nameTag', nameTag);
 
-        // 5. Data Binding
-        sprite.setData('serverX', x);
-        sprite.setData('serverY', y);
-        sprite.setData('lastDir', 'down');
-        sprite.setData('isLocal', isLocal);
-        sprite.setData('positionBuffer', []);
-        sprite.setData('lastMoveTime', 0); // Initialize debounce timer
+        // 2. Create ECS Entity
+        const entity = this.world.add({
+            player: { sessionId },
+            visual: { sprite },
+            input: { left: false, right: false, up: false, down: false },
+            facing: { x: 0, y: 1 }
+        });
 
-        this.entities.set(sessionId, sprite);
+        // Store extra visual data on the entity (managed state)
+        (entity as any).shadow = shadow;
+        (entity as any).nameTag = nameTag;
+        (entity as any).isLocal = isLocal;
+        (entity as any).lastDir = 'down';
+        (entity as any).positionBuffer = [];
+        (entity as any).lastMoveTime = 0;
+        (entity as any).serverPos = { x, y };
 
-        // 5. ECS / Physics Setup (Local Prediction)
         if (isLocal && this.physicsWorld) {
-            this.createLocalPhysics(sessionId, x, y);
+            this.setupLocalPhysics(entity, x, y);
         }
 
+        this.players.set(sessionId, entity);
         return sprite;
     }
 
-    private createLocalPhysics(sessionId: string, x: number, y: number) {
-        const bodyDesc = RAPIER.RigidBodyDesc.kinematicVelocityBased().setTranslation(x, y);
-        const body = this.physicsWorld!.createRigidBody(bodyDesc);
+    private setupLocalPhysics(entity: Entity, x: number, y: number) {
+        const bodyDesc = RAPIER.RigidBodyDesc.dynamic()
+            .setTranslation(x, y)
+            .setLinearDamping(10.0)
+            .lockRotations();
+        entity.body = this.physicsWorld!.createRigidBody(bodyDesc);
         const colliderDesc = RAPIER.ColliderDesc.ball(CONFIG.PLAYER_RADIUS);
-        this.physicsWorld!.createCollider(colliderDesc, body);
-
-        const ecsEntity = this.world.add({
-            body: body,
-            input: { left: false, right: false, up: false, down: false }
-        });
-        this.ecsEntities.set(sessionId, ecsEntity);
+        this.physicsWorld!.createCollider(colliderDesc, entity.body);
     }
 
     removePlayer(sessionId: string) {
-        const sprite = this.entities.get(sessionId);
-        if (sprite) {
-            const nameTag = sprite.getData('nameTag');
-            if (nameTag) nameTag.destroy();
-            const shadow = sprite.getData('shadow');
-            if (shadow) shadow.destroy();
-            sprite.destroy();
-            this.entities.delete(sessionId);
-        }
-
-        const ecsEntity = this.ecsEntities.get(sessionId);
-        if (ecsEntity) {
-            if (ecsEntity.body && this.physicsWorld) {
-                this.physicsWorld.removeRigidBody(ecsEntity.body);
+        const entity = this.players.get(sessionId);
+        if (entity) {
+            if (entity.visual?.sprite) entity.visual.sprite.destroy();
+            if ((entity as any).shadow) (entity as any).shadow.destroy();
+            if ((entity as any).nameTag) (entity as any).nameTag.destroy();
+            
+            if (entity.body && this.physicsWorld) {
+                this.physicsWorld.removeRigidBody(entity.body);
             }
-            this.world.remove(ecsEntity);
-            this.ecsEntities.delete(sessionId);
+            
+            this.world.remove(entity);
+            this.players.delete(sessionId);
         }
     }
 
     applyInput(sessionId: string, input: PlayerInput) {
-        const ecsEntity = this.ecsEntities.get(sessionId);
-        if (ecsEntity && ecsEntity.input) {
-            ecsEntity.input.left = input.left;
-            ecsEntity.input.right = input.right;
-            ecsEntity.input.up = input.up;
-            ecsEntity.input.down = input.down;
+        const entity = this.players.get(sessionId);
+        if (entity && entity.input) {
+            Object.assign(entity.input, input);
         }
     }
 
     updatePlayerState(sessionId: string, data: PositionUpdate) {
-        const sprite = this.entities.get(sessionId);
-        if (sprite) {
-            const x = data.x;
-            const y = data.y;
-            
-            sprite.setData('serverX', x);
-            sprite.setData('serverY', y);
-            
-            const buffer = sprite.getData('positionBuffer');
+        const entity = this.players.get(sessionId);
+        if (entity) {
+            (entity as any).serverPos = { x: data.x, y: data.y };
+            const buffer = (entity as any).positionBuffer;
             if (buffer) {
-                buffer.push({ x, y, timestamp: Date.now() });
+                buffer.push({ x: data.x, y: data.y, timestamp: Date.now() });
                 if (buffer.length > 10) buffer.shift();
             }
             
-            // Server Reconciliation for Local Player
-            if (sprite.getData('isLocal')) {
-                const ecsEntity = this.ecsEntities.get(sessionId);
-                if (ecsEntity && ecsEntity.body) {
-                    const localPos = ecsEntity.body.translation();
-                    const dist = Phaser.Math.Distance.Between(localPos.x, localPos.y, x, y);
-                    
-                    // Soft Correction:
-                    // If drift is tiny (< 2px), ignore server (Client authority for micro-movements to prevent jitter).
-                    // If drift is small (> 2px), nudge gently.
-                    // If drift is large (> 50px), teleport.
-                    
-                    if (dist > CONFIG.RECONCILIATION_THRESHOLD_LARGE) {
-                        console.log("Reconciling large drift:", dist);
-                        ecsEntity.body.setTranslation({ x, y }, true);
-                    } else if (dist > CONFIG.RECONCILIATION_THRESHOLD_SMALL) { 
-                        // Only correct if drift is noticeable (> 2 pixels)
-                        // This prevents the "snap back" when stopping
-                        const lerpX = Phaser.Math.Linear(localPos.x, x, CONFIG.RECONCILIATION_SMOOTHING);
-                        const lerpY = Phaser.Math.Linear(localPos.y, y, CONFIG.RECONCILIATION_SMOOTHING);
-                        ecsEntity.body.setTranslation({ x: lerpX, y: lerpY }, true);
-                    }
+            // Server Reconciliation for Local
+            if ((entity as any).isLocal && entity.body) {
+                const localPos = entity.body.translation();
+                const dist = Phaser.Math.Distance.Between(localPos.x, localPos.y, data.x, data.y);
+                if (dist > 20) entity.body.setTranslation({ x: data.x, y: data.y }, true);
+                else if (dist > 2) {
+                    entity.body.setTranslation({
+                        x: Phaser.Math.Linear(localPos.x, data.x, 0.2),
+                        y: Phaser.Math.Linear(localPos.y, data.y, 0.2)
+                    }, true);
                 }
             }
         }
     }
 
-    // --- Public Helpers ---
-
     getPosition(sessionId: string): Phaser.Math.Vector2 | null {
-        const sprite = this.entities.get(sessionId);
-        if (sprite) return new Phaser.Math.Vector2(sprite.x, sprite.y);
+        const entity = this.players.get(sessionId);
+        if (entity?.visual?.sprite) return new Phaser.Math.Vector2(entity.visual.sprite.x, entity.visual.sprite.y);
         return null;
     }
 
-    getFacingVector(sessionId: string): Phaser.Math.Vector2 {
-        const sprite = this.entities.get(sessionId);
-        if (!sprite) return new Phaser.Math.Vector2(0, 1); // Default down
-
-        const dir = sprite.getData('lastDir') || 'down';
-        const vec = new Phaser.Math.Vector2(0, 0);
-
-        switch (dir) {
-            case 'up': vec.y = -1; break;
-            case 'down': vec.y = 1; break;
-            case 'left': vec.x = -1; break; // Handled via flipX usually, but logic remains
-            case 'right': vec.x = 1; break;
-            case 'up-right': vec.x = 1; vec.y = -1; break;
-            case 'up-left': vec.x = -1; vec.y = -1; break;
-            case 'down-right': vec.x = 1; vec.y = 1; break;
-            case 'down-left': vec.x = -1; vec.y = 1; break;
-            default: vec.y = 1;
-        }
-        
-        // Handle FlipX for pure left/right which might be stored simply
-        // logic in handleAnimation sets 'lastDir' to specific strings, so we rely on that.
-        // However, handleAnimation uses 'right' with flipX for left.
-        
-        // Correction based on handleAnimation:
-        // dir = 'right' + flipX=true  => Left
-        // dir = 'right' + flipX=false => Right
-        
-        if (dir === 'right' || dir.includes('right')) {
-             if (sprite.flipX) {
-                 vec.x = -1; // It's actually left
-                 if (dir.includes('up')) vec.y = -1;
-                 if (dir.includes('down')) vec.y = 1;
-             }
-        }
-
-        return vec.normalize();
-    }
-
-    // Called every frame
     updateVisuals() {
         const now = Date.now();
         const renderTime = now - CONFIG.RENDER_DELAY;
 
-        this.entities.forEach((sprite, sessionId) => {
-            const isLocal = sprite.getData('isLocal');
-            let newX = sprite.x;
-            let newY = sprite.y;
+        for (const entity of this.world.with("visual", "player")) {
+            const sprite = entity.visual!.sprite as Phaser.GameObjects.Sprite;
+            const isLocal = (entity as any).isLocal;
+            
+            let targetX = sprite.x;
+            let targetY = sprite.y;
 
-            if (isLocal) {
-                // Prediction
-                const ecsEntity = this.ecsEntities.get(sessionId);
-                if (ecsEntity && ecsEntity.body) {
-                    const pos = ecsEntity.body.translation();
-                    newX = pos.x;
-                    newY = pos.y;
-                }
+            if (isLocal && entity.body) {
+                const pos = entity.body.translation();
+                targetX = pos.x; targetY = pos.y;
             } else {
-                // Snapshot Interpolation
-                const buffer = sprite.getData('positionBuffer');
-                
-                if (buffer && buffer.length >= 2) {
-                    // Prune old (keep at least 2 for extrapolation if needed)
-                    while (buffer.length > 2 && buffer[1].timestamp <= renderTime) {
-                        buffer.shift();
-                    }
-
-                    // Interpolate
-                    if (buffer.length >= 2 && buffer[0].timestamp <= renderTime && renderTime <= buffer[1].timestamp) {
-                        const t0 = buffer[0];
-                        const t1 = buffer[1];
+                const buffer = (entity as any).positionBuffer;
+                if (buffer?.length >= 2) {
+                    while (buffer.length > 2 && buffer[1].timestamp <= renderTime) buffer.shift();
+                    if (buffer[1].timestamp > renderTime) {
+                        const t0 = buffer[0], t1 = buffer[1];
                         const total = t1.timestamp - t0.timestamp;
-                        const elapsed = renderTime - t0.timestamp;
-                        const factor = total > 0 ? elapsed / total : 0;
-                        
-                        newX = Phaser.Math.Linear(t0.x, t1.x, factor);
-                        newY = Phaser.Math.Linear(t0.y, t1.y, factor);
-                    } 
-                    // Extrapolate (if we ran out of future snapshots)
-                    else if (buffer.length >= 2 && renderTime > buffer[1].timestamp) {
-                        const t0 = buffer[buffer.length - 2];
-                        const t1 = buffer[buffer.length - 1];
-                        const total = t1.timestamp - t0.timestamp;
-                        
-                        // Only extrapolate if we have a valid time delta
-                        if (total > 0) {
-                            const velocityX = (t1.x - t0.x) / total;
-                            const velocityY = (t1.y - t0.y) / total;
-                            const extrapolationTime = renderTime - t1.timestamp;
-                            
-                            // Limit extrapolation and apply decay
-                            // Decay ensures we don't overshoot wildly if the player actually stopped
-                            if (extrapolationTime < CONFIG.EXTRAPOLATION_MAX_TIME) {
-                                const decay = Math.max(0, 1 - (extrapolationTime / CONFIG.EXTRAPOLATION_DECAY_BASE)); // Slow down
-                                newX = t1.x + velocityX * extrapolationTime * decay;
-                                newY = t1.y + velocityY * extrapolationTime * decay;
-                            } else {
-                                newX = t1.x;
-                                newY = t1.y;
-                            }
-                        }
+                        const factor = total > 0 ? (renderTime - t0.timestamp) / total : 0;
+                        targetX = Phaser.Math.Linear(t0.x, t1.x, factor);
+                        targetY = Phaser.Math.Linear(t0.y, t1.y, factor);
                     }
-                } else if (buffer && buffer.length === 1) {
-                     newX = buffer[0].x;
-                     newY = buffer[0].y;
                 } else {
-                    // Fallback to simple lerp if buffer empty (startup)
-                    const serverX = sprite.getData('serverX');
-                    const serverY = sprite.getData('serverY');
-                    const t = CONFIG.INTERPOLATION_FACTOR;
-                    newX = Phaser.Math.Linear(sprite.x, serverX, t);
-                    newY = Phaser.Math.Linear(sprite.y, serverY, t);
+                    const sPos = (entity as any).serverPos || { x: sprite.x, y: sprite.y };
+                    targetX = Phaser.Math.Linear(sprite.x, sPos.x, CONFIG.INTERPOLATION_FACTOR);
+                    targetY = Phaser.Math.Linear(sprite.y, sPos.y, CONFIG.INTERPOLATION_FACTOR);
                 }
             }
 
-            const dx = newX - sprite.x;
-            const dy = newY - sprite.y;
+            const dx = targetX - sprite.x;
+            const dy = targetY - sprite.y;
+            const lerp = isLocal ? CONFIG.LERP_FACTOR_LOCAL : CONFIG.LERP_FACTOR_REMOTE;
+            
+            sprite.setPosition(Phaser.Math.Linear(sprite.x, targetX, lerp), Phaser.Math.Linear(sprite.y, targetY, lerp));
+            sprite.setDepth(sprite.y + 100);
 
-            // Final Visual Smoothing: Instead of snapping to newX/newY, 
-            // we lerp gently to the target to absorb micro-jitter.
-            const lerpFactor = isLocal ? CONFIG.LERP_FACTOR_LOCAL : CONFIG.LERP_FACTOR_REMOTE; // Local is instant (prediction), Remote is smoothed
-            const finalX = Phaser.Math.Linear(sprite.x, newX, lerpFactor);
-            const finalY = Phaser.Math.Linear(sprite.y, newY, lerpFactor);
-
-            sprite.setPosition(finalX, finalY);
-            sprite.setDepth(finalY + 100); // Shift all characters UP in depth
-
-            // --- DYNAMIC SILHOUETTE SHADOW PROJECTION ---
-            const shadow = sprite.getData('shadow') as Phaser.GameObjects.Sprite;
+            // Shadow Logic
+            const shadow = (entity as any).shadow;
             if (shadow) {
-                const pointer = this.scene.input.activePointer;
-                const worldPoint = this.scene.cameras.main.getWorldPoint(pointer.x, pointer.y);
-                
-                // 1. Sync Visuals
-                shadow.setTexture(sprite.texture.key);
-                shadow.setFrame(sprite.frame.name);
-                shadow.setFlipX(sprite.flipX);
-                shadow.setVisible(sprite.visible);
-
-                // 2. Calculate Projection Base (Feet)
-                // Use a safer displayHeight check
-                const h = sprite.displayHeight || 20;
-                const footX = finalX;
-                const footY = finalY + (h * 0.22); 
-
-                // Vector from Light to Feet
-                const dx = footX - worldPoint.x;
-                const dy = footY - worldPoint.y;
-                const dist = Math.sqrt(dx * dx + dy * dy) || 0.1; 
-                const angle = Math.atan2(dy, dx);
-                
-                // 3. Apply Deformation
-                const shadowStretch = Math.min(dist / 300, 1.5); 
-                
-                shadow.setPosition(footX, footY);
-                shadow.setRotation(angle + Math.PI / 2); 
-                shadow.setScale(sprite.scaleX, sprite.scaleY * shadowStretch);
-                
-                shadow.setAlpha(Math.max(0.05, 0.3 - (dist / 3000)));
-                shadow.setDepth(sprite.depth - 1); // Directly below its owner
+                const worldPoint = this.scene.cameras.main.getWorldPoint(this.scene.input.activePointer.x, this.scene.input.activePointer.y);
+                shadow.setTexture(sprite.texture.key).setFrame(sprite.frame.name).setFlipX(sprite.flipX).setVisible(sprite.visible);
+                ShadowUtils.updateShadow(shadow, sprite.x, sprite.y, sprite.scaleX, sprite.scaleY, sprite.depth, sprite.displayHeight || 40, worldPoint.x, worldPoint.y);
             }
 
-            const nameTag = sprite.getData('nameTag');
-            if (nameTag) {
-                nameTag.setPosition(finalX, finalY + CONFIG.NAME_TAG_Y_OFFSET);
-                nameTag.setDepth(finalY + 100);
-            }
+            if ((entity as any).nameTag) (entity as any).nameTag.setPosition(sprite.x, sprite.y + CONFIG.NAME_TAG_Y_OFFSET).setDepth(sprite.y + 100);
 
-            this.handleAnimation(sprite, dx, dy, sessionId);
-        });
+            this.handleAnimation(entity, dx, dy);
+        }
     }
 
-    private handleAnimation(entity: Phaser.GameObjects.Sprite, dx: number, dy: number, sessionId?: string) {
-        const isLocal = entity.getData('isLocal');
+    private handleAnimation(entity: Entity, dx: number, dy: number) {
+        const sprite = entity.visual?.sprite;
+        if (!sprite) return;
+
+        const isLocal = (entity as any).isLocal;
         const velocity = Math.sqrt(dx * dx + dy * dy);
-        
-        let anim = 'idle';
-        let dir = entity.getData('lastDir') || 'down';
-        let targetDx = dx;
-        let targetDy = dy;
-        let shouldUpdateDir = false;
+        let anim = 'idle', dir = (entity as any).lastDir || 'down', targetDx = dx, targetDy = dy, shouldUpdate = false;
 
-        if (isLocal && sessionId) {
-            const ecsEntity = this.ecsEntities.get(sessionId);
-            if (ecsEntity && ecsEntity.input) {
-                const input = ecsEntity.input;
-                const isMoving = input.left || input.right || input.up || input.down;
-                
-                if (isMoving) {
-                    anim = 'run';
-                    let inputDx = 0;
-                    let inputDy = 0;
-                    if (input.left) inputDx -= 1;
-                    if (input.right) inputDx += 1;
-                    if (input.up) inputDy -= 1;
-                    if (input.down) inputDy += 1;
-
-                    if (inputDx !== 0 || inputDy !== 0) {
-                        targetDx = inputDx;
-                        targetDy = inputDy;
-                        shouldUpdateDir = true;
-                    }
-                }
+        if (isLocal && entity.input) {
+            const isMoving = entity.input.left || entity.input.right || entity.input.up || entity.input.down;
+            if (isMoving) {
+                anim = 'run'; shouldUpdate = true;
+                targetDx = (entity.input.left ? -1 : 0) + (entity.input.right ? 1 : 0);
+                targetDy = (entity.input.up ? -1 : 0) + (entity.input.down ? 1 : 0);
             }
-        } else {
-            // Remote Players: Use hysteresis to prevent flickering
-            const now = Date.now();
-            if (velocity > 0.1) {
-                anim = 'run';
-                shouldUpdateDir = true;
-                entity.setData('lastMoveTime', now);
-            } else {
-                const lastMoveTime = entity.getData('lastMoveTime') || 0;
-                // Keep running animation for 100ms after stopping to smooth out jitter
-                if (now - lastMoveTime < 100) {
-                    anim = 'run';
-                }
-            }
+        } else if (velocity > 0.1) {
+            anim = 'run'; shouldUpdate = true;
+            (entity as any).lastMoveTime = Date.now();
+        } else if (Date.now() - (entity as any).lastMoveTime < 100) {
+            anim = 'run';
         }
 
-        if (shouldUpdateDir) {
+        if (shouldUpdate) {
             const angle = Math.atan2(targetDy, targetDx) * 180 / Math.PI;
-            
-            if (angle >= 67.5 && angle < 112.5) {
-                dir = 'down';
-                entity.setFlipX(false);
-            } else if (angle >= 22.5 && angle < 67.5) {
-                dir = 'down-right';
-                entity.setFlipX(false);
-            } else if (angle >= -22.5 && angle < 22.5) {
-                dir = 'right';
-                entity.setFlipX(false);
-            } else if (angle >= -67.5 && angle < -22.5) {
-                dir = 'up-right';
-                entity.setFlipX(false);
-            } else if (angle >= -112.5 && angle < -67.5) {
-                dir = 'up';
-                entity.setFlipX(false);
-            } else if (angle >= -157.5 && angle < -112.5) {
-                dir = 'up-right'; // Up-Left mirrored
-                entity.setFlipX(true);
-            } else if (angle >= 112.5 && angle < 157.5) {
-                dir = 'down-right'; // Down-Left mirrored
-                entity.setFlipX(true);
-            } else { // Left
-                dir = 'right'; // Left mirrored
-                entity.setFlipX(true);
-            }
-            
-            entity.setData('lastDir', dir);
+            sprite.setFlipX(false);
+            if (angle >= 67.5 && angle < 112.5) dir = 'down';
+            else if (angle >= 22.5 && angle < 67.5) dir = 'down-right';
+            else if (angle >= -22.5 && angle < 22.5) dir = 'right';
+            else if (angle >= -67.5 && angle < -22.5) dir = 'up-right';
+            else if (angle >= -112.5 && angle < -67.5) dir = 'up';
+            else if (angle >= -157.5 && angle < -112.5) { dir = 'up-right'; sprite.setFlipX(true); }
+            else if (angle >= 112.5 && angle < 157.5) { dir = 'down-right'; sprite.setFlipX(true); }
+            else { dir = 'right'; sprite.setFlipX(true); }
+            (entity as any).lastDir = dir;
         }
 
-        const key = `${anim}-${dir}`;
-        if (entity.anims.currentAnim?.key !== key) {
-            entity.play(key, true);
-        }
+        const isTeacher = sprite.getData('isTeacher');
+        const prefix = isTeacher ? 'teacher_' : '';
+        const key = `${prefix}${anim}-${dir}`;
+        if (sprite.anims.currentAnim?.key !== key) sprite.play(key, true);
     }
 }

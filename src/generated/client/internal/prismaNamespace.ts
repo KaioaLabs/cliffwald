@@ -686,6 +686,8 @@ export const PlayerScalarFieldEnum = {
   x: 'x',
   y: 'y',
   skin: 'skin',
+  house: 'house',
+  prestige: 'prestige',
   health: 'health',
   maxHealth: 'maxHealth'
 } as const

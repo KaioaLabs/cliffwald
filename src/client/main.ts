@@ -3,6 +3,7 @@ import Phaser from 'phaser';
 // Colyseus import moved to top by previous edit, removing duplicate here if any, or ensuring clean imports.
 import * as Colyseus from "colyseus.js";
 import { CONFIG } from "../shared/Config";
+import { THEME } from "../shared/Theme";
 import { PlayerController } from "./PlayerController";
 import RAPIER from "@dimforge/rapier2d-compat";
 import { buildPhysics } from "../shared/MapParser";
@@ -12,130 +13,10 @@ import { NetworkManager } from './NetworkManager';
 import { DebugManager } from './DebugManager';
 import { GestureManager } from './GestureManager';
 import { SPELL_REGISTRY } from '../shared/items/SpellRegistry';
-
-class UIScene extends Phaser.Scene {
-    clockText?: Phaser.GameObjects.Text;
-    pvpStatusText?: Phaser.GameObjects.Text;
-    joystick?: VirtualJoystick;
-
-    // Prestige UI
-    pillars: Map<string, { fill: Phaser.GameObjects.Rectangle, text: Phaser.GameObjects.Text }> = new Map();
-
-    constructor() {
-        super({ key: 'UIScene' });
-    }
-    
-    create() {
-        console.log("UIScene Created");
-        this.cameras.main.setScroll(0, 0);
-        this.cameras.main.setZoom(1);
-
-        // Clock Text (Top Right)
-        this.clockText = this.add.text(this.scale.width - 20, 20, '00:00', {
-            fontFamily: 'monospace',
-            fontSize: '18px',
-            color: '#ffffff',
-            backgroundColor: '#00000088',
-            padding: { x: 10, y: 5 }
-        }).setOrigin(1, 0); 
-
-        // Prestige Pillars Container (Left of Clock)
-        this.createPrestigeUI();
-
-        // PvP Status Text (Below Clock)
-        this.pvpStatusText = this.add.text(this.scale.width - 20, 55, 'PVP: OFF', {
-            fontFamily: 'monospace',
-            fontSize: '12px',
-            color: '#aaaaaa',
-            backgroundColor: '#00000088',
-            padding: { x: 10, y: 3 }
-        }).setOrigin(1, 0);
-
-        // ... mobile logic ...
-        const isMobile = !this.sys.game.device.os.desktop;
-        if (isMobile) {
-            this.joystick = new VirtualJoystick(this, 0, 0);
-        }
-
-        this.scale.on('resize', (gameSize: any) => {
-            this.cameras.main.setViewport(0, 0, gameSize.width, gameSize.height);
-            if (this.clockText) this.clockText.setPosition(gameSize.width - 20, 20);
-            if (this.pvpStatusText) this.pvpStatusText.setPosition(gameSize.width - 20, 55);
-            this.repositionPrestigeUI(gameSize.width);
-        });
-    }
-
-    createPrestigeUI() {
-        const startX = this.scale.width - 160;
-        const startY = 20;
-        const houses = [
-            { id: 'ignis', color: 0xff0000, label: 'I' },
-            { id: 'axiom', color: 0x00aaff, label: 'A' },
-            { id: 'vesper', color: 0xaa00ff, label: 'V' }
-        ];
-
-        houses.forEach((house, index) => {
-            const x = startX + (index * 25);
-            
-            // Background
-            this.add.rectangle(x, startY + 20, 15, 40, 0x000000, 0.5).setOrigin(0.5, 0);
-            
-            // Fill
-            const fill = this.add.rectangle(x, startY + 60, 15, 0, house.color).setOrigin(0.5, 1);
-            
-            // Label
-            const text = this.add.text(x, startY + 5, '0', {
-                fontSize: '10px',
-                fontFamily: 'monospace',
-                color: '#ffffff'
-            }).setOrigin(0.5);
-
-            this.pillars.set(house.id, { fill, text });
-        });
-    }
-
-    repositionPrestigeUI(width: number) {
-        const startX = width - 160;
-        const houses = ['ignis', 'axiom', 'vesper'];
-        houses.forEach((id, index) => {
-            const p = this.pillars.get(id);
-            if (p) {
-                const x = startX + (index * 25);
-                p.fill.x = x;
-                p.text.x = x;
-                // Update background too? (Better to use a container, but this is simple)
-            }
-        });
-    }
-
-    updatePoints(ignis: number, axiom: number, vesper: number) {
-        const maxDisplay = Math.max(ignis, axiom, vesper, 100); // Scale relative to max
-        
-        const updatePillar = (id: string, val: number) => {
-            const p = this.pillars.get(id);
-            if (p) {
-                const height = (val / maxDisplay) * 40;
-                p.fill.height = height;
-                p.text.setText(val.toString());
-            }
-        };
-
-        updatePillar('ignis', ignis);
-        updatePillar('axiom', axiom);
-        updatePillar('vesper', vesper);
-    }
-
-    updateTime(totalSeconds: number, course: number, month: string) {
-        if (!this.clockText) return;
-        
-        const hours = Math.floor(totalSeconds / 3600);
-        const minutes = Math.floor((totalSeconds % 3600) / 60);
-        const hStr = hours.toString().padStart(2, '0');
-        const mStr = minutes.toString().padStart(2, '0');
-        
-        this.clockText.setText(`${hStr}:${mStr}\nCourse ${course}\n${month}`);
-    }
-}
+import { ShadowUtils } from './ShadowUtils';
+import { UIScene } from './scenes/UIScene';
+import { CardAlbumScene } from './scenes/CardAlbumScene';
+import { AssetManager } from './managers/AssetManager';
 
 export class GameScene extends Phaser.Scene {
     network: NetworkManager;
@@ -200,30 +81,13 @@ export class GameScene extends Phaser.Scene {
 
     preload() {
         this.cursors = this.input.keyboard?.createCursorKeys();
-        
-        // Load Assets
-        this.load.tilemapTiledJSON('map', '/maps/world.json');
-        this.load.image('tiles', '/maps/tilesets/placeholder_tiles.png');
-        
-        // REAL ASSETS WITH NORMAL MAPS
-        this.load.spritesheet({
-            key: 'player_idle',
-            url: '/sprites/player_idle.png',
-            normalMap: '/sprites/player_idle_n.png',
-            frameConfig: { frameWidth: 20, frameHeight: 20 }
-        });
-        this.load.spritesheet({
-            key: 'player_run',
-            url: '/sprites/player_run.png',
-            normalMap: '/sprites/player_run_n.png',
-            frameConfig: { frameWidth: 20, frameHeight: 20 }
-        });
-        
-        this.load.on('loaderror', (file: any) => console.error('Asset Load Error:', file.src));
+        AssetManager.preload(this);
     }
 
     // Registry for networked projectiles
     visualProjectiles = new Map<string, Phaser.GameObjects.Shape>();
+    itemVisuals = new Map<string, Phaser.GameObjects.GameObject>();
+    tableShadows: Phaser.GameObjects.Image[] = [];
 
     async create() {
         try {
@@ -233,19 +97,66 @@ export class GameScene extends Phaser.Scene {
             this.scene.bringToTop('UIScene');
             const uiScene = this.scene.get('UIScene');
 
+            // --- GENERATE ASSETS ---
+            AssetManager.generateTextures(this);
+
             await RAPIER.init();
             this.physicsWorld = new RAPIER.World({ x: 0.0, y: 0.0 });
 
             // ... (Map and Player setup remain the same)
             const map = this.make.tilemap({ key: 'map' });
+            
+            // Add all tilesets defined in Tiled
             const tileset = map.addTilesetImage('placeholder_tiles', 'tiles');
-            if (tileset) {
-                const ground = map.createLayer('Ground', tileset, 0, 0);
-                if (ground) {
-                    ground.setPipeline('Light2D');
-                    ground.setDepth(-100); // Ensure it's ALWAYS below characters
+            const tilesetTable = map.addTilesetImage('table', 'table');
+            const tilesetFloor = map.addTilesetImage('floor_cobble', 'floor_cobble');
+
+            // Create Layers (Order matters for default z-index, but we setDepth anyway)
+            if (tileset && tilesetTable && tilesetFloor) {
+                // 1. Floor Text (Bottom)
+                const floorLayer = map.createLayer('floor_text', tilesetFloor, 0, 0);
+                if (floorLayer) {
+                    floorLayer.setPipeline('Light2D');
+                    floorLayer.setDepth(-101); 
                 }
+
+                // 2. Ground (Middle)
+                const groundLayer = map.createLayer('Ground', tileset, 0, 0);
+                if (groundLayer) {
+                    groundLayer.setPipeline('Light2D');
+                    groundLayer.setDepth(-100); 
+                }
+
+                // 3. Furniture (Top of static world)
+                const furnitureLayer = map.createLayer('Furniture', tilesetTable, 0, 0);
+                if (furnitureLayer) {
+                    furnitureLayer.setPipeline('Light2D');
+                    furnitureLayer.setDepth(-99);
+
+                    // --- TABLE SHADOWS ---
+                    furnitureLayer.forEachTile((tile) => {
+                        if (tile.index !== -1) {
+                            // Center X, Bottom Y of the tile
+                            const tx = tile.getCenterX();
+                            const ty = tile.getBottom();
+                            
+                            const shadow = this.add.image(tx, ty, 'table');
+                            shadow.setTint(0x000000);
+                            shadow.setAlpha(0.3);
+                            shadow.setOrigin(0.5, 1.0); // Pivot at feet/bottom
+                            shadow.setDepth(-99.5); // Below table (-99), above ground (-100)
+                            
+                            shadow.setData('baseX', tx);
+                            shadow.setData('baseY', ty);
+
+                            this.tableShadows.push(shadow);
+                        }
+                    });
+                }
+            } else {
+                console.error("Failed to load one or more tilesets:", { tileset, tilesetTable, tilesetFloor });
             }
+
             buildPhysics(this.physicsWorld, this.cache.tilemap.get('map').data);
 
             // --- DYNAMIC LIGHTING FROM TILED ---
@@ -267,8 +178,54 @@ export class GameScene extends Phaser.Scene {
             // ... rest of create ...
             
             // FIX: Enable Lights with safer ambient color
-            this.lights.enable().setAmbientColor(0x555555); 
+            this.lights.enable().setAmbientColor(0x888888); 
 
+            this.playerController = new PlayerController(this, this.physicsWorld);
+            AssetManager.createAnimations(this);
+            this.wasd = this.input.keyboard?.addKeys('W,A,S,D') as any;
+
+            // Camera Target Setup
+            this.cameraTarget = this.add.image(1600, 1000, '').setVisible(false);
+            this.cameras.main.startFollow(this.cameraTarget, true, 0.2, 0.2);
+            this.cameras.main.centerOn(1600, 1000);
+
+            // 2b. Gestures
+            this.gestureManager = new GestureManager(this, uiScene);
+            this.gestureManager.onGestureRecognized = (id: string, score: number, centroid: {x: number, y: number}) => {
+                const sessionId = this.room?.sessionId || "";
+                const playerPos = this.playerController.getPosition(sessionId);
+
+                if (playerPos && centroid) {
+                    const worldPoint = this.cameras.main.getWorldPoint(centroid.x, centroid.y);
+                    
+                    // --- VISUAL CAST EFFECT ---
+                    this.showCastEffect(id, worldPoint.x, worldPoint.y);
+
+                    const aimVector = new Phaser.Math.Vector2(worldPoint.x - playerPos.x, worldPoint.y - playerPos.y).normalize();
+
+                    // MULTIPLAYER CAST: Send to server
+                    this.network.sendCast(id, aimVector.x * 400, aimVector.y * 400);
+
+                    // Local Feedback: Spawn Projectile locally (Client Prediction)
+                    const projData = {
+                        x: playerPos.x,
+                        y: playerPos.y,
+                        spellId: id,
+                        vx: aimVector.x * 400,
+                        vy: aimVector.y * 400
+                    };
+                    const visualProj = this.createProjectileSprite(projData);
+                    
+                    // Animate it flying
+                    this.tweens.add({
+                        targets: visualProj,
+                        x: playerPos.x + aimVector.x * 1200, 
+                        y: playerPos.y + aimVector.y * 1200,
+                        duration: 3000,
+                        onComplete: () => visualProj.destroy()
+                    });
+                }
+            };
 
             // 6. Auto-Login based on URL
             this.autoLogin();
@@ -276,22 +233,74 @@ export class GameScene extends Phaser.Scene {
             // 7. Events
             this.scale.on('resize', this.handleResize, this);
             
-            // CLEANUP: Force disconnect on refresh/close
-            window.addEventListener('beforeunload', () => {
-                this.network.disconnect();
-            });
-
-            window.addEventListener('blur', () => {
-                this.input.keyboard?.resetKeys();
-                this.network.sendMove({ left: false, right: false, up: false, down: false });
-            });
-
             // 8. Debug Tools
             this.debugManager = new DebugManager(this);
+
+            // 9. Input & Zoom Control
+            this.input.mouse?.disableContextMenu();
+
+            this.input.on('wheel', (pointer: any, gameObjects: any, deltaX: number, deltaY: number, deltaZ: number) => {
+                const zoomSpeed = 0.001;
+                let newZoom = this.cameras.main.zoom - (deltaY * zoomSpeed);
+                newZoom = Phaser.Math.Clamp(newZoom, 0.7, 1.3);
+                this.cameras.main.setZoom(newZoom);
+            });
 
         } catch (e: any) {
             console.error("Create Crash:", e);
         }
+    }
+
+    showCastEffect(id: string, x: number, y: number) {
+        let config = SPELL_REGISTRY['circle']; // Default
+        for (const key in SPELL_REGISTRY) {
+            if (id.includes(key)) {
+                config = SPELL_REGISTRY[key];
+                break;
+            }
+        }
+        const color = config.color;
+
+        // 1. Shape Graphics (Outline)
+        const graphics = this.add.graphics({ x, y });
+        graphics.lineStyle(3, color, 1);
+        graphics.setBlendMode(Phaser.BlendModes.ADD);
+        graphics.setDepth(2000); // Top
+        
+        // Emulate Glow by drawing twice? Or just rely on Light
+        if (config.shape === 'triangle') {
+            graphics.strokeTriangle(-20, -17, 20, -17, 0, 23);
+        } else if (config.shape === 'square') {
+            graphics.strokeRect(-20, -20, 40, 40);
+        } else {
+            graphics.strokeCircle(0, 0, 20);
+        }
+
+        // 2. Real Light Emission
+        // Note: 'radius' and 'intensity'
+        const light = this.lights.addLight(x, y, 120, color, 3.0);
+
+        // 3. Animation: Expand and Fade
+        this.tweens.add({
+            targets: graphics,
+            alpha: 0,
+            scale: 1.5,
+            angle: 45, // Rotate slightly
+            duration: 800,
+            ease: 'Sine.easeOut',
+            onComplete: () => {
+                graphics.destroy();
+                this.lights.removeLight(light);
+            }
+        });
+
+        // Animate Light
+        this.tweens.add({
+            targets: light,
+            intensity: 0,
+            radius: 200, // Expand light area as it fades
+            duration: 800
+        });
     }
 
     async autoLogin() {
@@ -372,8 +381,50 @@ export class GameScene extends Phaser.Scene {
                 // Setup callbacks
                 this.network.onPong = (latency) => this.currentLatency = latency;
 
+                this.network.onChatMessage = (msg) => {
+                    const chatMessages = document.getElementById('chat-messages');
+                    if (chatMessages) {
+                        const el = document.createElement('div');
+                        el.style.marginBottom = '4px';
+                        el.innerText = `${msg.sender}: ${msg.text}`;
+                        chatMessages.appendChild(el);
+                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                    }
+                };
+
                 // PROJECTILES SYNC
-                const state = this.room.state as any;
+                const state = this.room.state;
+                
+                // ITEMS SYNC (Cards)
+                if (state.items) {
+                    (state.items as any).onAdd((item: any, id: string) => {
+                        const sprite = this.add.rectangle(item.x, item.y, 14, 14, 0xFFD700);
+                        sprite.setStrokeStyle(2, 0xFFFFFF);
+                        sprite.setDepth(-80); // On floor
+                        
+                        // Tween: Float
+                        this.tweens.add({
+                            targets: sprite,
+                            y: item.y - 5,
+                            duration: 1500,
+                            yoyo: true,
+                            repeat: -1
+                        });
+
+                        sprite.setInteractive({ cursor: 'pointer' });
+                        sprite.on('pointerdown', () => {
+                            this.network.room?.send("collect", id);
+                        });
+                        
+                        this.itemVisuals.set(id, sprite);
+                    });
+                    (state.items as any).onRemove((_: any, id: string) => {
+                        const v = this.itemVisuals.get(id);
+                        if (v) v.destroy();
+                        this.itemVisuals.delete(id);
+                    });
+                }
+
                 if (state.projectiles) {
                     state.projectiles.onAdd = (proj: any, id: string) => {
                         if (this.room && proj.ownerId === this.room.sessionId) return;
@@ -395,9 +446,9 @@ export class GameScene extends Phaser.Scene {
                 this.room.onLeave((code) => {
                     console.warn(`[NETWORK] Disconnected (Code: ${code}). Attempting Auto-Reconnect...`);
                     // Clear state
-                    this.playerController.entities.forEach((sprite) => sprite.destroy());
-                    this.playerController.entities.clear();
-                    this.playerController.ecsEntities.clear();
+                    this.playerController.players.forEach((entity) => {
+                        this.playerController.removePlayer(entity.player!.sessionId);
+                    });
                     
                     // Show Reconnecting UI
                     if (this.uiText) this.uiText.setText("RECONNECTING TO SERVER...");
@@ -501,7 +552,8 @@ export class GameScene extends Phaser.Scene {
         if (!this.playerController || !this.network || !this.network.room) return;
 
         // --- DYNAMIC CAMERA LOGIC ---
-        const localPlayer = this.playerController.entities.get(this.network.room.sessionId);
+        const localPlayerEnt = this.playerController.players.get(this.network.room.sessionId);
+        const localPlayer = localPlayerEnt?.visual?.sprite;
         if (localPlayer && this.cameraTarget) {
             if (!this.gestureManager?.isDrawing) {
                 const pointer = this.input.activePointer;
@@ -529,6 +581,28 @@ export class GameScene extends Phaser.Scene {
         
         this.playerController.updateVisuals();
         this.updateUI();
+
+        // --- TABLE SHADOWS UPDATE ---
+        const pointer = this.input.activePointer;
+        const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+        
+        this.tableShadows.forEach(shadow => {
+            const baseX = shadow.getData('baseX');
+            const baseY = shadow.getData('baseY');
+            
+            // Table height is tileheight (32)
+            ShadowUtils.updateShadow(
+                shadow,
+                baseX,
+                baseY,
+                1.0, 
+                1.0, 
+                -99, // Source Depth
+                32,  // Height
+                worldPoint.x,
+                worldPoint.y
+            );
+        });
 
         if (this.debugManager) this.debugManager.update();
 
@@ -569,7 +643,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     syncNetworkState() {
-        const state = this.network.room?.state as any;
+        const state = this.network.room?.state;
         if (state && state.players) {
             const players = state.players;
             
@@ -577,8 +651,9 @@ export class GameScene extends Phaser.Scene {
             players.forEach((p: any, id: string) => this.syncPlayer(id, p));
             
             // 2. Remove missing
-            this.playerController.entities.forEach((_, id) => {
+            this.playerController.players.forEach((_, id) => {
                 if (!players.has(id)) {
+                    console.log(`[NET] Removing player/echo from client: ${id}`);
                     this.playerController.removePlayer(id);
                 }
             });
@@ -586,9 +661,9 @@ export class GameScene extends Phaser.Scene {
     }
 
     private syncPlayer(sessionId: string, data: any) {
-        if (!this.playerController.entities.has(sessionId)) {
+        if (!this.playerController.players.has(sessionId)) {
             const isLocal = sessionId === this.network.room?.sessionId;
-            this.playerController.addPlayer(sessionId, data.x, data.y, isLocal, data.skin, data.username);
+            this.playerController.addPlayer(sessionId, data.x, data.y, isLocal, data.skin, data.username, data.house);
         } else {
             this.playerController.updatePlayerState(sessionId, data);
         }
@@ -598,8 +673,8 @@ export class GameScene extends Phaser.Scene {
         this.uiText = this.add.text(10, 10, 'Initializing...', {
             fontFamily: 'monospace',
             fontSize: '10px',
-            color: '#ffffff',
-            backgroundColor: '#00000088'
+            color: THEME.UI.TEXT_WHITE,
+            backgroundColor: THEME.UI.BACKGROUND_DIM
         });
         this.uiText.setScrollFactor(0);
         this.uiText.setDepth(1000);
@@ -607,7 +682,7 @@ export class GameScene extends Phaser.Scene {
 
     updateUI() {
         if (!this.uiText || !this.network || !this.network.room) return;
-        const state = this.network.room.state as any;
+        const state = this.network.room.state;
         const myState = state.players ? state.players.get(this.network.room.sessionId) : null;
         
         const uiScene = this.scene.get('UIScene') as UIScene;
@@ -618,43 +693,14 @@ export class GameScene extends Phaser.Scene {
         if (myState) {
             this.uiText.setText(`POS: ${Math.round(myState.x)},${Math.round(myState.y)}
 PING: ${this.currentLatency}ms`);
-            if (this.currentLatency < 100) this.uiText.setColor('#00ff00');
-            else if (this.currentLatency < 200) this.uiText.setColor('#ffff00');
-            else this.uiText.setColor('#ff0000');
+            if (this.currentLatency < 100) this.uiText.setColor(THEME.UI.PING_GOOD);
+            else if (this.currentLatency < 200) this.uiText.setColor(THEME.UI.PING_WARN);
+            else this.uiText.setColor(THEME.UI.PING_BAD);
         }
     }
 
     handleResize(gameSize: any) {
         this.cameras.main.setViewport(0, 0, gameSize.width, gameSize.height);
-        this.updateCameraZoom();
-    }
-
-    updateCameraZoom() {
-        const targetHeightTiles = 16;
-        const tileSize = 16;
-        const logicalHeight = targetHeightTiles * tileSize;
-        let zoom = Math.floor(this.scale.height / logicalHeight);
-        zoom = Math.max(2, Math.min(zoom, 6));
-        this.cameras.main.setZoom(zoom);
-    }
-
-    createAnimations() {
-        if (!this.textures.exists('player_run') || !this.textures.exists('player_idle')) return;
-        const rowNames = ['down', 'down-right', 'right', 'up-right', 'up'];
-        rowNames.forEach((name, rowIndex) => {
-            this.anims.create({
-                key: `idle-${name}`,
-                frames: this.anims.generateFrameNumbers('player_idle', { start: rowIndex * 4, end: (rowIndex * 4) + 3 }),
-                frameRate: 6,
-                repeat: -1
-            });
-            this.anims.create({
-                key: `run-${name}`,
-                frames: this.anims.generateFrameNumbers('player_run', { start: rowIndex * 6, end: (rowIndex * 6) + 5 }),
-                frameRate: 10,
-                repeat: -1
-            });
-        });
     }
 
     lastInputState = { left: false, right: false, up: false, down: false };
@@ -709,7 +755,7 @@ const config: Phaser.Types.Core.GameConfig = {
     roundPixels: true,
     render: { maxLights: 50 },
     backgroundColor: '#000000',
-    scene: [GameScene, UIScene],
+    scene: [GameScene, UIScene, CardAlbumScene],
     physics: { default: 'arcade', arcade: { debug: false } }
 };
 

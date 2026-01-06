@@ -3,7 +3,7 @@ export const CONFIG = {
     SERVER_FPS: 30, // Optimized for stability
     
     // Physics (Scaled for 32x32 tiles)
-    PLAYER_SPEED: 200, 
+    PLAYER_SPEED: 120, 
     PLAYER_RADIUS: 16,
     
     // Visuals
@@ -40,23 +40,54 @@ export const CONFIG = {
     SHOW_COLLIDERS: false,
     LOG_INTERVAL: 10000,
 
+    // AI Navigation
+    AI_DETECTION_RADIUS: 100,
+    AI_PERSONAL_SPACE: 40,
+
     // Academic Calendar
     WEEKS_PER_COURSE: 8, 
     MS_PER_WEEK: 7 * 24 * 60 * 60 * 1000, 
 
-    // School Locations (Scaled x2 for 32x32 world)
+    // School Locations (Scaled for 100x100 Map)
     SCHOOL_LOCATIONS: {
-        DORM_IGNIS: { x: 416, y: 416 },
-        DORM_AXIOM: { x: 416, y: 1056 },
-        DORM_VESPER: { x: 1216, y: 736 },
+        // Dormitories (Left Wing)
+        DORM_IGNIS: { x: 576, y: 480 },
+        DORM_AXIOM: { x: 576, y: 1120 },
+        DORM_VESPER: { x: 576, y: 1760 },
         
-        GREAT_HALL: { x: 960, y: 416 },
-        ACADEMIC_WING: { x: 928, y: 928 },
-        TRAINING_GROUNDS: { x: 1408, y: 1248 },
-        COURTYARD: { x: 896, y: 640 },
-        FOREST: { x: 320, y: 1408 },
-        ALCHEMY_LAB: { x: 1376, y: 416 }
-    }
+        // Central Hub
+        GREAT_HALL: { x: 1600, y: 560 },       
+        ACADEMIC_WING: { x: 1600, y: 1360 },    
+        
+        // Right Wing
+        TRAINING_GROUNDS: { x: 2640, y: 1520 }, 
+        ALCHEMY_LAB: { x: 2592, y: 640 },       
+        
+        // Outdoor
+        COURTYARD: { x: 1056, y: 1280 },        
+        FOREST: { x: 1600, y: 2880 }           
+    },
+
+    // Duel / Combat
+    DUEL_ZONE: {
+        x: 2640, // Reusing Training Grounds location
+        y: 1520,
+        radius: 300 // Size of the 'Tatami' area
+    },
+    
+    // Rock Paper Scissors Logic
+    // Circle = Rock, Square = Paper, Triangle = Scissors
+    RPS_MAP: {
+        'circle': 'rock',
+        'square': 'paper',
+        'triangle': 'scissors'
+    } as Record<string, 'rock' | 'paper' | 'scissors'>,
+
+    RPS_WINNER: {
+        'rock': 'scissors',   // Rock beats Scissors
+        'scissors': 'paper',  // Scissors beats Paper
+        'paper': 'rock'       // Paper beats Rock
+    } as Record<string, string>
 };
 
 export function getGameHour(worldStartTime: number): number {

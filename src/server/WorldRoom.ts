@@ -18,6 +18,9 @@ import { SpawnManager } from "./managers/SpawnManager";
 import { PlayerService } from "./services/PlayerService";
 import * as fs from "fs/promises";
 
+import { DuelSystem } from "./systems/DuelSystem";
+import { ItemSystem } from "./systems/ItemSystem";
+
 export class WorldRoom extends Room<GameState> {
     physicsWorld!: RAPIER.World;
     eventQueue!: RAPIER.EventQueue;
@@ -26,6 +29,8 @@ export class WorldRoom extends Room<GameState> {
     pathfinder?: Pathfinding;
     spellSystem!: SpellSystem;
     prestigeSystem!: PrestigeSystem;
+    duelSystem!: DuelSystem;
+    itemSystem!: ItemSystem;
     entities = new Map<string, Entity>();
     playerDbIds = new Map<string, number>();
     spawnPos = { x: 300, y: 300 };
@@ -62,6 +67,8 @@ export class WorldRoom extends Room<GameState> {
         this.spawnManager = new SpawnManager(this.world, this.physicsWorld, this.state, this.entities);
         this.spellSystem = new SpellSystem(this);
         this.prestigeSystem = new PrestigeSystem(this);
+        this.duelSystem = new DuelSystem(this);
+        this.itemSystem = new ItemSystem(this);
 
         try {
             const mapFile = await fs.readFile("./assets/maps/world.json", "utf-8");
@@ -71,6 +78,8 @@ export class WorldRoom extends Room<GameState> {
             this.pathfinder = new Pathfinding(result.navGrid);
             console.log(`[SERVER] Map loaded. Initializing 24 Student Slots...`);
             this.spawnManager.spawnEchoes(24, this.spawnPos);
+            // Spawn initial cards
+            for(let i=0; i<5; i++) this.itemSystem.spawnRandomCard();
         } catch (e) {
             console.error("[SERVER] Error loading map:", e);
         }
@@ -90,7 +99,6 @@ export class WorldRoom extends Room<GameState> {
 
             // Detect YEAR END / GRADUATION
             if (this.state.currentCourse < currentCourse) {
-                // Determine Winner
                 let winner = "Tie";
                 const scores = [
                     { name: 'IGNIS', score: this.state.ignisPoints },
@@ -100,7 +108,6 @@ export class WorldRoom extends Room<GameState> {
                 scores.sort((a, b) => b.score - a.score);
                 if (scores[0].score > scores[1].score) winner = scores[0].name;
 
-                // Broadcast Ceremony
                 const msg = new ChatMessage();
                 msg.sender = "HEADMASTER";
                 msg.text = `THE ACADEMIC YEAR ENDS! The winner of the Cup is: ${winner}!`;
@@ -108,67 +115,69 @@ export class WorldRoom extends Room<GameState> {
                 this.state.messages.push(msg);
                 this.broadcast("chat", msg);
 
-                // RESET HOUSE POINTS for the new year
                 this.state.ignisPoints = 0;
                 this.state.axiomPoints = 0;
                 this.state.vesperPoints = 0;
                 this.state.currentCourse = currentCourse;
-                
-                console.log(`[GRADUATION] House ${winner} won! Resetting points for Course ${currentCourse}.`);
+                console.log(`[GRADUATION] House ${winner} won! Resetting points.`);
             }
             
-            // PRESTIGE REWARDS (Once per Game Hour)
+            // PRESTIGE REWARDS
             if (currentHour !== lastRewardedHour) {
                 lastRewardedHour = currentHour;
-                
                 this.entities.forEach((entity, sessionId) => {
-                    // Check if player or echo is at their designated spot
                     const spots = entity.ai?.routineSpots || (entity as any).tempSpots;
-                    
                     if (spots) {
                         const pos = entity.body?.translation();
                         if (pos) {
-                            // Determine current target based on hour
                             let target = spots.sleep;
                             if (currentHour >= 7 && currentHour < 8) target = spots.eat;
                             else if (currentHour >= 8 && currentHour < 10) target = spots.class;
                             else if (currentHour >= 19 && currentHour < 21) target = spots.eat;
                             else if (currentHour >= 17 && currentHour < 19) target = spots.class;
 
-                            const dist = Math.sqrt(Math.pow(target.x - pos.x, 2) + Math.pow(target.y - pos.y, 2));
-                            if (dist < 50) {
+                            if (Math.sqrt((target.x - pos.x)**2 + (target.y - pos.y)**2) < 50) {
                                 this.prestigeSystem.addPrestige(sessionId, 5);
                             }
                         }
                     }
                 });
             }
-
+            
             MovementSystem(this.world);
-            AISystem(this.world, deltaTime, currentHour, this.pathfinder);
+            this.duelSystem.update();
+            
+            AISystem(
+                this.world, 
+                this.physicsWorld, 
+                deltaTime, 
+                currentHour, 
+                this.pathfinder,
+                (id, spell, vx, vy) => this.handleCast(id, spell, vx, vy),
+                (id) => {
+                    const p = this.state.players.get(id);
+                    return p ? { x: p.x, y: p.y } : null;
+                }
+            );
+            
             this.spellSystem.update(deltaTime);
+            this.itemSystem.update(deltaTime);
             this.physicsWorld.step(this.eventQueue);
 
-            logTimer += deltaTime;
-            if (logTimer > CONFIG.LOG_INTERVAL) {
-                const players = Array.from(this.state.players.values());
-                console.log(`[SERVER STATS] Students Active: ${players.length}`);
-                logTimer = 0;
-            }
-
-            this.world.entities.forEach(entity => {
-                if (entity.player && entity.body) {
-                    const playerState = this.state.players.get(entity.player.sessionId);
+            // SYNC PHYSICS TO STATE
+            this.entities.forEach((entity, sessionId) => {
+                if (entity.body) {
+                    const pos = entity.body.translation();
+                    const playerState = this.state.players.get(sessionId);
                     if (playerState) {
-                        const pos = entity.body.translation();
-                        const vel = entity.body.linvel();
                         playerState.x = pos.x;
                         playerState.y = pos.y;
-                        playerState.vx = vel.x;
-                        playerState.vy = vel.y;
                     }
                 }
             });
+
+            logTimer += deltaTime;
+            // ... (stats) ...
         });
 
         this.onMessage("move", (client, input: PlayerInput) => {
@@ -178,40 +187,26 @@ export class WorldRoom extends Room<GameState> {
                 entity.input.right = !!input.right;
                 entity.input.up = !!input.up;
                 entity.input.down = !!input.down;
+
+                if (input.analogDir) {
+                    entity.input.analogDir = {
+                        x: Number(input.analogDir.x) || 0,
+                        y: Number(input.analogDir.y) || 0
+                    };
+                } else {
+                    entity.input.analogDir = undefined;
+                }
+            } else {
+                console.warn(`[SERVER] No entity found for moving client ${client.sessionId}`);
             }
         });
 
         this.onMessage("cast", (client, data: { spellId: string, vx: number, vy: number }) => {
-            const entity = this.entities.get(client.sessionId);
-            if (!entity || !entity.body) return;
+            this.handleCast(client.sessionId, data.spellId, data.vx, data.vy);
+        });
 
-            const spellConfig = SPELL_REGISTRY[data.spellId];
-            if (!spellConfig) return;
-
-            const now = Date.now();
-            const lastCast = this.lastCastTimes.get(client.sessionId) || 0;
-            if (now - lastCast < spellConfig.cooldown) return;
-            this.lastCastTimes.set(client.sessionId, now);
-
-            // 3. Spawn projectile
-            const pos = entity.body.translation();
-            const id = `proj_${client.sessionId}_${now}`;
-            const proj = new Projectile();
-            proj.id = id;
-            proj.spellId = data.spellId;
-            proj.x = pos.x;
-            proj.y = pos.y;
-            
-            const mag = Math.sqrt(data.vx * data.vx + data.vy * data.vy);
-            proj.vx = (mag > 0) ? (data.vx / mag) * spellConfig.speed : spellConfig.speed;
-            proj.vy = (mag > 0) ? (data.vy / mag) * spellConfig.speed : 0;
-            proj.ownerId = client.sessionId;
-            
-            // Meta for cleanup
-            proj.creationTime = now;
-            proj.maxRange = 600;
-
-            this.state.projectiles.set(id, proj);
+        this.onMessage("collect", (client, itemId: string) => {
+            this.itemSystem.tryCollectItem(client.sessionId, itemId);
         });
 
         this.onMessage("ping", (client, timestamp) => {
@@ -233,6 +228,38 @@ export class WorldRoom extends Room<GameState> {
                 console.log(`[CHAT] ${msg.sender}: ${msg.text}`);
             }
         });
+    }
+
+    handleCast(sessionId: string, spellId: string, vx: number, vy: number) {
+        const entity = this.entities.get(sessionId);
+        if (!entity || !entity.body) return;
+
+        const spellConfig = SPELL_REGISTRY[spellId];
+        if (!spellConfig) return;
+
+        const now = Date.now();
+        const lastCast = this.lastCastTimes.get(sessionId) || 0;
+        if (now - lastCast < spellConfig.cooldown) return;
+        this.lastCastTimes.set(sessionId, now);
+
+        // Spawn projectile
+        const pos = entity.body.translation();
+        const id = `proj_${sessionId}_${now}`;
+        const proj = new Projectile();
+        proj.id = id;
+        proj.spellId = spellId;
+        proj.x = pos.x;
+        proj.y = pos.y;
+        
+        const mag = Math.sqrt(vx * vx + vy * vy);
+        proj.vx = (mag > 0) ? (vx / mag) * spellConfig.speed : spellConfig.speed;
+        proj.vy = (mag > 0) ? (vy / mag) * spellConfig.speed : 0;
+        proj.ownerId = sessionId;
+        
+        proj.creationTime = now;
+        proj.maxRange = 600;
+
+        this.state.projectiles.set(id, proj);
     }
 
     async onJoin(client: Client, options: JoinOptions) {
@@ -264,6 +291,8 @@ export class WorldRoom extends Room<GameState> {
             // 2. POSSESS SLOT
             const originalSpots = possessedEntity.ai!.routineSpots;
             const house = possessedEntity.ai!.house;
+            const oldEchoState = this.state.players.get(slotId);
+            const carriedPrestige = oldEchoState?.personalPrestige || 0;
 
             // Remove AI control but keep the entity
             possessedEntity.player!.sessionId = client.sessionId;
@@ -277,7 +306,10 @@ export class WorldRoom extends Room<GameState> {
 
             this.entities.delete(slotId);
             this.entities.set(client.sessionId, possessedEntity);
-            this.playerDbIds.set(client.sessionId, (await PlayerService.initializeSession(authUser.userId, authUser.username, options)).dbPlayer.id);
+            
+            // LOAD DB SESSION
+            const session = await PlayerService.initializeSession(authUser.userId, authUser.username, { ...options, house });
+            this.playerDbIds.set(client.sessionId, session.dbPlayer.id);
 
             // 3. Setup State
             const playerState = new Player();
@@ -287,11 +319,27 @@ export class WorldRoom extends Room<GameState> {
             playerState.x = pos.x;
             playerState.y = pos.y;
             playerState.skin = options.skin || "player_idle";
+            playerState.personalPrestige = carriedPrestige + (session.dbPlayer.prestige || 0); // Add stored prestige? 
+            // Warning: Double counting if echoed prestige is stored? 
+            // Echo prestige is transient session prestige. DB prestige is permanent.
+            // Let's assume DB prestige overwrites/is the source of truth for now.
+            playerState.personalPrestige = session.dbPlayer.prestige || 0;
+            playerState.house = house || 'ignis';
+
+            // Hydrate Cards
+            if (session.dbPlayer.inventory) {
+                session.dbPlayer.inventory.forEach((item: any) => {
+                    if (item.itemId.startsWith("card_")) {
+                        const cardId = parseInt(item.itemId.split("_")[1]);
+                        if (!isNaN(cardId)) playerState.cardCollection.push(cardId);
+                    }
+                });
+            }
 
             this.state.players.set(client.sessionId, playerState);
-            this.state.players.delete(slotId); // Remove the Echo from state
+            this.state.players.delete(slotId); 
 
-            console.log(`[SERVER] Player ${authUser.username} possessed slot ${slotId}`);
+            console.log(`[SERVER] Player ${authUser.username} possessed slot ${slotId} with ${playerState.personalPrestige} prestige.`);
 
         } catch (e) {
             console.error(`[SERVER] Error joining player ${client.sessionId}:`, e);
@@ -304,7 +352,12 @@ export class WorldRoom extends Room<GameState> {
         const dbId = this.playerDbIds.get(client.sessionId);
 
         if (entity && entity.body) {
-            if (dbId) PersistenceManager.savePlayerSession(dbId, entity).catch(console.error);
+            const playerState = this.state.players.get(client.sessionId);
+            if (dbId) {
+                const prestige = playerState?.personalPrestige || 0;
+                const cards = playerState?.cardCollection.toArray() || [];
+                PersistenceManager.savePlayerSession(dbId, entity, prestige, cards).catch(console.error);
+            }
 
             // UNPOSSESS: Restore original slot ID
             const slotId = (entity as any).slotId || `student_fallback_${Date.now()}`;
@@ -330,6 +383,8 @@ export class WorldRoom extends Room<GameState> {
             echoState.x = entity.body.translation().x;
             echoState.y = entity.body.translation().y;
             echoState.skin = oldState?.skin || "player_idle";
+            echoState.personalPrestige = oldState?.personalPrestige || 0; // RESTORE POINTS TO ECHO
+            echoState.house = house || 'ignis';
             
             this.state.players.set(slotId, echoState);
         }

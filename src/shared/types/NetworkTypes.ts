@@ -3,6 +3,7 @@ export interface PlayerInput {
     right: boolean;
     up: boolean;
     down: boolean;
+    analogDir?: { x: number, y: number };
 }
 
 export interface JoinOptions {

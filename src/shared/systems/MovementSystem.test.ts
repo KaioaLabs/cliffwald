@@ -27,7 +27,7 @@ describe('MovementSystem', () => {
         MovementSystem(world);
 
         const velocity = body.linvel();
-        expect(velocity.x).toBe(CONFIG.PLAYER_SPEED);
+        expect(velocity.x).toBe(CONFIG.PLAYER_SPEED * 1.5);
         expect(velocity.y).toBe(0);
     });
 
@@ -43,7 +43,7 @@ describe('MovementSystem', () => {
         MovementSystem(world);
 
         const velocity = body.linvel();
-        const expectedSpeed = CONFIG.PLAYER_SPEED * Math.SQRT1_2;
+        const expectedSpeed = (CONFIG.PLAYER_SPEED * 1.5) * Math.SQRT1_2;
         
         expect(velocity.x).toBeCloseTo(expectedSpeed);
         expect(velocity.y).toBeCloseTo(expectedSpeed);

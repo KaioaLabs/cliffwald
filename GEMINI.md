@@ -1,38 +1,32 @@
 # Reglas del Proyecto
 
-## Arquitectura
-- **Servidor Autoritativo**: Node.js + Colyseus. La verdad reside aquí.
-- **Cliente Tonto**: Phaser 3 (Web 2D Top-Down). Solo renderiza e interpola estados.
-- **Comunicación**: State Synchronization (Schema) y Delta Compression.
-- **ADVERTENCIA GDD**: El documento .docx original menciona Godot/3D. IGNORAR ESAS REFERENCIAS TÉCNICAS. El proyecto es estrictamente 2D/Web. Solo tomar del GDD los conceptos de juego (hechizos, casas, rutinas).
+## Arquitectura Modular
+- **Servidor Autoritativo**: Node.js + Colyseus.
+- **Cliente Modular**: 
+    - `AssetManager`: Carga centralizada de recursos.
+    - `UIScene`: Interfaz separada del juego.
+    - `NetworkManager`: Tipado estricto con Schema.
+- **Entidad Unificada (CRÍTICO)**: En el cliente (`PlayerController`), **NUNCA** mantener listas separadas para Sprites y Lógica. Usar un único mapa `Map<string, Entity>` donde la `Entity` contiene componentes visuales (`sprite`) y lógicos (`body`).
 
 ## Física y Determinismo
-- **Motor Físico**: Rapier.js (lado servidor).
-- **Control**: Movimiento cinemático basado en velocidad (linvel) para "Control Total".
-- **Colisionadores**: Usar 'Greedy Meshing' para optimizar la geometría estática importada.
+- **Motor Físico**: Rapier.js (Isomórfico).
+- **Sombras**: Proyección Polar 360º centralizada en `ShadowUtils`. Usar siempre posición base para objetos estáticos para evitar 'drift'.
 
-## Mapas y Espacios
-- **Herramienta**: Tiled (Map Editor).
-- **Formato**: JSON Export.
-- **Semántica**: 
-    - Capa de Objetos 'Collisions': Rectángulos invisibles para cuerpos estáticos.
-    - Capa de Objetos 'Entities': Definición lógica (Puntos para Spawn, NPCs).
-    - El servidor parsea el JSON para generar la física.
+## Mecánicas de Juego Activas
+- **Magia Táctil**: Input $1 Unistroke, Feedback de Partículas y Luz Dinámica.
+- **Sistema de Duelos**: Zona "Tatami" con reglas RPS (Piedra-Papel-Tijera). IA con rivalidad de casas y "strafe".
+- **Población**: 24 Echos (Persistentes) + 4 Profesores (Estáticos/Vigilantes).
 
 ## Código y Estilo
-- **Lenguaje**: TypeScript estricto.
-- **Estilo**: No usar clases de ES6 innecesarias si una estructura de datos simple basta, pero respetar la arquitectura de clases de Colyseus (Schema).
-- **IA (NPCs)**: Behavior Trees (Árboles de Comportamiento). NO usar redes neuronales generativas en tiempo de ejecución.
-- **Generación**: El código de carga de mapas y esquemas debe ser generado automáticamente cuando sea posible.
+- **Lenguaje**: TypeScript estricto. Evitar `any` en capas de red.
+- **IA (NPCs)**: Máquinas de Estados Finitos (FSM) integradas en `AISystem`.
+- **Configuración**: NUNCA usar "números mágicos" (colores, posiciones). Usar `Theme.ts` y `Config.ts`.
 
 ## Protocolo de Verificación (MANDATORIO)
-- **Verificación Dual**: Prohibido emitir un veredicto de "Éxito" basándose solo en texto/logs.
-- **Ciclo de Cambio**: Cambio de Código -> Reinicio/Refresco -> `tools/snap.ps1` -> Análisis Visual.
-- **Evidencia Visual**: Siempre revisar `screenshots/` tras un cambio.
-- **Criterio de Fallo**: Una pantalla negra, sprites invisibles o UI rota se considera un FALLO CRÍTICO, independientemente de que el servidor reporte `Connected` o `Joined`.
+- **Verificación Dual**: Código + Evidencia Visual (`screenshots/`).
+- **Criterio de Fallo**: Pantalla negra o errores de consola en cliente/servidor.
 
 ## Security & Performance Standards
-- **Tick Rate**: Server locked to 30 FPS (`Config.ts`) to ensure stability.
-- **Validation**: Strict server-side checks for Spells (Cooldowns, Ownership) via `WorldRoom` & `SpellRegistry`.
-- **Persistence**: Database saves on logout are Async (Fire-and-forget) to prevent blocking the game loop.
-- **Memory**: Echoes (Offline players) are capped at 50 (`SpawnManager.ts`). FIFO cleanup policy.
+- **Tick Rate**: 30 FPS.
+- **Validación**: Checks de servidor para cooldowns y propiedad de proyectiles.
+- **Memoria**: Limpieza estricta de entidades al desconectar.

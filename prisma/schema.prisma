@@ -29,6 +29,8 @@ model Player {
   y         Float    @default(0)
   
   skin      String   @default("player_idle") // e.g. "player_red", "player_blue"
+  house     String   @default("ignis") // "ignis", "axiom", "vesper"
+  prestige  Int      @default(0)
 
   // Future proofing for Phase 2
   health    Int      @default(100)

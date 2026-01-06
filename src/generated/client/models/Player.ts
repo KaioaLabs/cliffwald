@@ -31,6 +31,7 @@ export type PlayerAvgAggregateOutputType = {
   userId: number | null
   x: number | null
   y: number | null
+  prestige: number | null
   health: number | null
   maxHealth: number | null
 }
@@ -40,6 +41,7 @@ export type PlayerSumAggregateOutputType = {
   userId: number | null
   x: number | null
   y: number | null
+  prestige: number | null
   health: number | null
   maxHealth: number | null
 }
@@ -50,6 +52,8 @@ export type PlayerMinAggregateOutputType = {
   x: number | null
   y: number | null
   skin: string | null
+  house: string | null
+  prestige: number | null
   health: number | null
   maxHealth: number | null
 }
@@ -60,6 +64,8 @@ export type PlayerMaxAggregateOutputType = {
   x: number | null
   y: number | null
   skin: string | null
+  house: string | null
+  prestige: number | null
   health: number | null
   maxHealth: number | null
 }
@@ -70,6 +76,8 @@ export type PlayerCountAggregateOutputType = {
   x: number
   y: number
   skin: number
+  house: number
+  prestige: number
   health: number
   maxHealth: number
   _all: number
@@ -81,6 +89,7 @@ export type PlayerAvgAggregateInputType = {
   userId?: true
   x?: true
   y?: true
+  prestige?: true
   health?: true
   maxHealth?: true
 }
@@ -90,6 +99,7 @@ export type PlayerSumAggregateInputType = {
   userId?: true
   x?: true
   y?: true
+  prestige?: true
   health?: true
   maxHealth?: true
 }
@@ -100,6 +110,8 @@ export type PlayerMinAggregateInputType = {
   x?: true
   y?: true
   skin?: true
+  house?: true
+  prestige?: true
   health?: true
   maxHealth?: true
 }
@@ -110,6 +122,8 @@ export type PlayerMaxAggregateInputType = {
   x?: true
   y?: true
   skin?: true
+  house?: true
+  prestige?: true
   health?: true
   maxHealth?: true
 }
@@ -120,6 +134,8 @@ export type PlayerCountAggregateInputType = {
   x?: true
   y?: true
   skin?: true
+  house?: true
+  prestige?: true
   health?: true
   maxHealth?: true
   _all?: true
@@ -217,6 +233,8 @@ export type PlayerGroupByOutputType = {
   x: number
   y: number
   skin: string
+  house: string
+  prestige: number
   health: number
   maxHealth: number
   _count: PlayerCountAggregateOutputType | null
@@ -250,6 +268,8 @@ export type PlayerWhereInput = {
   x?: Prisma.FloatFilter<"Player"> | number
   y?: Prisma.FloatFilter<"Player"> | number
   skin?: Prisma.StringFilter<"Player"> | string
+  house?: Prisma.StringFilter<"Player"> | string
+  prestige?: Prisma.IntFilter<"Player"> | number
   health?: Prisma.IntFilter<"Player"> | number
   maxHealth?: Prisma.IntFilter<"Player"> | number
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -262,6 +282,8 @@ export type PlayerOrderByWithRelationInput = {
   x?: Prisma.SortOrder
   y?: Prisma.SortOrder
   skin?: Prisma.SortOrder
+  house?: Prisma.SortOrder
+  prestige?: Prisma.SortOrder
   health?: Prisma.SortOrder
   maxHealth?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
@@ -277,6 +299,8 @@ export type PlayerWhereUniqueInput = Prisma.AtLeast<{
   x?: Prisma.FloatFilter<"Player"> | number
   y?: Prisma.FloatFilter<"Player"> | number
   skin?: Prisma.StringFilter<"Player"> | string
+  house?: Prisma.StringFilter<"Player"> | string
+  prestige?: Prisma.IntFilter<"Player"> | number
   health?: Prisma.IntFilter<"Player"> | number
   maxHealth?: Prisma.IntFilter<"Player"> | number
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -289,6 +313,8 @@ export type PlayerOrderByWithAggregationInput = {
   x?: Prisma.SortOrder
   y?: Prisma.SortOrder
   skin?: Prisma.SortOrder
+  house?: Prisma.SortOrder
+  prestige?: Prisma.SortOrder
   health?: Prisma.SortOrder
   maxHealth?: Prisma.SortOrder
   _count?: Prisma.PlayerCountOrderByAggregateInput
@@ -307,6 +333,8 @@ export type PlayerScalarWhereWithAggregatesInput = {
   x?: Prisma.FloatWithAggregatesFilter<"Player"> | number
   y?: Prisma.FloatWithAggregatesFilter<"Player"> | number
   skin?: Prisma.StringWithAggregatesFilter<"Player"> | string
+  house?: Prisma.StringWithAggregatesFilter<"Player"> | string
+  prestige?: Prisma.IntWithAggregatesFilter<"Player"> | number
   health?: Prisma.IntWithAggregatesFilter<"Player"> | number
   maxHealth?: Prisma.IntWithAggregatesFilter<"Player"> | number
 }
@@ -315,6 +343,8 @@ export type PlayerCreateInput = {
   x?: number
   y?: number
   skin?: string
+  house?: string
+  prestige?: number
   health?: number
   maxHealth?: number
   user: Prisma.UserCreateNestedOneWithoutPlayerInput
@@ -327,6 +357,8 @@ export type PlayerUncheckedCreateInput = {
   x?: number
   y?: number
   skin?: string
+  house?: string
+  prestige?: number
   health?: number
   maxHealth?: number
   inventory?: Prisma.InventoryItemUncheckedCreateNestedManyWithoutPlayerInput
@@ -336,6 +368,8 @@ export type PlayerUpdateInput = {
   x?: Prisma.FloatFieldUpdateOperationsInput | number
   y?: Prisma.FloatFieldUpdateOperationsInput | number
   skin?: Prisma.StringFieldUpdateOperationsInput | string
+  house?: Prisma.StringFieldUpdateOperationsInput | string
+  prestige?: Prisma.IntFieldUpdateOperationsInput | number
   health?: Prisma.IntFieldUpdateOperationsInput | number
   maxHealth?: Prisma.IntFieldUpdateOperationsInput | number
   user?: Prisma.UserUpdateOneRequiredWithoutPlayerNestedInput
@@ -348,6 +382,8 @@ export type PlayerUncheckedUpdateInput = {
   x?: Prisma.FloatFieldUpdateOperationsInput | number
   y?: Prisma.FloatFieldUpdateOperationsInput | number
   skin?: Prisma.StringFieldUpdateOperationsInput | string
+  house?: Prisma.StringFieldUpdateOperationsInput | string
+  prestige?: Prisma.IntFieldUpdateOperationsInput | number
   health?: Prisma.IntFieldUpdateOperationsInput | number
   maxHealth?: Prisma.IntFieldUpdateOperationsInput | number
   inventory?: Prisma.InventoryItemUncheckedUpdateManyWithoutPlayerNestedInput
@@ -359,6 +395,8 @@ export type PlayerCreateManyInput = {
   x?: number
   y?: number
   skin?: string
+  house?: string
+  prestige?: number
   health?: number
   maxHealth?: number
 }
@@ -367,6 +405,8 @@ export type PlayerUpdateManyMutationInput = {
   x?: Prisma.FloatFieldUpdateOperationsInput | number
   y?: Prisma.FloatFieldUpdateOperationsInput | number
   skin?: Prisma.StringFieldUpdateOperationsInput | string
+  house?: Prisma.StringFieldUpdateOperationsInput | string
+  prestige?: Prisma.IntFieldUpdateOperationsInput | number
   health?: Prisma.IntFieldUpdateOperationsInput | number
   maxHealth?: Prisma.IntFieldUpdateOperationsInput | number
 }
@@ -377,6 +417,8 @@ export type PlayerUncheckedUpdateManyInput = {
   x?: Prisma.FloatFieldUpdateOperationsInput | number
   y?: Prisma.FloatFieldUpdateOperationsInput | number
   skin?: Prisma.StringFieldUpdateOperationsInput | string
+  house?: Prisma.StringFieldUpdateOperationsInput | string
+  prestige?: Prisma.IntFieldUpdateOperationsInput | number
   health?: Prisma.IntFieldUpdateOperationsInput | number
   maxHealth?: Prisma.IntFieldUpdateOperationsInput | number
 }
@@ -392,6 +434,8 @@ export type PlayerCountOrderByAggregateInput = {
   x?: Prisma.SortOrder
   y?: Prisma.SortOrder
   skin?: Prisma.SortOrder
+  house?: Prisma.SortOrder
+  prestige?: Prisma.SortOrder
   health?: Prisma.SortOrder
   maxHealth?: Prisma.SortOrder
 }
@@ -401,6 +445,7 @@ export type PlayerAvgOrderByAggregateInput = {
   userId?: Prisma.SortOrder
   x?: Prisma.SortOrder
   y?: Prisma.SortOrder
+  prestige?: Prisma.SortOrder
   health?: Prisma.SortOrder
   maxHealth?: Prisma.SortOrder
 }
@@ -411,6 +456,8 @@ export type PlayerMaxOrderByAggregateInput = {
   x?: Prisma.SortOrder
   y?: Prisma.SortOrder
   skin?: Prisma.SortOrder
+  house?: Prisma.SortOrder
+  prestige?: Prisma.SortOrder
   health?: Prisma.SortOrder
   maxHealth?: Prisma.SortOrder
 }
@@ -421,6 +468,8 @@ export type PlayerMinOrderByAggregateInput = {
   x?: Prisma.SortOrder
   y?: Prisma.SortOrder
   skin?: Prisma.SortOrder
+  house?: Prisma.SortOrder
+  prestige?: Prisma.SortOrder
   health?: Prisma.SortOrder
   maxHealth?: Prisma.SortOrder
 }
@@ -430,6 +479,7 @@ export type PlayerSumOrderByAggregateInput = {
   userId?: Prisma.SortOrder
   x?: Prisma.SortOrder
   y?: Prisma.SortOrder
+  prestige?: Prisma.SortOrder
   health?: Prisma.SortOrder
   maxHealth?: Prisma.SortOrder
 }
@@ -497,6 +547,8 @@ export type PlayerCreateWithoutUserInput = {
   x?: number
   y?: number
   skin?: string
+  house?: string
+  prestige?: number
   health?: number
   maxHealth?: number
   inventory?: Prisma.InventoryItemCreateNestedManyWithoutPlayerInput
@@ -507,6 +559,8 @@ export type PlayerUncheckedCreateWithoutUserInput = {
   x?: number
   y?: number
   skin?: string
+  house?: string
+  prestige?: number
   health?: number
   maxHealth?: number
   inventory?: Prisma.InventoryItemUncheckedCreateNestedManyWithoutPlayerInput
@@ -532,6 +586,8 @@ export type PlayerUpdateWithoutUserInput = {
   x?: Prisma.FloatFieldUpdateOperationsInput | number
   y?: Prisma.FloatFieldUpdateOperationsInput | number
   skin?: Prisma.StringFieldUpdateOperationsInput | string
+  house?: Prisma.StringFieldUpdateOperationsInput | string
+  prestige?: Prisma.IntFieldUpdateOperationsInput | number
   health?: Prisma.IntFieldUpdateOperationsInput | number
   maxHealth?: Prisma.IntFieldUpdateOperationsInput | number
   inventory?: Prisma.InventoryItemUpdateManyWithoutPlayerNestedInput
@@ -542,6 +598,8 @@ export type PlayerUncheckedUpdateWithoutUserInput = {
   x?: Prisma.FloatFieldUpdateOperationsInput | number
   y?: Prisma.FloatFieldUpdateOperationsInput | number
   skin?: Prisma.StringFieldUpdateOperationsInput | string
+  house?: Prisma.StringFieldUpdateOperationsInput | string
+  prestige?: Prisma.IntFieldUpdateOperationsInput | number
   health?: Prisma.IntFieldUpdateOperationsInput | number
   maxHealth?: Prisma.IntFieldUpdateOperationsInput | number
   inventory?: Prisma.InventoryItemUncheckedUpdateManyWithoutPlayerNestedInput
@@ -551,6 +609,8 @@ export type PlayerCreateWithoutInventoryInput = {
   x?: number
   y?: number
   skin?: string
+  house?: string
+  prestige?: number
   health?: number
   maxHealth?: number
   user: Prisma.UserCreateNestedOneWithoutPlayerInput
@@ -562,6 +622,8 @@ export type PlayerUncheckedCreateWithoutInventoryInput = {
   x?: number
   y?: number
   skin?: string
+  house?: string
+  prestige?: number
   health?: number
   maxHealth?: number
 }
@@ -586,6 +648,8 @@ export type PlayerUpdateWithoutInventoryInput = {
   x?: Prisma.FloatFieldUpdateOperationsInput | number
   y?: Prisma.FloatFieldUpdateOperationsInput | number
   skin?: Prisma.StringFieldUpdateOperationsInput | string
+  house?: Prisma.StringFieldUpdateOperationsInput | string
+  prestige?: Prisma.IntFieldUpdateOperationsInput | number
   health?: Prisma.IntFieldUpdateOperationsInput | number
   maxHealth?: Prisma.IntFieldUpdateOperationsInput | number
   user?: Prisma.UserUpdateOneRequiredWithoutPlayerNestedInput
@@ -597,6 +661,8 @@ export type PlayerUncheckedUpdateWithoutInventoryInput = {
   x?: Prisma.FloatFieldUpdateOperationsInput | number
   y?: Prisma.FloatFieldUpdateOperationsInput | number
   skin?: Prisma.StringFieldUpdateOperationsInput | string
+  house?: Prisma.StringFieldUpdateOperationsInput | string
+  prestige?: Prisma.IntFieldUpdateOperationsInput | number
   health?: Prisma.IntFieldUpdateOperationsInput | number
   maxHealth?: Prisma.IntFieldUpdateOperationsInput | number
 }
@@ -638,6 +704,8 @@ export type PlayerSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   x?: boolean
   y?: boolean
   skin?: boolean
+  house?: boolean
+  prestige?: boolean
   health?: boolean
   maxHealth?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -651,6 +719,8 @@ export type PlayerSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extens
   x?: boolean
   y?: boolean
   skin?: boolean
+  house?: boolean
+  prestige?: boolean
   health?: boolean
   maxHealth?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -662,6 +732,8 @@ export type PlayerSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extens
   x?: boolean
   y?: boolean
   skin?: boolean
+  house?: boolean
+  prestige?: boolean
   health?: boolean
   maxHealth?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -673,11 +745,13 @@ export type PlayerSelectScalar = {
   x?: boolean
   y?: boolean
   skin?: boolean
+  house?: boolean
+  prestige?: boolean
   health?: boolean
   maxHealth?: boolean
 }
 
-export type PlayerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "x" | "y" | "skin" | "health" | "maxHealth", ExtArgs["result"]["player"]>
+export type PlayerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "x" | "y" | "skin" | "house" | "prestige" | "health" | "maxHealth", ExtArgs["result"]["player"]>
 export type PlayerInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   inventory?: boolean | Prisma.Player$inventoryArgs<ExtArgs>
@@ -702,6 +776,8 @@ export type $PlayerPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs
     x: number
     y: number
     skin: string
+    house: string
+    prestige: number
     health: number
     maxHealth: number
   }, ExtArgs["result"]["player"]>
@@ -1134,6 +1210,8 @@ export interface PlayerFieldRefs {
   readonly x: Prisma.FieldRef<"Player", 'Float'>
   readonly y: Prisma.FieldRef<"Player", 'Float'>
   readonly skin: Prisma.FieldRef<"Player", 'String'>
+  readonly house: Prisma.FieldRef<"Player", 'String'>
+  readonly prestige: Prisma.FieldRef<"Player", 'Int'>
   readonly health: Prisma.FieldRef<"Player", 'Int'>
   readonly maxHealth: Prisma.FieldRef<"Player", 'Int'>
 }
