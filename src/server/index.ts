@@ -59,10 +59,26 @@ app.post("/api/logs", (req, res) => {
 
 // -----------------------
 
-// Basic health check
-app.get("/", (req, res) => {
-    res.send("Cliffwald Server is running!");
-});
+import path from "path";
+
+// ...
+
+// Serve Static Client (Production)
+if (process.env.NODE_ENV === "production") {
+    const clientDist = path.join(__dirname, "../client");
+    app.use(express.static(clientDist));
+    
+    app.get("*", (req, res) => {
+        // Exclude API routes from wildcard
+        if (req.path.startsWith("/api")) return res.status(404).send("API Not Found");
+        res.sendFile(path.join(clientDist, "index.html"));
+    });
+} else {
+    // Basic health check for Dev
+    app.get("/", (req, res) => {
+        res.send("Cliffwald Server is running! (Use Client on Port 3000)");
+    });
+}
 
 const server = createServer(app);
 

@@ -17,6 +17,7 @@ import { PersistenceManager } from "./managers/PersistenceManager";
 import { SpawnManager } from "./managers/SpawnManager";
 import { PlayerService } from "./services/PlayerService";
 import * as fs from "fs/promises";
+import path from "path";
 
 import { DuelSystem } from "./systems/DuelSystem";
 import { ItemSystem } from "./systems/ItemSystem";
@@ -70,7 +71,8 @@ export class WorldRoom extends Room<GameState> {
         this.itemSystem = new ItemSystem(this);
 
         try {
-            const mapFile = await fs.readFile("./assets/maps/world.json", "utf-8");
+            const mapPath = path.join(process.cwd(), "assets/maps/world.json");
+            const mapFile = await fs.readFile(mapPath, "utf-8");
             const mapData = JSON.parse(mapFile);
             const result = buildPhysics(this.physicsWorld, mapData);
             this.spawnPos = result.spawnPos;

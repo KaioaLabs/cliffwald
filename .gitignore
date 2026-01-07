@@ -83,3 +83,21 @@ build/
 
 # Tiled Binaries
 Tiled/
+*.exe
+
+# External Assets & Reference
+assets_External/
+OLD_REFERENCE_*.docx
+assets/merlin_*.png
+
+# Logs & Test Artifacts
+screenshots/
+test-results/
+server_log.txt
+server_err.txt
+logs_client.txt
+logs_server.txt
+mmo_debug_log.txt
+vibe_logs.txt
+tmp_chrome_data_*
+pids
