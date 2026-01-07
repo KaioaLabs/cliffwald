@@ -50,7 +50,8 @@ const mockGraphics = {
 const mockScene = {
     add: {
         graphics: vi.fn().mockReturnValue(mockGraphics),
-        text: vi.fn().mockReturnValue({ setOrigin: vi.fn().mockReturnThis(), destroy: vi.fn() })
+        text: vi.fn().mockReturnValue({ setOrigin: vi.fn().mockReturnThis(), destroy: vi.fn() }),
+        particles: vi.fn().mockReturnValue({ setPosition: vi.fn(), start: vi.fn(), stop: vi.fn(), emitParticleAt: vi.fn() })
     },
     input: {
         on: vi.fn(), 

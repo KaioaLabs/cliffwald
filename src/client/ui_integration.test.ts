@@ -117,8 +117,8 @@ describe('UI Integration Audit', () => {
         expect(modal?.classList.contains('hidden')).toBe(false);
 
         const grid = document.getElementById('album-grid');
-        // Should have 20 slots
-        expect(grid?.children.length).toBe(20);
+        // Should have all cards from registry (27 currently)
+        expect(grid?.children.length).toBe(27);
         
         // Slot 0 (Card 1) should be owned
         expect(grid?.children[0].classList.contains('owned')).toBe(true);
