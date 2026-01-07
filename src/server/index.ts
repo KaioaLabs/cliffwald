@@ -66,12 +66,31 @@ import path from "path";
 // Serve Static Client (Production)
 if (process.env.NODE_ENV === "production") {
     const clientDist = path.join(__dirname, "../client");
+    console.log(`[SERVER] Serving static from: ${clientDist}`);
+    
+    // Debug: Check if directory exists
+    try {
+        const fs = require('fs');
+        if (fs.existsSync(clientDist)) {
+            console.log(`[SERVER] Contents of clientDist:`, fs.readdirSync(clientDist));
+        } else {
+            console.error(`[SERVER] CRITICAL: clientDist directory does not exist at ${clientDist}`);
+        }
+    } catch(e) { console.error("[SERVER] FS Check Failed:", e); }
+
     app.use(express.static(clientDist));
     
     app.get("*", (req, res) => {
         // Exclude API routes from wildcard
         if (req.path.startsWith("/api")) return res.status(404).send("API Not Found");
-        res.sendFile(path.join(clientDist, "index.html"));
+        
+        const indexPath = path.join(clientDist, "index.html");
+        const fs = require('fs');
+        if (!fs.existsSync(indexPath)) {
+             console.error(`[SERVER] 404: Request for ${req.path} failed. index.html missing at ${indexPath}`);
+             return res.status(500).send(`CRITICAL ERROR: index.html not found at ${indexPath}. Deployment failed?`);
+        }
+        res.sendFile(indexPath);
     });
 } else {
     // Basic health check for Dev
