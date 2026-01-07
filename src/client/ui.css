@@ -110,7 +110,338 @@
     border-top: 1px solid #555;
 }
 
-/* Inventory */
+/* Quick Menu (Top Right) */
+#quick-menu {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    gap: 10px;
+    z-index: 2000;
+}
+
+#quick-menu button {
+    width: 40px;
+    height: 40px;
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid #555;
+    color: #fff;
+    font-size: 20px;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: all 0.2s;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#quick-menu button:hover {
+    background: rgba(50, 50, 50, 0.8);
+    border-color: #f0c040;
+    transform: scale(1.1);
+}
+
+/* Modals (Generic) */
+.modal {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(20, 20, 30, 0.95);
+    border: 2px solid #f0c040;
+    box-shadow: 0 0 30px rgba(0,0,0,0.8);
+    color: white;
+    min-width: 400px;
+    max-width: 800px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    z-index: 2001;
+    font-family: 'Courier New', monospace;
+}
+
+.modal-header {
+    background: rgba(240, 192, 64, 0.1);
+    padding: 10px 15px;
+    border-bottom: 1px solid #555;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 18px;
+    color: #f0c040;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: #aaa;
+    font-size: 24px;
+    cursor: pointer;
+}
+.close-btn:hover { color: white; }
+
+.modal-content {
+    padding: 20px;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+/* Inventory Grid */
+.inv-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.inv-slot {
+    width: 50px;
+    height: 50px;
+    background: #222;
+    border: 2px solid #444;
+    border-radius: 4px;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.1s;
+}
+
+.inv-slot:hover {
+    border-color: #888;
+    background: #2a2a2a;
+}
+
+.inv-slot.selected {
+    border-color: #f0c040;
+    box-shadow: 0 0 5px #f0c040;
+}
+
+.inv-slot img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    padding: 4px;
+    box-sizing: border-box;
+}
+
+.inv-qty {
+    position: absolute;
+    bottom: 2px;
+    right: 4px;
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+    text-shadow: 1px 1px 0 #000;
+    pointer-events: none;
+}
+
+/* Rarity Colors */
+.inv-slot[data-rarity="common"] { border-color: #888; }
+.inv-slot[data-rarity="rare"] { border-color: #40c0f0; }
+.inv-slot[data-rarity="legendary"] { border-color: #f0c040; }
+
+/* Action Buttons */
+.action-btn {
+    flex: 1;
+    padding: 8px;
+    background: #444;
+    border: 1px solid #666;
+    color: white;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.2s;
+}
+
+.action-btn:hover:not(:disabled) {
+    background: #555;
+    border-color: #fff;
+}
+
+.action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #222;
+}
+
+/* Album Specifics */
+#album-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.card-slot {
+    width: 64px;
+    height: 86px;
+    background: #111;
+    border-radius: 4px;
+    position: relative;
+    cursor: default;
+    transition: transform 0.2s;
+    overflow: hidden;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+}
+
+.card-art {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+}
+
+.card-frame {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2;
+    pointer-events: none;
+    background-size: cover;
+}
+
+/* Locked State */
+.card-slot.locked .card-art {
+    filter: grayscale(100%) brightness(40%);
+}
+
+.card-slot.locked::after {
+    content: "???";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #666;
+    font-size: 20px;
+    font-weight: bold;
+    z-index: 3;
+}
+
+/* Owned State */
+.card-slot.owned {
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
+}
+
+.card-slot.owned:hover {
+    transform: translateY(-5px) scale(1.1);
+    z-index: 10;
+}
+
+/* Frames per Rarity (Assuming assets exist) */
+.frame-common { background-image: url('/ui/frames/frame_bronze.png'); border: 2px solid #a85; }
+.frame-rare { background-image: url('/ui/frames/frame_silver.png'); border: 2px solid #aaa; }
+.frame-legendary { background-image: url('/ui/frames/frame_gold.png'); border: 2px solid #fb0; }
+
+/* Tooltip for Owned */
+.card-slot.owned:hover::before {
+    content: attr(data-name);
+    position: absolute;
+    bottom: -25px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: #f0c040;
+    border: 1px solid #f0c040;
+    padding: 4px 8px;
+    font-size: 11px;
+    border-radius: 3px;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 100;
+}
+
+/* Timetable Specifics */
+#schedule-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 15px;
+}
+
+#schedule-table th, #schedule-table td {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid #444;
+}
+
+#schedule-table th {
+    color: #f0c040;
+    font-weight: bold;
+}
+
+#schedule-table tr.active-class {
+    background: rgba(240, 192, 64, 0.2);
+    border-left: 4px solid #f0c040;
+}
+
+.current-time-display {
+    text-align: right;
+    font-size: 14px;
+    color: #aaa;
+    border-top: 1px solid #444;
+    padding-top: 10px;
+}
+
+/* Settings Menu (Adapted) */
+#settings-menu {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 300px;
+    background: rgba(20, 20, 30, 0.95);
+    border: 2px solid #f0c040;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: auto;
+    z-index: 2002;
+    box-shadow: 0 0 20px rgba(0,0,0,0.8);
+    text-align: center;
+}
+
+#settings-menu h2 {
+    margin: 0 0 15px 0;
+    color: #f0c040;
+    font-family: 'Courier New', monospace;
+    text-transform: uppercase;
+    border-bottom: 1px solid #444;
+    padding-bottom: 10px;
+}
+
+.settings-option {
+    padding: 12px;
+    background: #333;
+    color: white;
+    border: 1px solid #555;
+    cursor: pointer;
+    font-family: monospace;
+    font-size: 16px;
+    transition: all 0.2s;
+}
+
+.settings-option:hover {
+    background: #444;
+    border-color: #f0c040;
+}
+
+.settings-option.close {
+    background: #522;
+    margin-top: 10px;
+}
+.settings-option.close:hover {
+    background: #733;
+}
 #inventory-container {
     position: absolute;
     right: 10px;

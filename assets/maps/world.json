@@ -4,6 +4,1656 @@
  "infinite": false,
  "layers": [
   {
+   "draworder": "topdown",
+   "id": 100,
+   "name": "FixedSeats",
+   "objects": [
+    {
+     "id": 2000,
+     "name": "bed_0",
+     "type": "bed",
+     "x": 352,
+     "y": 480,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 0
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "ignis"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2001,
+     "name": "bed_1",
+     "type": "bed",
+     "x": 416,
+     "y": 480,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 1
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "ignis"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2002,
+     "name": "bed_2",
+     "type": "bed",
+     "x": 480,
+     "y": 480,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 2
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "ignis"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2003,
+     "name": "bed_3",
+     "type": "bed",
+     "x": 544,
+     "y": 480,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 3
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "ignis"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2004,
+     "name": "bed_4",
+     "type": "bed",
+     "x": 608,
+     "y": 480,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 4
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "ignis"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2005,
+     "name": "bed_5",
+     "type": "bed",
+     "x": 672,
+     "y": 480,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 5
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "ignis"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2006,
+     "name": "bed_6",
+     "type": "bed",
+     "x": 736,
+     "y": 480,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 6
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "ignis"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2007,
+     "name": "bed_7",
+     "type": "bed",
+     "x": 800,
+     "y": 480,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 7
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "ignis"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2008,
+     "name": "bed_8",
+     "type": "bed",
+     "x": 352,
+     "y": 1120,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 8
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "axiom"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2009,
+     "name": "bed_9",
+     "type": "bed",
+     "x": 416,
+     "y": 1120,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 9
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "axiom"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2010,
+     "name": "bed_10",
+     "type": "bed",
+     "x": 480,
+     "y": 1120,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 10
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "axiom"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2011,
+     "name": "bed_11",
+     "type": "bed",
+     "x": 544,
+     "y": 1120,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 11
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "axiom"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2012,
+     "name": "bed_12",
+     "type": "bed",
+     "x": 608,
+     "y": 1120,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 12
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "axiom"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2013,
+     "name": "bed_13",
+     "type": "bed",
+     "x": 672,
+     "y": 1120,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 13
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "axiom"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2014,
+     "name": "bed_14",
+     "type": "bed",
+     "x": 736,
+     "y": 1120,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 14
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "axiom"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2015,
+     "name": "bed_15",
+     "type": "bed",
+     "x": 800,
+     "y": 1120,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 15
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "axiom"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2016,
+     "name": "bed_16",
+     "type": "bed",
+     "x": 352,
+     "y": 1760,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 16
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "vesper"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2017,
+     "name": "bed_17",
+     "type": "bed",
+     "x": 416,
+     "y": 1760,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 17
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "vesper"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2018,
+     "name": "bed_18",
+     "type": "bed",
+     "x": 480,
+     "y": 1760,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 18
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "vesper"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2019,
+     "name": "bed_19",
+     "type": "bed",
+     "x": 544,
+     "y": 1760,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 19
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "vesper"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2020,
+     "name": "bed_20",
+     "type": "bed",
+     "x": 608,
+     "y": 1760,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 20
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "vesper"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2021,
+     "name": "bed_21",
+     "type": "bed",
+     "x": 672,
+     "y": 1760,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 21
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "vesper"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2022,
+     "name": "bed_22",
+     "type": "bed",
+     "x": 736,
+     "y": 1760,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 22
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "vesper"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2023,
+     "name": "bed_23",
+     "type": "bed",
+     "x": 800,
+     "y": 1760,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 23
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "vesper"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2024,
+     "name": "seat_class_0",
+     "type": "seat_class",
+     "x": 1456,
+     "y": 1352,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 0
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2025,
+     "name": "seat_class_1",
+     "type": "seat_class",
+     "x": 1488,
+     "y": 1352,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 1
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2026,
+     "name": "seat_class_2",
+     "type": "seat_class",
+     "x": 1552,
+     "y": 1352,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 2
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2027,
+     "name": "seat_class_3",
+     "type": "seat_class",
+     "x": 1584,
+     "y": 1352,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 3
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2028,
+     "name": "seat_class_4",
+     "type": "seat_class",
+     "x": 1648,
+     "y": 1352,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 4
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2029,
+     "name": "seat_class_5",
+     "type": "seat_class",
+     "x": 1680,
+     "y": 1352,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 5
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2030,
+     "name": "seat_class_6",
+     "type": "seat_class",
+     "x": 1744,
+     "y": 1352,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 6
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2031,
+     "name": "seat_class_7",
+     "type": "seat_class",
+     "x": 1776,
+     "y": 1352,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 7
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2032,
+     "name": "seat_class_8",
+     "type": "seat_class",
+     "x": 1456,
+     "y": 1416,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 8
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2033,
+     "name": "seat_class_9",
+     "type": "seat_class",
+     "x": 1488,
+     "y": 1416,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 9
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2034,
+     "name": "seat_class_10",
+     "type": "seat_class",
+     "x": 1552,
+     "y": 1416,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 10
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2035,
+     "name": "seat_class_11",
+     "type": "seat_class",
+     "x": 1584,
+     "y": 1416,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 11
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2036,
+     "name": "seat_class_12",
+     "type": "seat_class",
+     "x": 1648,
+     "y": 1416,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 12
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2037,
+     "name": "seat_class_13",
+     "type": "seat_class",
+     "x": 1680,
+     "y": 1416,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 13
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2038,
+     "name": "seat_class_14",
+     "type": "seat_class",
+     "x": 1744,
+     "y": 1416,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 14
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2039,
+     "name": "seat_class_15",
+     "type": "seat_class",
+     "x": 1776,
+     "y": 1416,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 15
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2040,
+     "name": "seat_class_16",
+     "type": "seat_class",
+     "x": 1456,
+     "y": 1480,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 16
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2041,
+     "name": "seat_class_17",
+     "type": "seat_class",
+     "x": 1488,
+     "y": 1480,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 17
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2042,
+     "name": "seat_class_18",
+     "type": "seat_class",
+     "x": 1552,
+     "y": 1480,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 18
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2043,
+     "name": "seat_class_19",
+     "type": "seat_class",
+     "x": 1584,
+     "y": 1480,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 19
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2044,
+     "name": "seat_class_20",
+     "type": "seat_class",
+     "x": 1648,
+     "y": 1480,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 20
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2045,
+     "name": "seat_class_21",
+     "type": "seat_class",
+     "x": 1680,
+     "y": 1480,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 21
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2046,
+     "name": "seat_class_22",
+     "type": "seat_class",
+     "x": 1744,
+     "y": 1480,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 22
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2047,
+     "name": "seat_class_23",
+     "type": "seat_class",
+     "x": 1776,
+     "y": 1480,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 23
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2048,
+     "name": "seat_food_0",
+     "type": "seat_food",
+     "x": 1488,
+     "y": 496,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 0
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "ignis"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2049,
+     "name": "seat_food_1",
+     "type": "seat_food",
+     "x": 1520,
+     "y": 496,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 1
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "ignis"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2050,
+     "name": "seat_food_2",
+     "type": "seat_food",
+     "x": 1552,
+     "y": 496,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 2
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "ignis"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2051,
+     "name": "seat_food_3",
+     "type": "seat_food",
+     "x": 1584,
+     "y": 496,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 3
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "ignis"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2052,
+     "name": "seat_food_4",
+     "type": "seat_food",
+     "x": 1616,
+     "y": 496,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 4
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "ignis"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2053,
+     "name": "seat_food_5",
+     "type": "seat_food",
+     "x": 1648,
+     "y": 496,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 5
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "ignis"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2054,
+     "name": "seat_food_6",
+     "type": "seat_food",
+     "x": 1680,
+     "y": 496,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 6
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "ignis"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2055,
+     "name": "seat_food_7",
+     "type": "seat_food",
+     "x": 1712,
+     "y": 496,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 7
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "ignis"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2056,
+     "name": "seat_food_8",
+     "type": "seat_food",
+     "x": 1488,
+     "y": 624,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 8
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "vesper"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2057,
+     "name": "seat_food_9",
+     "type": "seat_food",
+     "x": 1520,
+     "y": 624,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 9
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "vesper"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2058,
+     "name": "seat_food_10",
+     "type": "seat_food",
+     "x": 1552,
+     "y": 624,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 10
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "vesper"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2059,
+     "name": "seat_food_11",
+     "type": "seat_food",
+     "x": 1584,
+     "y": 624,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 11
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "vesper"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2060,
+     "name": "seat_food_12",
+     "type": "seat_food",
+     "x": 1616,
+     "y": 624,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 12
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "vesper"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2061,
+     "name": "seat_food_13",
+     "type": "seat_food",
+     "x": 1648,
+     "y": 624,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 13
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "vesper"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2062,
+     "name": "seat_food_14",
+     "type": "seat_food",
+     "x": 1680,
+     "y": 624,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 14
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "vesper"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2063,
+     "name": "seat_food_15",
+     "type": "seat_food",
+     "x": 1712,
+     "y": 624,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 15
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "vesper"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2064,
+     "name": "seat_food_16",
+     "type": "seat_food",
+     "x": 1488,
+     "y": 560,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 16
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "axiom"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2065,
+     "name": "seat_food_17",
+     "type": "seat_food",
+     "x": 1520,
+     "y": 560,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 17
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "axiom"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2066,
+     "name": "seat_food_18",
+     "type": "seat_food",
+     "x": 1552,
+     "y": 560,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 18
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "axiom"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2067,
+     "name": "seat_food_19",
+     "type": "seat_food",
+     "x": 1584,
+     "y": 560,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 19
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "axiom"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2068,
+     "name": "seat_food_20",
+     "type": "seat_food",
+     "x": 1616,
+     "y": 560,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 20
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "axiom"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2069,
+     "name": "seat_food_21",
+     "type": "seat_food",
+     "x": 1648,
+     "y": 560,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 21
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "axiom"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2070,
+     "name": "seat_food_22",
+     "type": "seat_food",
+     "x": 1680,
+     "y": 560,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 22
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "axiom"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    },
+    {
+     "id": 2071,
+     "name": "seat_food_23",
+     "type": "seat_food",
+     "x": 1712,
+     "y": 560,
+     "width": 32,
+     "height": 32,
+     "properties": [
+      {
+       "name": "studentId",
+       "type": "int",
+       "value": 23
+      },
+      {
+       "name": "house",
+       "type": "string",
+       "value": "axiom"
+      }
+     ],
+     "visible": true,
+     "rotation": 0
+    }
+   ],
+   "opacity": 1,
+   "type": "objectgroup",
+   "visible": true,
+   "x": 0,
+   "y": 0
+  },
+  {
+   "draworder": "topdown",
+   "id": 99,
+   "name": "NPCs",
+   "objects": [
+    {
+     "height": 0,
+     "id": 1001,
+     "name": "Professor Hecate",
+     "properties": [
+      {
+       "name": "type",
+       "type": "string",
+       "value": "teacher"
+      }
+     ],
+     "rotation": 0,
+     "type": "teacher",
+     "visible": true,
+     "width": 0,
+     "x": 1584,
+     "y": 1250
+    },
+    {
+     "height": 0,
+     "id": 1002,
+     "name": "Headmaster Aris",
+     "properties": [
+      {
+       "name": "type",
+       "type": "string",
+       "value": "teacher"
+      }
+     ],
+     "rotation": 0,
+     "type": "teacher",
+     "visible": true,
+     "width": 0,
+     "x": 1600,
+     "y": 1600
+    },
+    {
+     "height": 0,
+     "id": 1003,
+     "name": "Caretaker Filch",
+     "properties": [
+      {
+       "name": "type",
+       "type": "string",
+       "value": "teacher"
+      }
+     ],
+     "rotation": 0,
+     "type": "teacher",
+     "visible": true,
+     "width": 0,
+     "x": 1300,
+     "y": 1300
+    },
+    {
+     "height": 0,
+     "id": 1004,
+     "name": "Matron Pomfrey",
+     "properties": [
+      {
+       "name": "type",
+       "type": "string",
+       "value": "teacher"
+      }
+     ],
+     "rotation": 0,
+     "type": "teacher",
+     "visible": true,
+     "width": 0,
+     "x": 600,
+     "y": 1000
+    },
+    {
+     "height": 0,
+     "id": 1005,
+     "name": "Baba Yaga",
+     "properties": [
+      {
+       "name": "type",
+       "type": "string",
+       "value": "teacher"
+      }
+     ],
+     "rotation": 0,
+     "type": "teacher",
+     "visible": true,
+     "width": 0,
+     "x": 1600,
+     "y": 2880
+    }
+   ],
+   "opacity": 1,
+   "type": "objectgroup",
+   "visible": true,
+   "x": 0,
+   "y": 0
+  },
+  {
    "data": [
     0,
     0,
@@ -30039,6 +31689,102 @@
    "type": "tilelayer",
    "visible": true,
    "width": 100,
+   "x": 0,
+   "y": 0
+  },
+  {
+   "draworder": "topdown",
+   "id": 6,
+   "name": "Lights",
+   "objects": [
+    {
+     "height": 0,
+     "id": 1,
+     "name": "Hallway Light",
+     "properties": [
+      {
+       "name": "color",
+       "type": "color",
+       "value": "#ffeeaa"
+      },
+      {
+       "name": "intensity",
+       "type": "float",
+       "value": 1.5
+      },
+      {
+       "name": "radius",
+       "type": "float",
+       "value": 250
+      }
+     ],
+     "rotation": 0,
+     "type": "Light",
+     "visible": true,
+     "width": 0,
+     "x": 300,
+     "y": 300
+    },
+    {
+     "height": 0,
+     "id": 2,
+     "name": "Display Case Light",
+     "properties": [
+      {
+       "name": "color",
+       "type": "color",
+       "value": "#ffcc00"
+      },
+      {
+       "name": "intensity",
+       "type": "float",
+       "value": 2
+      },
+      {
+       "name": "radius",
+       "type": "float",
+       "value": 150
+      }
+     ],
+     "rotation": 0,
+     "type": "Light",
+     "visible": true,
+     "width": 0,
+     "x": 1600,
+     "y": 1600
+    },
+    {
+     "height": 0,
+     "id": 3,
+     "name": "Training Ground Light",
+     "properties": [
+      {
+       "name": "color",
+       "type": "color",
+       "value": "#aaeeff"
+      },
+      {
+       "name": "intensity",
+       "type": "float",
+       "value": 1.2
+      },
+      {
+       "name": "radius",
+       "type": "float",
+       "value": 300
+      }
+     ],
+     "rotation": 0,
+     "type": "Light",
+     "visible": true,
+     "width": 0,
+     "x": 2600,
+     "y": 700
+    }
+   ],
+   "opacity": 1,
+   "type": "objectgroup",
+   "visible": true,
    "x": 0,
    "y": 0
   },

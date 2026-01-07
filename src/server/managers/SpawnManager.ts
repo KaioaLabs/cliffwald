@@ -12,11 +12,32 @@ export class SpawnManager {
     private entities: Map<string, Entity>;
     private readonly MAX_ECHOES = 50;
 
+    private seats = {
+        bed: new Map<number, {x: number, y: number}>(),
+        class: new Map<number, {x: number, y: number}>(),
+        food: new Map<number, {x: number, y: number}>()
+    };
+
     constructor(world: ECSWorld, physicsWorld: RAPIER.World, state: GameState, entities: Map<string, Entity>) {
         this.world = world;
         this.physicsWorld = physicsWorld;
         this.state = state;
         this.entities = entities;
+    }
+
+    public loadSeats(mapData: any) {
+        const seatLayer = mapData.layers.find((l: any) => l.name === "FixedSeats");
+        if (!seatLayer) return;
+
+        seatLayer.objects.forEach((obj: any) => {
+            const studentId = obj.properties?.find((p: any) => p.name === 'studentId')?.value;
+            if (studentId === undefined) return;
+
+            if (obj.type === 'bed') this.seats.bed.set(studentId, { x: obj.x, y: obj.y });
+            if (obj.type === 'seat_class') this.seats.class.set(studentId, { x: obj.x, y: obj.y });
+            if (obj.type === 'seat_food') this.seats.food.set(studentId, { x: obj.x, y: obj.y });
+        });
+        console.log(`[SPAWN] Loaded ${this.seats.bed.size} beds, ${this.seats.class.size} class seats, ${this.seats.food.size} food seats.`);
     }
 
     private enforceEchoLimit() {
@@ -76,11 +97,42 @@ export class SpawnManager {
             }
         });
         
-        this.spawnTeachers();
+        // this.spawnTeachers(); // Moved to explicit call in WorldRoom
         console.log(`[SPAWN] Population complete.`);
     }
 
-    public spawnTeachers() {
+    public spawnFromMap(mapData: any) {
+        // Find NPC Layer
+        const npcLayer = mapData.layers.find((l: any) => l.name === "NPCs" && l.type === "objectgroup");
+        
+        if (npcLayer && npcLayer.objects.length > 0) {
+            console.log(`[SPAWN] Found NPC Layer with ${npcLayer.objects.length} entities.`);
+            npcLayer.objects.forEach((obj: any) => {
+                // Check if it is a teacher (by type or name convention)
+                // We support 'type' property in Tiled or checking name
+                if (obj.type === "teacher" || (obj.properties && obj.properties.find((p:any) => p.name === "type" && p.value === "teacher"))) {
+                     const id = `teacher_${obj.id}`; // Use Tiled ID for persistence
+                     const name = obj.name || "Unknown Teacher";
+                     const skin = "teacher"; // Fixed for now, could be a property
+
+                     this.createEchoEntity(id, obj.x, obj.y, skin, name, 'ignis', undefined);
+                     
+                     // Set AI to Static/Idle
+                     const entity = this.entities.get(id);
+                     if (entity && entity.ai) {
+                         entity.ai.routineSpots = undefined;
+                         entity.ai.home = { x: obj.x, y: obj.y };
+                         entity.ai.state = 'idle';
+                     }
+                }
+            });
+        } else {
+            console.log("[SPAWN] NPC Layer not found or empty. Using Legacy Hardcoded Spawns.");
+            this.spawnTeachers();
+        }
+    }
+
+    private spawnTeachers() {
         const teachers = [
             { x: 1584, y: 1250, name: "Professor Hecate", skin: "teacher" }, // Classroom
             { x: 1600, y: 1600, name: "Headmaster Aris", skin: "teacher" },  // Hallway
@@ -90,7 +142,7 @@ export class SpawnManager {
         ];
 
         teachers.forEach((t, i) => {
-            const id = `teacher_${i}`;
+            const id = `teacher_legacy_${i}`;
             // Create teacher entity
             this.createEchoEntity(id, t.x, t.y, t.skin, t.name, 'ignis', undefined);
             
@@ -100,11 +152,6 @@ export class SpawnManager {
                 entity.ai.routineSpots = undefined; 
                 entity.ai.home = { x: t.x, y: t.y };
                 entity.ai.state = 'idle';
-                
-                // Customization for Baba Yaga
-                if (t.name === "Baba Yaga") {
-                    // We can't set tint here (it's server), but the name will show.
-                }
             }
         });
     }
@@ -112,46 +159,40 @@ export class SpawnManager {
     public createEchoEntity(id: string, x: number, y: number, skin: string, username: string, house?: 'ignis' | 'axiom' | 'vesper', numericId?: number) {
         const TILE_SIZE = 32;
         const studentIndex = (numericId !== undefined) ? ((numericId - 1) % 8) : 0;
+        const seatId = (numericId !== undefined) ? (numericId - 1) : 0;
 
-        // PRE-ESTABLISH FIXED SPOTS
-        const eatPos = {
+        // 1. GET POSITIONS FROM REGISTRY OR FALLBACK
+        const sleepPos = this.seats.bed.get(seatId) || { x, y };
+        
+        const eatPos = this.seats.food.get(seatId) || {
             x: CONFIG.SCHOOL_LOCATIONS.GREAT_HALL.x + (studentIndex - 3.5) * TILE_SIZE,
             y: CONFIG.SCHOOL_LOCATIONS.GREAT_HALL.y + (house === 'ignis' ? -64 : (house === 'vesper' ? 64 : 0))
         };
 
-        // CALCULATE CLASS SEAT POSITION (Fixed Desks from Map)
-        // 12 Tables (3 rows x 4 cols). 2 Seats per table. Total 24 seats.
-        // Table Start: (1440, 1312). Spacing: 96x, 64y.
-        const seatId = (numericId !== undefined) ? (numericId - 1) : Math.floor(Math.random() * 24);
-        const seatRow = Math.floor((seatId % 24) / 8); // 0..2
-        const seatCol = Math.floor(((seatId % 24) % 8) / 2); // 0..3
-        const seatSide = seatId % 2; // 0 (Left), 1 (Right)
+        const classPos = this.seats.class.get(seatId) || (() => {
+            const seatRow = Math.floor((seatId % 24) / 8); 
+            const seatCol = Math.floor(((seatId % 24) % 8) / 2); 
+            const seatSide = seatId % 2; 
+            const tableX = 1440 + (seatCol * 96);
+            const tableY = 1312 + (seatRow * 64);
+            return { x: tableX + 16 + (seatSide * 32), y: tableY + 40 };
+        })();
 
-        const tableX = 1440 + (seatCol * 96);
-        const tableY = 1312 + (seatRow * 64);
-        
-        const classPos = {
-            x: tableX + 16 + (seatSide * 32),
-            y: tableY + 40 // +40 places them "below" the table (higher Y), looking UP at it.
-        };
+        // 2. Create Physics (DYNAMIC for authoritative collisions)
+        const spawnX = sleepPos.x;
+        const spawnY = sleepPos.y;
 
-        const sleepPos = {
-            x: x, // Their spawn position in dorm is their "bed"
-            y: y
-        };
-
-        // 1. Create Physics (DYNAMIC for authoritative collisions)
         const bodyDesc = RAPIER.RigidBodyDesc.dynamic()
-            .setTranslation(x, y)
-            .setLinearDamping(10.0) // Prevents sliding
-            .lockRotations(); // Keeps sprites upright
+            .setTranslation(spawnX, spawnY)
+            .setLinearDamping(10.0) 
+            .lockRotations(); 
         
         const body = this.physicsWorld.createRigidBody(bodyDesc);
         body.userData = { sessionId: id };
         const colliderDesc = RAPIER.ColliderDesc.ball(CONFIG.PLAYER_RADIUS);
         this.physicsWorld.createCollider(colliderDesc, body);
         
-        // 2. Create ECS Entity
+        // 3. Create ECS Entity
         const entity = this.world.add({
             id: numericId,
             body: body,
@@ -161,7 +202,7 @@ export class SpawnManager {
             ai: {
                 state: 'idle',
                 timer: Math.random() * 2,
-                home: { x, y },
+                home: { x: spawnX, y: spawnY },
                 house: house,
                 routineSpots: {
                     sleep: sleepPos,
@@ -172,12 +213,12 @@ export class SpawnManager {
         });
         this.entities.set(id, entity);
         
-        // 3. Create Schema State
+        // 4. Create Schema State
         const playerState = new Player();
         playerState.id = id;
         playerState.username = username;
-        playerState.x = x;
-        playerState.y = y;
+        playerState.x = spawnX;
+        playerState.y = spawnY;
         playerState.skin = skin;
         playerState.house = house || 'ignis';
         

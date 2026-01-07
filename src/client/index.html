@@ -9,7 +9,78 @@
 </head>
 <body>
     <div id="app" style="width: 100%; height: 100%;"></div>
-    <div id="ui-layer"></div>
+    <div id="ui-layer">
+        <!-- Quick Access Menu (Top Right) -->
+        <div id="quick-menu" class="pointer-events-auto">
+            <button id="btn-inventory" title="Inventory">🎒</button>
+            <button id="btn-album" title="Card Album">📖</button>
+            <button id="btn-timetable" title="Class Schedule">📅</button>
+            <button id="settings-btn" title="Settings">⚙️</button>
+        </div>
+
+        <!-- Inventory Modal -->
+        <div id="inventory-modal" class="modal hidden pointer-events-auto" style="min-width: 600px; flex-direction: row;">
+            <div class="inventory-left" style="padding: 20px; border-right: 1px solid #555;">
+                <h2 style="margin-top: 0; color: #f0c040;">Backpack</h2>
+                <div id="inventory-grid" class="inv-grid">
+                    <!-- Slots injected by JS -->
+                </div>
+            </div>
+            <div class="inventory-right" id="item-details-panel" style="padding: 20px; width: 250px; display: flex; flex-direction: column;">
+                <h3 id="detail-name" style="color: #fff; margin-top: 0;">Select an Item</h3>
+                <div id="detail-icon" style="width: 64px; height: 64px; background: #333; margin: 10px auto; border: 1px solid #555;"></div>
+                <p id="detail-type" style="color: #aaa; font-size: 12px; text-align: center;">-</p>
+                <p id="detail-desc" style="color: #ddd; font-size: 14px; flex-grow: 1;">...</p>
+                <div id="detail-stats" style="color: #8f8; font-size: 12px; margin-bottom: 10px;"></div>
+                <div style="display: flex; gap: 5px;">
+                    <button id="btn-use" class="action-btn" disabled>Use</button>
+                    <button id="btn-equip" class="action-btn" disabled>Equip</button>
+                </div>
+            </div>
+            <button class="close-btn" style="position: absolute; top: 10px; right: 10px;">×</button>
+        </div>
+
+        <!-- Album Modal -->
+        <div id="album-modal" class="modal hidden pointer-events-auto">
+            <div class="modal-header">
+                <h2>Wizard Card Album</h2>
+                <button class="close-btn">×</button>
+            </div>
+            <div class="modal-content">
+                <div id="album-grid">
+                    <!-- Cards injected by JS -->
+                </div>
+                <div id="album-stats">
+                    Collected: <span id="collection-count">0/20</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Timetable Modal -->
+        <div id="timetable-modal" class="modal hidden pointer-events-auto">
+            <div class="modal-header">
+                <h2>Academic Schedule</h2>
+                <button class="close-btn">×</button>
+            </div>
+            <div class="modal-content">
+                <table id="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Subject</th>
+                            <th>Location</th>
+                        </tr>
+                    </thead>
+                    <tbody id="schedule-body">
+                        <!-- Injected by UIManager.ts -->
+                    </tbody>
+                </table>
+                <div class="current-time-display">
+                    Current Time: <span id="clock-display">12:00</span>
+                </div>
+            </div>
+        </div>
+    </div>
     <script type="module" src="./main.ts"></script>
 </body>
 </html>

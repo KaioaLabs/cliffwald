@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import Phaser from 'phaser';
 // Colyseus import moved to top by previous edit, removing duplicate here if any, or ensuring clean imports.
 import * as Colyseus from "colyseus.js";
-import { CONFIG } from "../shared/Config";
+import { CONFIG, getGameTime } from "../shared/Config";
 import { THEME } from "../shared/Theme";
 import { PlayerController } from "./PlayerController";
 import RAPIER from "@dimforge/rapier2d-compat";
@@ -17,9 +17,13 @@ import { ShadowUtils } from './ShadowUtils';
 import { UIScene } from './scenes/UIScene';
 import { CardAlbumScene } from './scenes/CardAlbumScene';
 import { AssetManager } from './managers/AssetManager';
+import { UIManager } from './UIManager';
+import { LightManager } from './managers/LightManager';
 
 export class GameScene extends Phaser.Scene {
     network: NetworkManager;
+    uiManager!: UIManager;
+    lightManager!: LightManager;
     
     // Colyseus Direct Access (Legacy/Hybrid)
     room?: Colyseus.Room;
@@ -31,8 +35,6 @@ export class GameScene extends Phaser.Scene {
     physicsWorld?: RAPIER.World;
     gestureManager?: GestureManager;
     
-    // UI & Entities
-    uiText?: Phaser.GameObjects.Text;
     debugGraphics?: Phaser.GameObjects.Graphics;
     debugManager?: DebugManager;
     
@@ -61,6 +63,7 @@ export class GameScene extends Phaser.Scene {
             return false;
         };
     }
+
 
     setupRemoteLogging() {
         const oldError = console.error;
@@ -159,26 +162,9 @@ export class GameScene extends Phaser.Scene {
 
             buildPhysics(this.physicsWorld, this.cache.tilemap.get('map').data);
 
-            // --- DYNAMIC LIGHTING FROM TILED ---
-            const lightsLayer = map.getObjectLayer('Lights');
-            if (lightsLayer) {
-                console.log(`[LIGHTS] Found ${lightsLayer.objects.length} lights in map.`);
-                lightsLayer.objects.forEach(obj => {
-                    const colorHex = obj.properties?.find((p:any) => p.name === 'color')?.value || '#ffffff';
-                    const radius = obj.properties?.find((p:any) => p.name === 'radius')?.value || 200; // Larger default
-                    const intensity = obj.properties?.find((p:any) => p.name === 'intensity')?.value || 1.0;
-                    
-                    const color = parseInt(colorHex.replace('#', '0x'), 16);
-                    if (obj.x !== undefined && obj.y !== undefined) {
-                        this.lights.addLight(obj.x, obj.y, radius, color, intensity);
-                    }
-                });
-            }
-
-            // ... rest of create ...
-            
-            // FIX: Enable Lights with safer ambient color
-            this.lights.enable().setAmbientColor(0x888888); 
+            // --- LIGHTING SYSTEM ---
+            this.lightManager = new LightManager(this);
+            this.lightManager.initFromMap(map);
 
             this.playerController = new PlayerController(this, this.physicsWorld);
             AssetManager.createAnimations(this);
@@ -333,7 +319,9 @@ export class GameScene extends Phaser.Scene {
                 this.authToken = data.token;
                 this.skin = skin;
 
-                this.setupHUD(document.getElementById('ui-layer')!);
+                this.uiManager = new UIManager(this, this.network);
+                this.uiManager.create();
+                
                 console.log("[DEBUG] Calling connect()...");
                 this.connect();
             } catch (e) {
@@ -360,7 +348,9 @@ export class GameScene extends Phaser.Scene {
             this.authToken = data.token;
             this.skin = skin;
             
-            this.setupHUD(document.getElementById('ui-layer')!);
+            this.uiManager = new UIManager(this, this.network);
+            this.uiManager.create();
+
             this.connect();
         } catch (e) { 
             console.error("Login Failed:", e);
@@ -382,64 +372,75 @@ export class GameScene extends Phaser.Scene {
                 this.network.onPong = (latency) => this.currentLatency = latency;
 
                 this.network.onChatMessage = (msg) => {
-                    const chatMessages = document.getElementById('chat-messages');
-                    if (chatMessages) {
-                        const el = document.createElement('div');
-                        el.style.marginBottom = '4px';
-                        el.innerText = `${msg.sender}: ${msg.text}`;
-                        chatMessages.appendChild(el);
-                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                    this.uiManager.appendChatMessage(msg);
+                };
+
+                // ROBUST LISTENER ATTACHMENT
+                const attachRoomListeners = () => {
+                    if (!this.room || !this.room.state) return;
+                    console.log("[MAIN] Attaching Room Listeners");
+
+                    const attach = <T>(collection: any, event: 'onAdd' | 'onRemove', cb: (item: T, key: string) => void) => {
+                        if (!collection) return;
+                        if (typeof collection[event] === 'function') {
+                            collection[event](cb);
+                        } else {
+                            collection[event] = cb;
+                        }
+                    };
+
+                    // ITEMS SYNC (Cards)
+                    if (this.room.state.items) {
+                        attach(this.room.state.items, 'onAdd', (item: any, id: string) => {
+                            const sprite = this.add.rectangle(item.x, item.y, 14, 14, 0xFFD700);
+                            sprite.setStrokeStyle(2, 0xFFFFFF);
+                            sprite.setDepth(-80); // On floor
+                            
+                            // Tween: Float
+                            this.tweens.add({
+                                targets: sprite,
+                                y: item.y - 5,
+                                duration: 1500,
+                                yoyo: true,
+                                repeat: -1
+                            });
+
+                            sprite.setInteractive({ cursor: 'pointer' });
+                            sprite.on('pointerdown', () => {
+                                this.network.room?.send("collect", id);
+                            });
+                            
+                            this.itemVisuals.set(id, sprite);
+                        });
+                        attach(this.room.state.items, 'onRemove', (_: any, id: string) => {
+                            const v = this.itemVisuals.get(id);
+                            if (v) v.destroy();
+                            this.itemVisuals.delete(id);
+                        });
+                    }
+
+                    if (this.room.state.projectiles) {
+                        attach(this.room.state.projectiles, 'onAdd', (proj: Projectile, id: string) => {
+                            if (this.room && proj.ownerId === this.room.sessionId) return;
+                            const visual = this.createProjectileSprite({
+                                x: proj.x, y: proj.y, spellId: proj.spellId, vx: proj.vx, vy: proj.vy
+                            }, proj.creationTime);
+                            this.visualProjectiles.set(id, visual);
+                        });
+                        attach(this.room.state.projectiles, 'onRemove', (_: Projectile, id: string) => {
+                            const visual = this.visualProjectiles.get(id);
+                            if (visual) {
+                                visual.destroy();
+                                this.visualProjectiles.delete(id);
+                            }
+                        });
                     }
                 };
 
-                // PROJECTILES SYNC
-                const state = this.room.state;
-                
-                // ITEMS SYNC (Cards)
-                if (state.items) {
-                    (state.items as any).onAdd((item: any, id: string) => {
-                        const sprite = this.add.rectangle(item.x, item.y, 14, 14, 0xFFD700);
-                        sprite.setStrokeStyle(2, 0xFFFFFF);
-                        sprite.setDepth(-80); // On floor
-                        
-                        // Tween: Float
-                        this.tweens.add({
-                            targets: sprite,
-                            y: item.y - 5,
-                            duration: 1500,
-                            yoyo: true,
-                            repeat: -1
-                        });
-
-                        sprite.setInteractive({ cursor: 'pointer' });
-                        sprite.on('pointerdown', () => {
-                            this.network.room?.send("collect", id);
-                        });
-                        
-                        this.itemVisuals.set(id, sprite);
-                    });
-                    (state.items as any).onRemove((_: any, id: string) => {
-                        const v = this.itemVisuals.get(id);
-                        if (v) v.destroy();
-                        this.itemVisuals.delete(id);
-                    });
-                }
-
-                if (state.projectiles) {
-                    state.projectiles.onAdd = (proj: any, id: string) => {
-                        if (this.room && proj.ownerId === this.room.sessionId) return;
-                        const visual = this.createProjectileSprite({
-                            x: proj.x, y: proj.y, spellId: proj.spellId, vx: proj.vx, vy: proj.vy
-                        });
-                        this.visualProjectiles.set(id, visual);
-                    };
-                    state.projectiles.onRemove = (_: any, id: string) => {
-                        const visual = this.visualProjectiles.get(id);
-                        if (visual) {
-                            visual.destroy();
-                            this.visualProjectiles.delete(id);
-                        }
-                    };
+                if (this.room.state && this.room.state.players && this.room.state.projectiles) {
+                    attachRoomListeners();
+                } else {
+                    this.room.onStateChange.once(() => attachRoomListeners());
                 }
 
                 // 4. Auto-Reconnect Logic (delegated or kept hybrid)
@@ -451,7 +452,7 @@ export class GameScene extends Phaser.Scene {
                     });
                     
                     // Show Reconnecting UI
-                    if (this.uiText) this.uiText.setText("RECONNECTING TO SERVER...");
+                    this.uiManager.showReconnecting();
                     
                     // Retry Loop
                     setTimeout(() => {
@@ -465,53 +466,7 @@ export class GameScene extends Phaser.Scene {
         }
     }
 
-    setupHUD(container: HTMLElement) {
-        if (!container) return;
-        container.innerHTML = `
-            <div id="hud-layer">
-                <div id="chat-container">
-                    <div id="chat-messages"></div>
-                    <input type="text" id="chat-input" placeholder="Press Enter to chat..." class="pointer-events-auto" />
-                </div>
-            </div>
-        `;
-        
-        const input = document.getElementById('chat-input') as HTMLInputElement;
-        const chatContainer = document.getElementById('chat-container');
-
-        // Focus Logic (Minimize/Expand)
-        input?.addEventListener('focus', () => {
-            chatContainer?.classList.add('active');
-        });
-
-        input?.addEventListener('blur', () => {
-            setTimeout(() => {
-                chatContainer?.classList.remove('active');
-            }, 100);
-        });
-
-        // Chat Sending Logic
-        input?.addEventListener('keydown', (e) => {
-            e.stopPropagation(); // Stop WASD from moving player while typing
-            if (e.key === 'Enter') {
-                if (input.value.trim().length > 0) {
-                    this.network.sendChat(input.value.trim());
-                    input.value = '';
-                }
-                input.blur(); // Release focus so WASD works again!
-            }
-        });
-
-        // Global Enter Listener to Open Chat
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && document.activeElement !== input) {
-                e.preventDefault(); // Prevent accidental default actions
-                input?.focus();
-            }
-        });
-    }
-
-    createProjectileSprite(data: any): Phaser.GameObjects.Shape {
+    createProjectileSprite(data: any, creationTime?: number): Phaser.GameObjects.Shape {
         let projectile: Phaser.GameObjects.Shape;
         const angle = Math.atan2(data.vy, data.vx);
         
@@ -545,6 +500,23 @@ export class GameScene extends Phaser.Scene {
             });
         }
 
+        // Play Audio (Only if fresh)
+        const now = Date.now();
+        const timestamp = creationTime || now; // Local cast = now
+        const age = now - timestamp;
+
+        if (age < 1000) { 
+            const audioKey = `audio_${config.shape}`; // circle, square, triangle
+            if (this.sound.get(audioKey) || this.cache.audio.exists(audioKey)) {
+                // console.log(`[AUDIO] Playing: ${audioKey} for spell ${data.spellId} (Age: ${age}ms)`);
+                this.sound.play(audioKey);
+            } else {
+                console.warn(`[AUDIO] Missing key: ${audioKey}`);
+            }
+        } else {
+            // console.log(`[AUDIO] Skipped old projectile ${data.spellId} (Age: ${age}ms)`);
+        }
+
         return projectile;
     }
 
@@ -567,9 +539,6 @@ export class GameScene extends Phaser.Scene {
         const input = this.handleInput();
         this.syncNetworkState();
 
-        // --- PROJECTILE SYNC ---
-        // Synchronized via callbacks in connect(). No polling needed.
-
         this.playerController.applyInput(this.network.room.sessionId, input);
         
         this.accumulatedTime += delta / 1000;
@@ -580,7 +549,20 @@ export class GameScene extends Phaser.Scene {
         }
         
         this.playerController.updateVisuals();
-        this.updateUI();
+        
+        if (this.network.room) {
+            const state = this.network.room.state;
+            const myState = state.players ? state.players.get(this.network.room.sessionId) : null;
+            
+            const uiScene = this.scene.get('UIScene') as UIScene;
+            if (uiScene) {
+                uiScene.updatePoints(state.ignisPoints || 0, state.axiomPoints || 0, state.vesperPoints || 0);
+            }
+            
+            if (this.uiManager) {
+                this.uiManager.updateTelemetry(this.currentLatency, myState);
+            }
+        }
 
         // --- TABLE SHADOWS UPDATE ---
         const pointer = this.input.activePointer;
@@ -606,19 +588,28 @@ export class GameScene extends Phaser.Scene {
 
         if (this.debugManager) this.debugManager.update();
 
-        // Update Clock UI (Client-Side Calculation)
-        if (this.network.room && this.network.room.state.worldStartTime > 0) {
-            // Formula: GameTime = (CurrentTime - Anchor) * Speed
-            const elapsedMs = Date.now() - this.network.room.state.worldStartTime;
-            const totalGameSeconds = (elapsedMs / 1000) * CONFIG.GAME_TIME_SPEED;
-            
-            // Wrap around 24h
-            const wrappedTime = totalGameSeconds % CONFIG.DAY_LENGTH_SECONDS;
-            
-            const uiScene = this.scene.get('UIScene') as UIScene;
-            if (uiScene) {
-                uiScene.updateTime(wrappedTime, this.network.room.state.currentCourse, this.network.room.state.currentMonth);
+        // Update Clock UI & Lighting (System Time Based)
+        const gameTime = getGameTime(Date.now());
+        const decimalHour = gameTime.hour + (gameTime.minute / 60);
+
+        const uiScene = this.scene.get('UIScene') as UIScene;
+        if (uiScene) {
+            // UIScene expects seconds for "wrappedTime" to show HH:MM
+            // We can reconstruct seconds: hour * 3600 + minute * 60
+            const displaySeconds = gameTime.hour * 3600 + gameTime.minute * 60;
+            if (this.network.room) {
+                 uiScene.updateTime(displaySeconds, this.network.room.state.currentCourse, this.network.room.state.currentMonth);
             }
+        }
+
+        // Update Dynamic Lighting
+        if (this.lightManager) {
+            this.lightManager.update(decimalHour);
+        }
+
+        // Update UI Timetable
+        if (this.uiManager) {
+            this.uiManager.updateTimetable(gameTime.hour);
         }
 
         if (CONFIG.SHOW_COLLIDERS && this.debugGraphics && this.physicsWorld) {
@@ -669,36 +660,6 @@ export class GameScene extends Phaser.Scene {
         }
     }
 
-    createUI() {
-        this.uiText = this.add.text(10, 10, 'Initializing...', {
-            fontFamily: 'monospace',
-            fontSize: '10px',
-            color: THEME.UI.TEXT_WHITE,
-            backgroundColor: THEME.UI.BACKGROUND_DIM
-        });
-        this.uiText.setScrollFactor(0);
-        this.uiText.setDepth(1000);
-    }
-
-    updateUI() {
-        if (!this.uiText || !this.network || !this.network.room) return;
-        const state = this.network.room.state;
-        const myState = state.players ? state.players.get(this.network.room.sessionId) : null;
-        
-        const uiScene = this.scene.get('UIScene') as UIScene;
-        if (uiScene) {
-            uiScene.updatePoints(state.ignisPoints || 0, state.axiomPoints || 0, state.vesperPoints || 0);
-        }
-
-        if (myState) {
-            this.uiText.setText(`POS: ${Math.round(myState.x)},${Math.round(myState.y)}
-PING: ${this.currentLatency}ms`);
-            if (this.currentLatency < 100) this.uiText.setColor(THEME.UI.PING_GOOD);
-            else if (this.currentLatency < 200) this.uiText.setColor(THEME.UI.PING_WARN);
-            else this.uiText.setColor(THEME.UI.PING_BAD);
-        }
-    }
-
     handleResize(gameSize: any) {
         this.cameras.main.setViewport(0, 0, gameSize.width, gameSize.height);
     }
@@ -707,7 +668,7 @@ PING: ${this.currentLatency}ms`);
 
     handleInput() {
         if (!this.room || !this.cursors || !this.wasd) return { left: false, right: false, up: false, down: false };
-        if (document.activeElement?.tagName === 'INPUT') {
+        if (this.uiManager && this.uiManager.getChatInputActive()) {
             return { left: false, right: false, up: false, down: false };
         }
         

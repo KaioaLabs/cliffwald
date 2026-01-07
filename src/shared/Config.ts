@@ -32,9 +32,21 @@ export const CONFIG = {
     CHAT_MAX_LENGTH: 100,
     CHAT_HISTORY_SIZE: 50,
     
-    // Time System
-    GAME_TIME_SPEED: 180, 
-    DAY_LENGTH_SECONDS: 86400, 
+    // Time System (Non-Linear 60-minute Cycle)
+    // Day Phase: 45 mins real time -> 06:00 to 22:00 (16h game time)
+    // Night Phase: 15 mins real time -> 22:00 to 06:00 (8h game time)
+    CYCLE_DURATION_MS: 3600000, // 1 Hour Real Time
+    DAY_PHASE_DURATION_MS: 2700000, // 45 Minutes
+
+    // Academic Schedule (Source of Truth for UI and AI)
+    ACADEMIC_SCHEDULE: [
+        { start: 8, end: 10, name: "Charms Class", location: "Classroom", activity: "class" },
+        { start: 10, end: 12, name: "Free Time", location: "Courtyard", activity: "free" },
+        { start: 12, end: 14, name: "Lunch", location: "Great Hall", activity: "eat" },
+        { start: 15, end: 17, name: "Potions Class", location: "Dungeons", activity: "class" },
+        { start: 17, end: 22, name: "Extra-Curricular", location: "Forest/Tatami", activity: "free" },
+        { start: 22, end: 8, name: "Curfew", location: "Dormitories", activity: "sleep" }
+    ],
 
     // Debug
     SHOW_COLLIDERS: false,
@@ -90,11 +102,40 @@ export const CONFIG = {
     } as Record<string, string>
 };
 
+export function getGameTime(timestamp: number) {
+    // 1. Get position within the hour (0 to 3599999 ms)
+    const cyclePos = timestamp % CONFIG.CYCLE_DURATION_MS;
+    
+    let gameHour = 0;
+    let gameMinute = 0;
+    let isNight = false;
+
+    if (cyclePos < CONFIG.DAY_PHASE_DURATION_MS) {
+        // DAY PHASE (06:00 to 22:00 = 16 hours)
+        // Progress 0..1
+        const progress = cyclePos / CONFIG.DAY_PHASE_DURATION_MS;
+        const totalGameMinutes = 6 * 60 + (progress * 16 * 60); // Start at 06:00 + progress * 16h
+        
+        gameHour = Math.floor(totalGameMinutes / 60) % 24;
+        gameMinute = Math.floor(totalGameMinutes % 60);
+        isNight = false;
+    } else {
+        // NIGHT PHASE (22:00 to 06:00 = 8 hours)
+        // Progress 0..1
+        const nightProgress = (cyclePos - CONFIG.DAY_PHASE_DURATION_MS) / (CONFIG.CYCLE_DURATION_MS - CONFIG.DAY_PHASE_DURATION_MS);
+        const totalGameMinutes = 22 * 60 + (nightProgress * 8 * 60); // Start at 22:00 + progress * 8h
+        
+        gameHour = Math.floor(totalGameMinutes / 60) % 24;
+        gameMinute = Math.floor(totalGameMinutes % 60);
+        isNight = true;
+    }
+
+    return { hour: gameHour, minute: gameMinute, isNight };
+}
+
 export function getGameHour(worldStartTime: number): number {
-    const elapsedMs = Date.now() - worldStartTime;
-    const totalGameSeconds = (elapsedMs / 1000) * CONFIG.GAME_TIME_SPEED;
-    const wrappedTime = totalGameSeconds % CONFIG.DAY_LENGTH_SECONDS;
-    return Math.floor(wrappedTime / 3600); // Returns 0-23
+    // We ignore worldStartTime now because time is absolute system time
+    return getGameTime(Date.now()).hour;
 }
 
 export function getAcademicProgress(worldStartTime: number) {

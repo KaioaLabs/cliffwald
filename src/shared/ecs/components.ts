@@ -33,7 +33,7 @@ export interface AIComponent {
 }
 
 export interface VisualComponent {
-    sprite: any; // Reference to Phaser Sprite (Client only)
+    sprite: { x: number, y: number, depth: number, visible: boolean, flipX: boolean, destroy: Function } | any; // Reference to Phaser Sprite (Client only)
 }
 
 export interface Entity {

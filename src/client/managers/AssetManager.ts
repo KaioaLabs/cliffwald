@@ -33,6 +33,11 @@ export class AssetManager {
             url: '/sprites/teacher_run.png',
             frameConfig: { frameWidth: 32, frameHeight: 64 }
         });
+
+        // Audio
+        scene.load.audio('audio_circle', '/audio/circolo.mp3');
+        scene.load.audio('audio_square', '/audio/squaro.mp3');
+        scene.load.audio('audio_triangle', '/audio/triangelo.mp3');
         
         scene.load.on('loaderror', (file: any) => console.error('Asset Load Error:', file.src));
     }

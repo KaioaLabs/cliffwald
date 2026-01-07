@@ -1,0 +1,506 @@
+{
+  "robe_plain": {
+    "ID": "robe_plain",
+    "Name": "Plain Work Robe",
+    "Type": "Robe",
+    "Stats": "Defense: Low",
+    "Description": "Generic apprentice work robes. Starter equipment.",
+    "Rarity": "Common",
+    "Stackable": false
+  },
+  "robe_silk": {
+    "ID": "robe_silk",
+    "Name": "Silk Robe",
+    "Type": "Robe",
+    "Stats": "Magic Defense: Med",
+    "Description": "Fine silk robes that resonate with magical energy.",
+    "Rarity": "Rare",
+    "Stackable": false
+  },
+  "cloak_winter": {
+    "ID": "cloak_winter",
+    "Name": "Winter Cloak",
+    "Type": "Cloak",
+    "Stats": "Def: Med + Frost Resist",
+    "Description": "Heavy wool cloak designed for the frozen highlands.",
+    "Rarity": "Rare",
+    "Stackable": false
+  },
+  "robe_velvet": {
+    "ID": "robe_velvet",
+    "Name": "Velvet Robe",
+    "Type": "Robe",
+    "Stats": "Defense: High + Bonus",
+    "Description": "Luxurious velvet robes. Best non-unique equipment.",
+    "Rarity": "Legendary",
+    "Stackable": false
+  },
+  "belt_plain": {
+    "ID": "belt_plain",
+    "Name": "Plain Belt",
+    "Type": "Belt",
+    "Stats": "Defense: Low",
+    "Description": "A simple leather belt for holding pouches.",
+    "Rarity": "Common",
+    "Stackable": true
+  },
+  "belt_studded": {
+    "ID": "belt_studded",
+    "Name": "Studded Belt",
+    "Type": "Belt",
+    "Stats": "Defense: Medium",
+    "Description": "Reinforced leather belt with metal studs.",
+    "Rarity": "Rare",
+    "Stackable": true
+  },
+  "belt_dragon": {
+    "ID": "belt_dragon",
+    "Name": "Dragon Hide Belt",
+    "Type": "Belt",
+    "Stats": "Defense: High",
+    "Description": "Tough belt crafted from authentic dragon hide.",
+    "Rarity": "Legendary",
+    "Stackable": true
+  },
+  "boots_leather": {
+    "ID": "boots_leather",
+    "Name": "Leather Boots",
+    "Type": "Boots",
+    "Stats": "Agility: Low",
+    "Description": "Basic sturdy boots for exploring the academy.",
+    "Rarity": "Common",
+    "Stackable": false
+  },
+  "boots_hardened": {
+    "ID": "boots_hardened",
+    "Name": "Hardened Boots",
+    "Type": "Boots",
+    "Stats": "Agility: Med + Defense",
+    "Description": "Reinforced boots for better protection.",
+    "Rarity": "Rare",
+    "Stackable": false
+  },
+  "boots_dragon": {
+    "ID": "boots_dragon",
+    "Name": "Dragon Skin Boots",
+    "Type": "Boots",
+    "Stats": "Agility: High + Def: High",
+    "Description": "Lightweight and indestructible dragon skin footwear.",
+    "Rarity": "Legendary",
+    "Stackable": false
+  },
+  "gloves_leather": {
+    "ID": "gloves_leather",
+    "Name": "Leather Gloves",
+    "Type": "Gloves",
+    "Stats": "Magic: Low + Str: Low",
+    "Description": "Simple gloves for handling magical ingredients.",
+    "Rarity": "Common",
+    "Stackable": false
+  },
+  "gloves_hardened": {
+    "ID": "gloves_hardened",
+    "Name": "Hardened Gloves",
+    "Type": "Gloves",
+    "Stats": "Magic: Medium",
+    "Description": "Reinforced gloves for stable spellcasting.",
+    "Rarity": "Rare",
+    "Stackable": false
+  },
+  "gloves_dragon": {
+    "ID": "gloves_dragon",
+    "Name": "Dragon Skin Gloves",
+    "Type": "Gloves",
+    "Stats": "Magic: High + Strength",
+    "Description": "Ancient dragon skin provides superior power.",
+    "Rarity": "Legendary",
+    "Stackable": false
+  },
+  "hat_pointed": {
+    "ID": "hat_pointed",
+    "Name": "Pointed Hat",
+    "Type": "Hat",
+    "Stats": "Defense: Low / Visual",
+    "Description": "The quintessential wizard headwear.",
+    "Rarity": "Common",
+    "Stackable": false
+  },
+  "cloak_heavy": {
+    "ID": "cloak_heavy",
+    "Name": "Heavy Cloak",
+    "Type": "Cloak",
+    "Stats": "Physical Defense: High",
+    "Description": "A thick heavy cloak that dampens physical blows.",
+    "Rarity": "Rare",
+    "Stackable": false
+  },
+  "cloak_starched": {
+    "ID": "cloak_starched",
+    "Name": "Starched Cloak",
+    "Type": "Cloak",
+    "Stats": "Status Resistance",
+    "Description": "Chemically treated cloak that resists magical ailments.",
+    "Rarity": "Rare",
+    "Stackable": false
+  },
+  "acc_wooden_beads": {
+    "ID": "acc_wooden_beads",
+    "Name": "Wooden Beads",
+    "Type": "Accessory",
+    "Stats": "Magic Defense: Low",
+    "Description": "A simple necklace of enchanted wooden beads.",
+    "Rarity": "Common",
+    "Stackable": true
+  },
+  "acc_crystal_beads": {
+    "ID": "acc_crystal_beads",
+    "Name": "Crystal Beads",
+    "Type": "Accessory",
+    "Stats": "Magic Defense: Med",
+    "Description": "Necklace made of magic-conducting crystals.",
+    "Rarity": "Rare",
+    "Stackable": true
+  },
+  "acc_spectacles": {
+    "ID": "acc_spectacles",
+    "Name": "Spectacles",
+    "Type": "Accessory",
+    "Stats": "Accuracy: High",
+    "Description": "Enchanted glasses that improve focus and hit rate.",
+    "Rarity": "Rare",
+    "Stackable": false
+  },
+  "card_1": {
+    "ID": "card_1",
+    "Name": "Abe no Seimei",
+    "Type": "Card",
+    "Stats": "Lore: Abe no Seimei",
+    "Description": "Legendary Japanese onmyoji master of spirits.",
+    "Rarity": "Legendary",
+    "Stackable": false
+  },
+  "card_2": {
+    "ID": "card_2",
+    "Name": "Baba Yaga",
+    "Type": "Card",
+    "Stats": "Lore: Baba Yaga",
+    "Description": "Slavic witch who flies in a mortar.",
+    "Rarity": "Rare",
+    "Stackable": false
+  },
+  "card_3": {
+    "ID": "card_3",
+    "Name": "Circe",
+    "Type": "Card",
+    "Stats": "Lore: Circe",
+    "Description": "Greek goddess famous for beast transformation.",
+    "Rarity": "Rare",
+    "Stackable": false
+  },
+  "card_4": {
+    "ID": "card_4",
+    "Name": "Merlin",
+    "Type": "Card",
+    "Stats": "Lore: Merlin",
+    "Description": "The quintessential advisor to kings and master of prophecy.",
+    "Rarity": "Legendary",
+    "Stackable": false
+  },
+  "card_5": {
+    "ID": "card_5",
+    "Name": "Morgan le Fay",
+    "Type": "Card",
+    "Stats": "Lore: Morgan le Fay",
+    "Description": "Powerful enchantress of Avalon and master healer.",
+    "Rarity": "Legendary",
+    "Stackable": false
+  },
+  "card_6": {
+    "ID": "card_6",
+    "Name": "Nicholas Flamel",
+    "Type": "Card",
+    "Stats": "Lore: Nicholas Flamel",
+    "Description": "Creator of the Philosopher's Stone.",
+    "Rarity": "Rare",
+    "Stackable": false
+  },
+  "card_7": {
+    "ID": "card_7",
+    "Name": "Marie Laveau",
+    "Type": "Card",
+    "Stats": "Lore: Marie Laveau",
+    "Description": "The Voodoo Queen of New Orleans.",
+    "Rarity": "Rare",
+    "Stackable": false
+  },
+  "card_8": {
+    "ID": "card_8",
+    "Name": "Hecate",
+    "Type": "Card",
+    "Stats": "Lore: Hecate",
+    "Description": "Titaness of magic crossroads and the moon.",
+    "Rarity": "Legendary",
+    "Stackable": false
+  },
+  "card_9": {
+    "ID": "card_9",
+    "Name": "Faust",
+    "Type": "Card",
+    "Stats": "Lore: Faust",
+    "Description": "Scholar who bartered his soul for infinite knowledge.",
+    "Rarity": "Rare",
+    "Stackable": false
+  },
+  "card_10": {
+    "ID": "card_10",
+    "Name": "Medea",
+    "Type": "Card",
+    "Stats": "Lore: Medea",
+    "Description": "Expert in herbs poisons and dark enchantments.",
+    "Rarity": "Rare",
+    "Stackable": false
+  },
+  "card_11": {
+    "ID": "card_11",
+    "Name": "Paracelsus",
+    "Type": "Card",
+    "Stats": "Lore: Paracelsus",
+    "Description": "Pioneer of elemental studies and alchemy.",
+    "Rarity": "Rare",
+    "Stackable": false
+  },
+  "card_12": {
+    "ID": "card_12",
+    "Name": "Thoth",
+    "Type": "Card",
+    "Stats": "Lore: Thoth",
+    "Description": "Ancient Egyptian god of wisdom and divine magic.",
+    "Rarity": "Legendary",
+    "Stackable": false
+  },
+  "card_13": {
+    "ID": "card_13",
+    "Name": "Cassandra",
+    "Type": "Card",
+    "Stats": "Lore: Cassandra",
+    "Description": "Prophetess cursed to never be believed.",
+    "Rarity": "Common",
+    "Stackable": false
+  },
+  "card_14": {
+    "ID": "card_14",
+    "Name": "Solomon",
+    "Type": "Card",
+    "Stats": "Lore: Solomon",
+    "Description": "Biblical king with power over many spirits.",
+    "Rarity": "Rare",
+    "Stackable": false
+  },
+  "card_15": {
+    "ID": "card_15",
+    "Name": "Michael Scot",
+    "Type": "Card",
+    "Stats": "Lore: Michael Scot",
+    "Description": "Medieval polymath and imperial wizard.",
+    "Rarity": "Common",
+    "Stackable": false
+  },
+  "card_16": {
+    "ID": "card_16",
+    "Name": "Völva",
+    "Type": "Card",
+    "Stats": "Lore: Völva",
+    "Description": "Norse seeress and practitioner of Seidr magic.",
+    "Rarity": "Common",
+    "Stackable": false
+  },
+  "pot_antidote": {
+    "ID": "pot_antidote",
+    "Name": "Antidote",
+    "Type": "Potion",
+    "Stats": "Cures Poison",
+    "Description": "A standard medicinal brew that neutralizes most common toxins.",
+    "Rarity": "Common",
+    "Stackable": "true\r"
+  },
+  "food_rock_cake": {
+    "ID": "food_rock_cake",
+    "Name": "Rock Cake",
+    "Type": "Food",
+    "Stats": "Small HP Heal",
+    "Description": "A very hard traditional fruit cake. Mind your teeth!",
+    "Rarity": "Common",
+    "Stackable": "true\r"
+  },
+  "mat_wolfsbane": {
+    "ID": "mat_wolfsbane",
+    "Name": "Wolfsbane",
+    "Type": "Plant",
+    "Stats": "Toxic Ingredient",
+    "Description": "Highly toxic plant also known as Aconite. Used in specialized potions.",
+    "Rarity": "Rare",
+    "Stackable": "true\r"
+  },
+  "mat_monkshood": {
+    "ID": "mat_monkshood",
+    "Name": "Monkshood",
+    "Type": "Plant",
+    "Stats": "Potion Ingredient",
+    "Description": "A variety of Aconite with hood-shaped flowers.",
+    "Rarity": "Rare",
+    "Stackable": "true\r"
+  },
+  "mat_wormwood": {
+    "ID": "mat_wormwood",
+    "Name": "Wormwood",
+    "Type": "Plant",
+    "Stats": "Sleeping Ingredient",
+    "Description": "A bitter herb essential for brewing Draught of Living Death.",
+    "Rarity": "Common",
+    "Stackable": "true\r"
+  },
+  "mat_asphodel": {
+    "ID": "mat_asphodel",
+    "Name": "Asphodel",
+    "Type": "Plant",
+    "Stats": "Potion Ingredient",
+    "Description": "A lily-like flower associated with the afterlife and mourning.",
+    "Rarity": "Common",
+    "Stackable": "true\r"
+  },
+  "mat_mandrake": {
+    "ID": "mat_mandrake",
+    "Name": "Mandrake Root",
+    "Type": "Plant",
+    "Stats": "Cure Petrify / Revive",
+    "Description": "A root that resembles a human. Its cry is fatal when mature.",
+    "Rarity": "Rare",
+    "Stackable": "true\r"
+  },
+  "mat_bezoar": {
+    "ID": "mat_bezoar",
+    "Name": "Bezoar",
+    "Type": "Object",
+    "Stats": "Universal Antidote",
+    "Description": "A stone taken from the stomach of a goat. Saves you from most poisons.",
+    "Rarity": "Rare",
+    "Stackable": "true\r"
+  },
+  "mat_aconite": {
+    "ID": "mat_aconite",
+    "Name": "Aconite",
+    "Type": "Plant",
+    "Stats": "Potion Ingredient",
+    "Description": "A general term for highly toxic plants like Wolfsbane.",
+    "Rarity": "Common",
+    "Stackable": "true\r"
+  },
+  "mat_beetle_eyes": {
+    "ID": "mat_beetle_eyes",
+    "Name": "Beetle Eyes",
+    "Type": "Part",
+    "Stats": "Basic Ingredient",
+    "Description": "Small crunchy eyes used as a catalyst in low-level brews.",
+    "Rarity": "Common",
+    "Stackable": "true\r"
+  },
+  "card_agrippa": {
+    "ID": "card_agrippa",
+    "Name": "Cornelius Agrippa",
+    "Type": "Card",
+    "Stats": "+ Magic Attack",
+    "Description": "Historic occultist and writer.",
+    "Rarity": "Rare",
+    "Stackable": "false\r"
+  },
+  "card_cyclops": {
+    "ID": "card_cyclops",
+    "Name": "Cyclops",
+    "Type": "Card",
+    "Stats": "+ Physical Defense",
+    "Description": "One-eyed giant of Greek myth.",
+    "Rarity": "Common",
+    "Stackable": "false\r"
+  },
+  "card_goliath": {
+    "ID": "card_goliath",
+    "Name": "Goliath",
+    "Type": "Card",
+    "Stats": "+ Physical Defense",
+    "Description": "Ancient giant warrior from history.",
+    "Rarity": "Common",
+    "Stackable": "false\r"
+  },
+  "card_dragon": {
+    "ID": "card_dragon",
+    "Name": "Dragon",
+    "Type": "Card",
+    "Stats": "+ Physical Strength",
+    "Description": "Legendary fire-breathing reptile of immense power.",
+    "Rarity": "Legendary",
+    "Stackable": "false\r"
+  },
+  "card_giant": {
+    "ID": "card_giant",
+    "Name": "Giant",
+    "Type": "Card",
+    "Stats": "+ Physical Defense",
+    "Description": "Massive humanoid of immense strength.",
+    "Rarity": "Common",
+    "Stackable": "false\r"
+  },
+  "card_vampire": {
+    "ID": "card_vampire",
+    "Name": "Vampire",
+    "Type": "Card",
+    "Stats": "+ HP Drain",
+    "Description": "Immortal creature of the night that drinks blood.",
+    "Rarity": "Rare",
+    "Stackable": "false\r"
+  },
+  "card_imp": {
+    "ID": "card_imp",
+    "Name": "Imp",
+    "Type": "Card",
+    "Stats": "Status Resist",
+    "Description": "Small mischievous devil of germanic folklore.",
+    "Rarity": "Common",
+    "Stackable": "false\r"
+  },
+  "card_pixie": {
+    "ID": "card_pixie",
+    "Name": "Pixie",
+    "Type": "Card",
+    "Stats": "Status Resist",
+    "Description": "Tiny flying trickster of british folklore.",
+    "Rarity": "Common",
+    "Stackable": "false\r"
+  },
+  "card_gnome": {
+    "ID": "card_gnome",
+    "Name": "Gnome",
+    "Type": "Card",
+    "Stats": "Status Resist",
+    "Description": "Earth-dwelling garden spirit defined by Paracelsus.",
+    "Rarity": "Common",
+    "Stackable": "false\r"
+  },
+  "card_unicorn": {
+    "ID": "card_unicorn",
+    "Name": "Unicorn",
+    "Type": "Card",
+    "Stats": "Healing / Purity",
+    "Description": "Pure white horse with a single horn.",
+    "Rarity": "Rare",
+    "Stackable": "false\r"
+  },
+  "card_griffin": {
+    "ID": "card_griffin",
+    "Name": "Griffin",
+    "Type": "Card",
+    "Stats": "Strength / Speed",
+    "Description": "Majestic creature half lion half eagle.",
+    "Rarity": "Rare",
+    "Stackable": "false\r"
+  }
+}

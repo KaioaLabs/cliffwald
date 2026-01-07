@@ -1,5 +1,5 @@
 import { Room, Client } from "colyseus";
-import { GameState, Player, ChatMessage, Projectile } from "../shared/SchemaDef";
+import { GameState, Player, ChatMessage, Projectile, InventoryItem } from "../shared/SchemaDef";
 import { CONFIG, getGameHour, getAcademicProgress } from "../shared/Config";
 import { PlayerInput, JoinOptions } from "../shared/types/NetworkTypes";
 import RAPIER from "@dimforge/rapier2d-compat";
@@ -77,7 +77,9 @@ export class WorldRoom extends Room<GameState> {
             this.spawnPos = result.spawnPos;
             this.pathfinder = new Pathfinding(result.navGrid);
             console.log(`[SERVER] Map loaded. Initializing 24 Student Slots...`);
+            this.spawnManager.loadSeats(mapData);
             this.spawnManager.spawnEchoes(24, this.spawnPos);
+            this.spawnManager.spawnFromMap(mapData);
             // Spawn initial cards
             for(let i=0; i<5; i++) this.itemSystem.spawnRandomCard();
         } catch (e) {
@@ -90,6 +92,8 @@ export class WorldRoom extends Room<GameState> {
         this.setSimulationInterval((deltaTime) => {
             const currentHour = getGameHour(this.state.worldStartTime);
             const { currentCourse, currentMonth, currentWeek } = getAcademicProgress(this.state.worldStartTime);
+            
+            // Sync Calendar State
             
             // Sync Calendar State
             if (this.state.currentMonth !== currentMonth) {
@@ -326,11 +330,18 @@ export class WorldRoom extends Room<GameState> {
             playerState.personalPrestige = session.dbPlayer.prestige || 0;
             playerState.house = house || 'ignis';
 
-            // Hydrate Cards
+            // Hydrate Inventory (Universal + Legacy Cards)
             if (session.dbPlayer.inventory) {
-                session.dbPlayer.inventory.forEach((item: any) => {
-                    if (item.itemId.startsWith("card_")) {
-                        const cardId = parseInt(item.itemId.split("_")[1]);
+                session.dbPlayer.inventory.forEach((dbItem: any) => {
+                    // 1. Universal Inventory
+                    const invItem = new InventoryItem();
+                    invItem.itemId = dbItem.itemId;
+                    invItem.qty = dbItem.count;
+                    playerState.inventory.push(invItem);
+
+                    // 2. Legacy Card Support (for Album UI)
+                    if (dbItem.itemId.startsWith("card_")) {
+                        const cardId = parseInt(dbItem.itemId.split("_")[1]);
                         if (!isNaN(cardId)) playerState.cardCollection.push(cardId);
                     }
                 });
@@ -353,10 +364,15 @@ export class WorldRoom extends Room<GameState> {
 
         if (entity && entity.body) {
             const playerState = this.state.players.get(client.sessionId);
-            if (dbId) {
-                const prestige = playerState?.personalPrestige || 0;
-                const cards = playerState?.cardCollection.toArray() || [];
-                PersistenceManager.savePlayerSession(dbId, entity, prestige, cards).catch(console.error);
+            
+            // ATOMIC SAVE-ON-EXIT
+            if (dbId && playerState) {
+                // We update the schema X/Y with latest physics pos to ensure accuracy
+                const pos = entity.body.translation();
+                playerState.x = pos.x;
+                playerState.y = pos.y;
+                
+                await PlayerService.saveSession(dbId, playerState);
             }
 
             // UNPOSSESS: Restore original slot ID

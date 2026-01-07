@@ -1,6 +1,11 @@
 import { Schema, type, MapSchema, ArraySchema } from "@colyseus/schema";
 import { CONFIG } from "./Config";
 
+export class InventoryItem extends Schema {
+    @type("string") itemId: string = "";
+    @type("number") qty: number = 1;
+}
+
 export class Player extends Schema {
     @type("string") id: string = "";
     @type("string") username: string = "Guest";
@@ -18,8 +23,11 @@ export class Player extends Schema {
     @type("number") duelScore: number = 0;
     @type("boolean") inDuel: boolean = false;
 
-    // Collection (Array of Card IDs)
+    // Legacy: Numeric Card IDs (Deprecated)
     @type([ "number" ]) cardCollection = new ArraySchema<number>();
+
+    // Universal Inventory (String IDs)
+    @type([ InventoryItem ]) inventory = new ArraySchema<InventoryItem>();
 }
 
 export class WorldItem extends Schema {
@@ -27,7 +35,8 @@ export class WorldItem extends Schema {
     @type("number") x: number = 0;
     @type("number") y: number = 0;
     @type("string") type: string = "card"; // 'card', 'resource', etc.
-    @type("number") dataId: number = 0; // The Card ID
+    @type("string") itemId: string = "";   // New String ID (e.g. "potion_small")
+    @type("number") dataId: number = 0;    // Legacy Numeric ID (Deprecated)
 }
 
 export class ChatMessage extends Schema {
@@ -37,6 +46,7 @@ export class ChatMessage extends Schema {
 }
 
 export class Projectile extends Schema {
+    // Rebuild Trigger
     @type("string") id: string = "";
     @type("string") spellId: string = "";
     @type("number") x: number = 0;

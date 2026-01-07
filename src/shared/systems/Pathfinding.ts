@@ -48,24 +48,35 @@ export class Pathfinding {
 
             closedSet.add(`${current.x},${current.y}`);
 
-            // Neighbors (4 directions)
-            const neighbors = [
-                { x: current.x + 1, y: current.y },
-                { x: current.x - 1, y: current.y },
-                { x: current.x, y: current.y + 1 },
-                { x: current.x, y: current.y - 1 }
+            // Neighbors (8 directions)
+            // Directions: Right, Left, Down, Up, DR, DL, UR, UL
+            const dirs = [
+                { x: 1, y: 0, cost: 1 }, { x: -1, y: 0, cost: 1 },
+                { x: 0, y: 1, cost: 1 }, { x: 0, y: -1, cost: 1 },
+                { x: 1, y: 1, cost: 1.414 }, { x: -1, y: 1, cost: 1.414 },
+                { x: 1, y: -1, cost: 1.414 }, { x: -1, y: -1, cost: 1.414 }
             ];
 
-            for (const neighbor of neighbors) {
-                if (neighbor.x < 0 || neighbor.x >= this.width || neighbor.y < 0 || neighbor.y >= this.height) continue;
-                if (this.grid[neighbor.y][neighbor.x] === 1) continue;
-                if (closedSet.has(`${neighbor.x},${neighbor.y}`)) continue;
+            for (const dir of dirs) {
+                const nx = current.x + dir.x;
+                const ny = current.y + dir.y;
 
-                const gScore = current.g + 1;
-                let neighborNode = openSet.find(n => n.x === neighbor.x && n.y === neighbor.y);
+                if (nx < 0 || nx >= this.width || ny < 0 || ny >= this.height) continue;
+                if (this.grid[ny][nx] === 1) continue;
+                if (closedSet.has(`${nx},${ny}`)) continue;
+
+                // Corner Cutting Prevention for Diagonals
+                if (dir.cost > 1) {
+                    // Check if orthogonal neighbors are blocked
+                    // e.g. moving (1, 1), check (1, 0) and (0, 1)
+                    if (this.grid[current.y][nx] === 1 || this.grid[ny][current.x] === 1) continue;
+                }
+
+                const gScore = current.g + dir.cost;
+                let neighborNode = openSet.find(n => n.x === nx && n.y === ny);
 
                 if (!neighborNode) {
-                    neighborNode = new Node(neighbor.x, neighbor.y, gScore, this.dist(neighbor.x, neighbor.y, endX, endY), current);
+                    neighborNode = new Node(nx, ny, gScore, this.dist(nx, ny, endX, endY), current);
                     openSet.push(neighborNode);
                 } else if (gScore < neighborNode.g) {
                     neighborNode.g = gScore;
@@ -79,7 +90,12 @@ export class Pathfinding {
     }
 
     private dist(x1: number, y1: number, x2: number, y2: number): number {
-        return Math.abs(x1 - x2) + Math.abs(y1 - y2);
+        // Octile Distance (Better for 8-way movement)
+        const dx = Math.abs(x1 - x2);
+        const dy = Math.abs(y1 - y2);
+        const D = 1;
+        const D2 = 1.414;
+        return D * (dx + dy) + (D2 - 2 * D) * Math.min(dx, dy);
     }
 
     private reconstructPath(node: Node): Point[] {

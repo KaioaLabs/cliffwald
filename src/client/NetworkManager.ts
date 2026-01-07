@@ -1,8 +1,14 @@
 import * as Colyseus from "colyseus.js";
 import Phaser from "phaser";
 import { CONFIG } from "../shared/Config";
-import { GameState, Player, Projectile } from "../shared/SchemaDef";
+import { GameState, Player, Projectile, ChatMessage } from "../shared/SchemaDef";
 import { PlayerInput } from "../shared/types/NetworkTypes";
+
+// Type for Colyseus collections that might use different event registration styles
+type CollectionWithCallbacks<T> = MapSchema<T> & {
+    onAdd?: (item: T, key: string) => void;
+    onRemove?: (item: T, key: string) => void;
+};
 
 export class NetworkManager {
     private client: Colyseus.Client;
@@ -18,7 +24,7 @@ export class NetworkManager {
     public onPong?: (latency: number) => void;
     public onChatMessage?: (msg: { sender: string, text: string }) => void;
 
-    private pingInterval?: any;
+    private pingInterval?: NodeJS.Timeout;
 
     constructor(scene: Phaser.Scene) {
         this.scene = scene;
@@ -62,25 +68,54 @@ export class NetworkManager {
             if (this.onChatMessage) this.onChatMessage(msg);
         });
 
-        // 2. State Sync
-        if (this.room.state && this.room.state.players) {
-            (this.room.state.players as any).onAdd((player: Player, id: string) => {
-                if (this.onPlayerAdd) this.onPlayerAdd(player, id);
-            });
-            (this.room.state.players as any).onRemove((_: Player, id: string) => {
-                if (this.onPlayerRemove) this.onPlayerRemove(id);
-            });
-        } else {
-            console.warn("[NET] Warning: state.players not available");
-        }
+        // Helper for Colyseus Version Compatibility
+        const attach = <T>(collection: CollectionWithCallbacks<T> | undefined, event: 'onAdd' | 'onRemove', cb: (item: T, key: string) => void) => {
+            if (!collection) return;
+            try {
+                const col = collection as any; // Cast only for the runtime check
+                if (typeof col[event] === 'function') {
+                    col[event](cb);
+                } else {
+                    col[event] = cb;
+                }
 
-        if (this.room.state && this.room.state.projectiles) {
-            (this.room.state.projectiles as any).onAdd((proj: Projectile, id: string) => {
-                if (this.onProjectileAdd) this.onProjectileAdd(proj, id);
-            });
-            (this.room.state.projectiles as any).onRemove((_: Projectile, id: string) => {
-                if (this.onProjectileRemove) this.onProjectileRemove(id);
-            });
+                // TRIGGER FOR EXISTING ITEMS (Fix for race condition)
+                if (event === 'onAdd' && col.forEach) {
+                    col.forEach((item: T, key: string) => cb(item, key));
+                }
+            } catch (e) {
+                console.error(`[NET] Failed to attach ${event}:`, e);
+            }
+        };
+
+        // 2. State Sync (Robust)
+        const attachSync = () => {
+            if (!this.room || !this.room.state) return;
+            
+            if (this.room.state.players) {
+                attach(this.room.state.players, 'onAdd', (player: Player, id: string) => {
+                    if (this.onPlayerAdd) this.onPlayerAdd(player, id);
+                });
+                attach(this.room.state.players, 'onRemove', (_: Player, id: string) => {
+                    if (this.onPlayerRemove) this.onPlayerRemove(id);
+                });
+            }
+
+            if (this.room.state.projectiles) {
+                attach(this.room.state.projectiles, 'onAdd', (proj: Projectile, id: string) => {
+                    if (this.onProjectileAdd) this.onProjectileAdd(proj, id);
+                });
+                attach(this.room.state.projectiles, 'onRemove', (_: Projectile, id: string) => {
+                    if (this.onProjectileRemove) this.onProjectileRemove(id);
+                });
+            }
+        };
+
+        if (this.room.state && this.room.state.players && this.room.state.projectiles) {
+            attachSync();
+        } else {
+            // console.warn("[NET] State not ready, waiting for first patch...");
+            this.room.onStateChange.once(() => attachSync());
         }
     }
 

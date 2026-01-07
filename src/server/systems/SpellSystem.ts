@@ -71,7 +71,10 @@ export class SpellSystem {
             }
         }
 
-        toRemove.forEach(id => projectiles.delete(id));
+        toRemove.forEach(id => {
+            projectiles.delete(id);
+            console.log(`[SPELL] Removed projectile ${id}`);
+        });
     }
 
     private resolveRPS(a: Projectile, b: Projectile, idA: string, idB: string, toRemove: Set<string>) {
