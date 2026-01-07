@@ -13,6 +13,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// --- DIAGNOSTIC ROUTE ---
+app.get("/ping", (req, res) => {
+    res.send(`PONG from Server (Time: ${new Date().toISOString()})`);
+});
+// ------------------------
+
 // --- AUTH API ROUTES ---
 
 app.post("/api/register", async (req, res) => {
