@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import Phaser from 'phaser';
 // Colyseus import moved to top by previous edit, removing duplicate here if any, or ensuring clean imports.
 import * as Colyseus from "colyseus.js";
+import { GameState, Player, Projectile, WorldItem } from "../shared/SchemaDef";
 import { CONFIG, getGameTime } from "../shared/Config";
 import { THEME } from "../shared/Theme";
 import { PlayerController } from "./PlayerController";
@@ -15,7 +16,6 @@ import { GestureManager } from './GestureManager';
 import { SPELL_REGISTRY } from '../shared/items/SpellRegistry';
 import { ShadowUtils } from './ShadowUtils';
 import { UIScene } from './scenes/UIScene';
-import { CardAlbumScene } from './scenes/CardAlbumScene';
 import { AssetManager } from './managers/AssetManager';
 import { UIManager } from './UIManager';
 import { LightManager } from './managers/LightManager';
@@ -437,28 +437,30 @@ export class GameScene extends Phaser.Scene {
                     }
                 };
 
-                if (this.room.state && this.room.state.players && this.room.state.projectiles) {
-                    attachRoomListeners();
-                } else {
-                    this.room.onStateChange.once(() => attachRoomListeners());
-                }
+                if (this.room) {
+                    if (this.room.state && this.room.state.players && this.room.state.projectiles) {
+                        attachRoomListeners();
+                    } else {
+                        this.room.onStateChange.once(() => attachRoomListeners());
+                    }
 
-                // 4. Auto-Reconnect Logic (delegated or kept hybrid)
-                this.room.onLeave((code) => {
-                    console.warn(`[NETWORK] Disconnected (Code: ${code}). Attempting Auto-Reconnect...`);
-                    // Clear state
-                    this.playerController.players.forEach((entity) => {
-                        this.playerController.removePlayer(entity.player!.sessionId);
+                    // 4. Auto-Reconnect Logic (delegated or kept hybrid)
+                    this.room.onLeave((code) => {
+                        console.warn(`[NETWORK] Disconnected (Code: ${code}). Attempting Auto-Reconnect...`);
+                        // Clear state
+                        this.playerController.players.forEach((entity) => {
+                            if (entity.player) this.playerController.removePlayer(entity.player.sessionId);
+                        });
+                        
+                        // Show Reconnecting UI
+                        this.uiManager.showReconnecting();
+                        
+                        // Retry Loop
+                        setTimeout(() => {
+                            this.connect(); // Recursive re-connect
+                        }, 2000);
                     });
-                    
-                    // Show Reconnecting UI
-                    this.uiManager.showReconnecting();
-                    
-                    // Retry Loop
-                    setTimeout(() => {
-                        this.connect(); // Recursive re-connect
-                    }, 2000);
-                });
+                }
             }
 
         } catch (e) {
@@ -560,7 +562,7 @@ export class GameScene extends Phaser.Scene {
             }
             
             if (this.uiManager) {
-                this.uiManager.updateTelemetry(this.currentLatency, myState);
+                this.uiManager.updateTelemetry(this.currentLatency, myState || null);
             }
         }
 
@@ -716,7 +718,7 @@ const config: Phaser.Types.Core.GameConfig = {
     roundPixels: true,
     render: { maxLights: 50 },
     backgroundColor: '#000000',
-    scene: [GameScene, UIScene, CardAlbumScene],
+    scene: [GameScene, UIScene],
     physics: { default: 'arcade', arcade: { debug: false } }
 };
 

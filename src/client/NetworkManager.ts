@@ -1,37 +1,28 @@
-import * as Colyseus from "colyseus.js";
-import Phaser from "phaser";
-import { CONFIG } from "../shared/Config";
-import { GameState, Player, Projectile, ChatMessage } from "../shared/SchemaDef";
-import { PlayerInput } from "../shared/types/NetworkTypes";
-
-// Type for Colyseus collections that might use different event registration styles
-type CollectionWithCallbacks<T> = MapSchema<T> & {
-    onAdd?: (item: T, key: string) => void;
-    onRemove?: (item: T, key: string) => void;
-};
+import { Client, Room } from 'colyseus.js';
+import { GameState, Player, Projectile } from '../shared/SchemaDef';
+import { PlayerInput } from '../shared/types/NetworkTypes';
+import { MapSchema } from '@colyseus/schema';
 
 export class NetworkManager {
-    private client: Colyseus.Client;
-    public room?: Colyseus.Room<GameState>;
-    private scene: Phaser.Scene;
-    
+    private client: Client;
+    public room?: Room<GameState>;
+    private pingInterval: any;
+
     // Callbacks
     public onPlayerAdd?: (player: Player, id: string) => void;
-    public onPlayerRemove?: (id: string) => void;
+    public onPlayerRemove?: (player: Player, id: string) => void;
     public onProjectileAdd?: (proj: Projectile, id: string) => void;
-    public onProjectileRemove?: (id: string) => void;
-    public onHit?: (targetId: string) => void;
+    public onProjectileRemove?: (proj: Projectile, id: string) => void;
     public onPong?: (latency: number) => void;
     public onChatMessage?: (msg: { sender: string, text: string }) => void;
+    public onHit?: (targetId: string) => void;
 
-    private pingInterval?: NodeJS.Timeout;
-
-    constructor(scene: Phaser.Scene) {
-        this.scene = scene;
-        const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+    constructor(scene?: Phaser.Scene) {
+        const protocol = window.location.protocol.replace("http", "ws");
         const host = window.location.hostname;
-        const port = 2568; // Or read from config
-        this.client = new Colyseus.Client(`${protocol}://${host}:${port}`);
+        const port = 2567;
+        
+        this.client = new Client(`${protocol}://${host}:${port}`);
     }
 
     async connect(token: string, skin: string): Promise<boolean> {
@@ -69,7 +60,7 @@ export class NetworkManager {
         });
 
         // Helper for Colyseus Version Compatibility
-        const attach = <T>(collection: CollectionWithCallbacks<T> | undefined, event: 'onAdd' | 'onRemove', cb: (item: T, key: string) => void) => {
+        const attach = <T>(collection: any | undefined, event: 'onAdd' | 'onRemove', cb: (item: T, key: string) => void) => {
             if (!collection) return;
             try {
                 const col = collection as any; // Cast only for the runtime check
@@ -96,8 +87,9 @@ export class NetworkManager {
                 attach(this.room.state.players, 'onAdd', (player: Player, id: string) => {
                     if (this.onPlayerAdd) this.onPlayerAdd(player, id);
                 });
-                attach(this.room.state.players, 'onRemove', (_: Player, id: string) => {
-                    if (this.onPlayerRemove) this.onPlayerRemove(id);
+                attach(this.room.state.players, 'onRemove', (player: Player, id: string) => {
+                    console.log("Player Removed:", id);
+                    if (this.onPlayerRemove) this.onPlayerRemove(player, id);
                 });
             }
 
@@ -105,10 +97,9 @@ export class NetworkManager {
                 attach(this.room.state.projectiles, 'onAdd', (proj: Projectile, id: string) => {
                     if (this.onProjectileAdd) this.onProjectileAdd(proj, id);
                 });
-                attach(this.room.state.projectiles, 'onRemove', (_: Projectile, id: string) => {
-                    if (this.onProjectileRemove) this.onProjectileRemove(id);
-                });
-            }
+                                attach(this.room.state.projectiles, 'onRemove', (proj: Projectile, id: string) => {
+                                    if (this.onProjectileRemove) this.onProjectileRemove(proj, id);
+                                });            }
         };
 
         if (this.room.state && this.room.state.players && this.room.state.projectiles) {

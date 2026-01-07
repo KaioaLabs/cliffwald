@@ -4,7 +4,7 @@ import { CONFIG } from '../../shared/Config';
 export class LightManager {
     private scene: Phaser.Scene;
     private lights: Map<string, Phaser.GameObjects.Light> = new Map();
-    private rays: Map<string, { graphics: Phaser.GameObjects.Graphics, baseX: number, baseY: number }> = new Map();
+    private rays: Map<string, { graphics: Phaser.GameObjects.Graphics, baseX: number, baseY: number, width?: number, length?: number }> = new Map();
     
     // Cycle Colors
     private readonly COLORS = {

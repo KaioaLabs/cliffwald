@@ -54,9 +54,8 @@ export class WorldRoom extends Room<GameState> {
         this.state.axiomPoints = 0;
         this.state.vesperPoints = 0;
         
-        // 8 AM Offset
-        const startOffsetMs = (28800 / CONFIG.GAME_TIME_SPEED) * 1000;
-        this.state.worldStartTime = Date.now() - startOffsetMs;
+        // Time is absolute now
+        this.state.worldStartTime = Date.now();
 
         await RAPIER.init();
         const gravity = { x: 0.0, y: 0.0 };
@@ -81,7 +80,7 @@ export class WorldRoom extends Room<GameState> {
             this.spawnManager.spawnEchoes(24, this.spawnPos);
             this.spawnManager.spawnFromMap(mapData);
             // Spawn initial cards
-            for(let i=0; i<5; i++) this.itemSystem.spawnRandomCard();
+            for(let i=0; i<5; i++) this.itemSystem.spawnRandomItem();
         } catch (e) {
             console.error("[SERVER] Error loading map:", e);
         }
