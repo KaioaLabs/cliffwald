@@ -291,48 +291,53 @@ export class GameScene extends Phaser.Scene {
 
     async autoLogin() {
         const urlParams = new URLSearchParams(window.location.search);
-        
-        // 1. Dev Auto-Login (Secure-ish)
         const devUser = urlParams.get("dev_user");
-        const skin = urlParams.get("skin") || "player_idle";
+        const skin = urlParams.get("skin");
 
         if (devUser) {
-            console.log(`[DEBUG] Attempting Dev Login for: ${devUser}`);
-            try {
-                // Determine API URL (handle localhost vs mobile IP)
-                const apiUrl = window.location.hostname === "localhost" 
-                    ? "http://localhost:2568/api/dev-login"
-                    : `http://${window.location.hostname}:2568/api/dev-login`;
-
-                const res = await fetch(apiUrl, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ username: devUser })
-                });
-
-                if (!res.ok) throw new Error("Dev Login Failed");
-                
-                const data = await res.json();
-                console.log("[DEBUG] Got Token:", data.token);
-                
-                // FIX: Assign token before connecting!
-                this.authToken = data.token;
-                this.skin = skin;
-
-                this.uiManager = new UIManager(this, this.network);
-                this.uiManager.create();
-                
-                console.log("[DEBUG] Calling connect()...");
-                this.connect();
-            } catch (e) {
-                console.error("Dev Auto-Login Error:", e);
-                // Fallback to UI?
-            }
+            // 1. Direct Link Login (Dev/Link sharing)
+            document.getElementById('login-screen')?.classList.add('hidden');
+            this.doDevLogin(devUser, skin || "player_idle");
         } else {
-            // FALLBACK FOR EXISTING BAT (Temporary)
-            const legacyUser = urlParams.get("username") || "Debug_Warrior";
-            this.doDevLogin(legacyUser, skin);
+            // 2. Show Login Screen
+            console.log("Waiting for user login...");
+            this.setupLoginScreen();
         }
+    }
+
+    setupLoginScreen() {
+        const screen = document.getElementById('login-screen');
+        if (!screen) return;
+        screen.classList.remove('hidden');
+
+        // House Masters
+        document.querySelectorAll('.house-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const user = (e.target as HTMLElement).getAttribute('data-user');
+                if (user) this.doDevLogin(user, 'player_idle'); // Skin is auto-resolved by server for Masters
+                screen.classList.add('hidden');
+            });
+        });
+
+        // Custom Login
+        const btnCustom = document.getElementById('btn-login-custom');
+        const inputUser = document.getElementById('login-username') as HTMLInputElement;
+        const selectHouse = document.getElementById('login-house') as HTMLSelectElement;
+
+        btnCustom?.addEventListener('click', () => {
+            const user = inputUser.value.trim();
+            if (!user) return;
+            
+            // Map house to skin
+            const house = selectHouse.value;
+            let skin = "player_idle";
+            if (house === 'ignis') skin = "player_red";
+            if (house === 'axiom') skin = "player_blue";
+            if (house === 'vesper') skin = "player_green";
+
+            this.doDevLogin(user, skin);
+            screen.classList.add('hidden');
+        });
     }
     
     async doDevLogin(username: string, skin: string) {

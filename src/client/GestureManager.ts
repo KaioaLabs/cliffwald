@@ -41,7 +41,12 @@ export class GestureManager {
 
     private setupInput() {
         this.scene.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-            if (pointer.rightButtonDown()) {
+            // Draw if Right Click OR (Left Click/Touch on Right Half of Screen)
+            // This prevents conflict with Joystick (Left side) and UI buttons (usually corners, but mainly joystick)
+            const isRightClick = pointer.rightButtonDown();
+            const isDrawZone = pointer.x > this.scene.scale.width * 0.4; // Generous right zone
+            
+            if (isRightClick || isDrawZone) {
                 this.isDrawing = true;
                 this.points = [{ x: pointer.x, y: pointer.y }];
                 this.emitter.setPosition(pointer.x, pointer.y);
