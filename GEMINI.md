@@ -1,5 +1,13 @@
 # Reglas del Proyecto
 
+## Hitos Técnicos Recientes (v0.1.1)
+- **Replicación de Hechizos**: Implementado sistema `onChange` en `NetworkManager`. Los proyectiles remotos ahora son autoritativos (posición del servidor) en lugar de predictivos (interpolación local insegura).
+- **Rendimiento**:
+    - **Servidor**: Aumentado Tick Rate de 15 a **30 FPS** para suavidad en red.
+    - **Cliente**: Desactivada actualización por frame de sombras estáticas (pupitres), ahorrando ciclos de CPU masivos.
+- **Limpieza**: Eliminado `postbuild.js` y scripts de entorno legacy. `Tiled/` se mantiene por decisión de usuario.
+- **Configuración**: Centralizados valores mágicos de hechizos en `Config.ts` (`SPELL_CONFIG`).
+
 ## Arquitectura Modular & Build Pipeline (Actualizado Enero 2026)
 - **Servidor Autoritativo**: Node.js + Colyseus + Express 5.
 - **Serving Strategy**: El servidor sirve el cliente estático directamente desde la raíz `dist-client`.

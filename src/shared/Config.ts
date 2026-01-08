@@ -87,6 +87,14 @@ export const CONFIG = {
         y: 1520,
         radius: 300 // Size of the 'Tatami' area
     },
+
+    // Spell Configuration
+    SPELL_CONFIG: {
+        BASE_SPEED: 400,
+        BASE_LIFETIME: 2000, // ms
+        BASE_RANGE: 600,     // px
+        VISUAL_TWEEN_DURATION: 3000 // ms (Safety margin for visuals)
+    },
     
     // Rock Paper Scissors Logic
     // Circle = Rock, Square = Paper, Triangle = Scissors

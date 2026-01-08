@@ -15,6 +15,7 @@ import { GestureManager } from './GestureManager';
 import { SPELL_REGISTRY } from '../shared/items/SpellRegistry';
 import { ShadowUtils } from './ShadowUtils';
 import { UIScene } from './scenes/UIScene';
+import { CardAlbumScene } from './scenes/CardAlbumScene';
 import { AssetManager } from './managers/AssetManager';
 import { UIManager } from './UIManager';
 import { LightManager } from './managers/LightManager';
@@ -182,22 +183,22 @@ export class GameScene extends Phaser.Scene {
 
                     const aimVector = new Phaser.Math.Vector2(worldPoint.x - playerPos.x, worldPoint.y - playerPos.y).normalize();
 
-                    this.network.sendCast(id, aimVector.x * 400, aimVector.y * 400);
+                    this.network.sendCast(id, aimVector.x * CONFIG.SPELL_CONFIG.BASE_SPEED, aimVector.y * CONFIG.SPELL_CONFIG.BASE_SPEED);
 
                     const projData = {
                         x: playerPos.x,
                         y: playerPos.y,
                         spellId: id,
-                        vx: aimVector.x * 400,
-                        vy: aimVector.y * 400
+                        vx: aimVector.x * CONFIG.SPELL_CONFIG.BASE_SPEED,
+                        vy: aimVector.y * CONFIG.SPELL_CONFIG.BASE_SPEED
                     };
                     const visualProj = this.createProjectileSprite(projData);
                     
                     this.tweens.add({
                         targets: visualProj,
-                        x: playerPos.x + aimVector.x * 1200, 
-                        y: playerPos.y + aimVector.y * 1200,
-                        duration: 3000,
+                        x: playerPos.x + aimVector.x * CONFIG.SPELL_CONFIG.BASE_RANGE * 2, 
+                        y: playerPos.y + aimVector.y * CONFIG.SPELL_CONFIG.BASE_RANGE * 2,
+                        duration: CONFIG.SPELL_CONFIG.VISUAL_TWEEN_DURATION,
                         onComplete: () => visualProj.destroy()
                     });
                 }
@@ -771,7 +772,7 @@ const config: Phaser.Types.Core.GameConfig = {
     roundPixels: true,
     render: { maxLights: 50 },
     backgroundColor: '#000000',
-    scene: [GameScene, UIScene],
+    scene: [GameScene, UIScene, CardAlbumScene],
     physics: { default: 'arcade', arcade: { debug: false } }
 };
 
