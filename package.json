@@ -11,9 +11,9 @@
     "map": "start ./Tiled/tiled.exe ./assets/maps/world.json",
     "test": "vitest run",
     "build": "npm run build:client && npm run build:server",
-    "build:client": "vite build --outDir dist/client --emptyOutDir",
+    "build:client": "vite build --outDir dist-client --emptyOutDir",
     "build:server": "tsc",
-    "start:prod": "npx prisma migrate deploy; node dist/server/index.js"
+    "start:prod": "npx prisma migrate deploy; node dist-server/server/index.js"
   },
   "keywords": [],
   "author": "",

@@ -95,7 +95,8 @@ import path from "path";
 // Serve Static Client (Production)
 if (process.env.NODE_ENV === "production") {
     // Robust Path Resolution using CWD
-    const clientDist = path.join(process.cwd(), "dist/client");
+    // Changed to 'dist-client' to match new build output
+    const clientDist = path.join(process.cwd(), "dist-client");
     console.log(`[SERVER] Serving static from: ${clientDist}`);
     
     // Debug: Check if directory exists
