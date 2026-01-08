@@ -191,7 +191,7 @@ export class WorldRoom extends Room<GameState> {
             });
 
             logTimer += deltaTime;
-        }, 1000 / 15);
+        }, 1000 / 30);
 
         this.onMessage("move", (client, input: PlayerInput) => {
             const entity = this.entities.get(client.sessionId);
