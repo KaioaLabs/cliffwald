@@ -39,17 +39,14 @@ This single command orchestrates the entire process:
 
 ---
 
-## 3. Database Environments
+## 3. Database Architecture (Unified)
 
-The project supports dual-mode databases controlled by the **Master Dashboard** (`start_mmo.bat`).
+The project now uses a **Unified PostgreSQL Architecture**.
+- **Provider**: PostgreSQL (Supabase) is used for BOTH Development and Production.
+- **Benefits**: Eliminates "works on my machine" bugs caused by SQLite/Postgres dialect differences.
+- **Local Dev**: Requires internet connection to connect to Supabase (or a local Postgres instance defined in `.env`).
 
-| Environment | Provider | Details |
-|BC|BC|BC|
-| **LOCAL** | SQLite | Fast, file-based (`prisma/dev.db`). Good for offline dev. |
-| **CLOUD** | PostgreSQL | Hosted on Supabase. Used for Production/Render. |
-
-**Switching Logic:**
-The `tools/switch_env.ps1` script swaps `.env` files and regenerates the Prisma Client to match the active provider.
+**Removed:** The legacy "Dual Mode" (SQLite vs Cloud) and `switch_env.ps1` scripts have been deprecated and removed.
 
 ---
 
