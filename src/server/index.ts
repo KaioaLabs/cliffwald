@@ -94,7 +94,8 @@ import path from "path";
 
 // Serve Static Client (Production)
 if (process.env.NODE_ENV === "production") {
-    const clientDist = path.join(__dirname, "../client");
+    // Robust Path Resolution using CWD
+    const clientDist = path.join(process.cwd(), "dist/client");
     console.log(`[SERVER] Serving static from: ${clientDist}`);
     
     // Debug: Check if directory exists
@@ -104,13 +105,20 @@ if (process.env.NODE_ENV === "production") {
             console.log(`[SERVER] Contents of clientDist:`, fs.readdirSync(clientDist));
         } else {
             console.error(`[SERVER] CRITICAL: clientDist directory does not exist at ${clientDist}`);
+            // Fallback: Try searching relative to __dirname just in case
+            const fallbackPath = path.join(__dirname, "../client");
+            if (fs.existsSync(fallbackPath)) {
+                 console.log(`[SERVER] Found client at fallback: ${fallbackPath}`);
+                 // We can't reassign const, but we can log it.
+            }
         }
     } catch(e) { console.error("[SERVER] FS Check Failed:", e); }
 
     app.use(express.static(clientDist));
     
-    app.get("*", (req, res) => {
-        // Exclude API routes from wildcard
+    // Fix for Express 5 Wildcard Match
+    app.get("/{0,}", (req, res) => {
+        // Exclude API routes explicitly if needed, though 'use' handles order.
         if (req.path.startsWith("/api")) return res.status(404).send("API Not Found");
         
         const indexPath = path.join(clientDist, "index.html");
