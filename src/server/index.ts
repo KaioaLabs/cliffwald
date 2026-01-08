@@ -17,6 +17,29 @@ app.use(express.json());
 app.get("/ping", (req, res) => {
     res.send(`PONG from Server (Time: ${new Date().toISOString()})`);
 });
+
+app.get("/debug-paths", (req, res) => {
+    const fs = require('fs');
+    const path = require('path');
+    const results: any = {};
+    const checkPath = (p: string) => {
+        try {
+            results[p] = fs.existsSync(p) ? fs.readdirSync(p) : "MISSING";
+        } catch(e: any) { results[p] = "ERROR: " + e.message; }
+    };
+    
+    checkPath(path.join(__dirname, "../client"));
+    checkPath(path.join(__dirname, "../../dist/client"));
+    checkPath(process.cwd());
+    checkPath(path.join(process.cwd(), "dist"));
+
+    res.json({
+        cwd: process.cwd(),
+        __dirname,
+        env: process.env.NODE_ENV,
+        results
+    });
+});
 // ------------------------
 
 // --- AUTH API ROUTES ---
