@@ -1,6 +1,5 @@
 import 'reflect-metadata';
 import Phaser from 'phaser';
-// Colyseus import moved to top by previous edit, removing duplicate here if any, or ensuring clean imports.
 import * as Colyseus from "colyseus.js";
 import { GameState, Player, Projectile, WorldItem } from "../shared/SchemaDef";
 import { CONFIG, getGameTime } from "../shared/Config";
@@ -25,11 +24,10 @@ export class GameScene extends Phaser.Scene {
     uiManager!: UIManager;
     lightManager!: LightManager;
     
-    // Colyseus Direct Access (Legacy/Hybrid)
     room?: Colyseus.Room;
 
     playerController!: PlayerController;
-    cameraTarget!: Phaser.GameObjects.PointLight | Phaser.GameObjects.Image; // Using a dummy point
+    cameraTarget!: Phaser.GameObjects.PointLight | Phaser.GameObjects.Image; 
     cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
     wasd?: { W: Phaser.Input.Keyboard.Key, A: Phaser.Input.Keyboard.Key, S: Phaser.Input.Keyboard.Key, D: Phaser.Input.Keyboard.Key };
     physicsWorld?: RAPIER.World;
@@ -38,14 +36,10 @@ export class GameScene extends Phaser.Scene {
     debugGraphics?: Phaser.GameObjects.Graphics;
     debugManager?: DebugManager;
     
-    // Telemetry
     currentLatency: number = 0;
-
-    // Fixed Timestep
     accumulatedTime: number = 0;
     readonly FIXED_TIMESTEP = 1 / 60;
     
-    // Auth
     authToken: string = "";
     skin: string = "player_idle";
 
@@ -54,7 +48,6 @@ export class GameScene extends Phaser.Scene {
         this.network = new NetworkManager(this);
         this.setupRemoteLogging();
         
-        // GLOBAL ERROR TRAP
         window.addEventListener('unhandledrejection', (event) => {
             console.error('[CRITICAL] Unhandled Rejection:', event.reason);
         });
@@ -64,7 +57,6 @@ export class GameScene extends Phaser.Scene {
         };
     }
 
-
     setupRemoteLogging() {
         const oldError = console.error;
         console.error = (...args: any[]) => {
@@ -72,11 +64,14 @@ export class GameScene extends Phaser.Scene {
             const urlParams = new URLSearchParams(window.location.search);
             const user = urlParams.get("dev_user") || "Unknown";
             
-            fetch(`http://${window.location.hostname}:2568/api/logs`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'error', message, user })
-            }).catch(() => {}); // Ignorar si falla el log
+            // Only log remotely if in dev environment or specifically requested
+            if (window.location.hostname === "localhost") {
+                fetch(`http://${window.location.hostname}:2568/api/logs`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'error', message, user })
+                }).catch(() => {}); 
+            }
             
             oldError.apply(console, args);
         };
@@ -87,7 +82,6 @@ export class GameScene extends Phaser.Scene {
         AssetManager.preload(this);
     }
 
-    // Registry for networked projectiles
     visualProjectiles = new Map<string, Phaser.GameObjects.Shape>();
     itemVisuals = new Map<string, Phaser.GameObjects.GameObject>();
     tableShadows: Phaser.GameObjects.Image[] = [];
@@ -100,54 +94,45 @@ export class GameScene extends Phaser.Scene {
             this.scene.bringToTop('UIScene');
             const uiScene = this.scene.get('UIScene');
 
-            // --- GENERATE ASSETS ---
             AssetManager.generateTextures(this);
 
             await RAPIER.init();
             this.physicsWorld = new RAPIER.World({ x: 0.0, y: 0.0 });
 
-            // ... (Map and Player setup remain the same)
             const map = this.make.tilemap({ key: 'map' });
             
-            // Add all tilesets defined in Tiled
             const tileset = map.addTilesetImage('placeholder_tiles', 'tiles');
             const tilesetTable = map.addTilesetImage('table', 'table');
             const tilesetFloor = map.addTilesetImage('floor_cobble', 'floor_cobble');
 
-            // Create Layers (Order matters for default z-index, but we setDepth anyway)
             if (tileset && tilesetTable && tilesetFloor) {
-                // 1. Floor Text (Bottom)
                 const floorLayer = map.createLayer('floor_text', tilesetFloor, 0, 0);
                 if (floorLayer) {
                     floorLayer.setPipeline('Light2D');
                     floorLayer.setDepth(-101); 
                 }
 
-                // 2. Ground (Middle)
                 const groundLayer = map.createLayer('Ground', tileset, 0, 0);
                 if (groundLayer) {
                     groundLayer.setPipeline('Light2D');
                     groundLayer.setDepth(-100); 
                 }
 
-                // 3. Furniture (Top of static world)
                 const furnitureLayer = map.createLayer('Furniture', tilesetTable, 0, 0);
                 if (furnitureLayer) {
                     furnitureLayer.setPipeline('Light2D');
                     furnitureLayer.setDepth(-99);
 
-                    // --- TABLE SHADOWS ---
                     furnitureLayer.forEachTile((tile) => {
                         if (tile.index !== -1) {
-                            // Center X, Bottom Y of the tile
                             const tx = tile.getCenterX();
                             const ty = tile.getBottom();
                             
                             const shadow = this.add.image(tx, ty, 'table');
                             shadow.setTint(0x000000);
                             shadow.setAlpha(0.3);
-                            shadow.setOrigin(0.5, 1.0); // Pivot at feet/bottom
-                            shadow.setDepth(-99.5); // Below table (-99), above ground (-100)
+                            shadow.setOrigin(0.5, 1.0); 
+                            shadow.setDepth(-99.5); 
                             
                             shadow.setData('baseX', tx);
                             shadow.setData('baseY', ty);
@@ -162,7 +147,6 @@ export class GameScene extends Phaser.Scene {
 
             buildPhysics(this.physicsWorld, this.cache.tilemap.get('map').data);
 
-            // --- LIGHTING SYSTEM ---
             this.lightManager = new LightManager(this);
             this.lightManager.initFromMap(map);
 
@@ -170,12 +154,10 @@ export class GameScene extends Phaser.Scene {
             AssetManager.createAnimations(this);
             this.wasd = this.input.keyboard?.addKeys('W,A,S,D') as any;
 
-            // Camera Target Setup
             this.cameraTarget = this.add.image(1600, 1000, '').setVisible(false);
             this.cameras.main.startFollow(this.cameraTarget, true, 0.2, 0.2);
             this.cameras.main.centerOn(1600, 1000);
 
-            // 2b. Gestures
             this.gestureManager = new GestureManager(this, uiScene);
             this.gestureManager.onGestureRecognized = (id: string, score: number, centroid: {x: number, y: number}) => {
                 const sessionId = this.room?.sessionId || "";
@@ -184,15 +166,12 @@ export class GameScene extends Phaser.Scene {
                 if (playerPos && centroid) {
                     const worldPoint = this.cameras.main.getWorldPoint(centroid.x, centroid.y);
                     
-                    // --- VISUAL CAST EFFECT ---
                     this.showCastEffect(id, worldPoint.x, worldPoint.y);
 
                     const aimVector = new Phaser.Math.Vector2(worldPoint.x - playerPos.x, worldPoint.y - playerPos.y).normalize();
 
-                    // MULTIPLAYER CAST: Send to server
                     this.network.sendCast(id, aimVector.x * 400, aimVector.y * 400);
 
-                    // Local Feedback: Spawn Projectile locally (Client Prediction)
                     const projData = {
                         x: playerPos.x,
                         y: playerPos.y,
@@ -202,7 +181,6 @@ export class GameScene extends Phaser.Scene {
                     };
                     const visualProj = this.createProjectileSprite(projData);
                     
-                    // Animate it flying
                     this.tweens.add({
                         targets: visualProj,
                         x: playerPos.x + aimVector.x * 1200, 
@@ -213,16 +191,12 @@ export class GameScene extends Phaser.Scene {
                 }
             };
 
-            // 6. Auto-Login based on URL
             this.autoLogin();
 
-            // 7. Events
             this.scale.on('resize', this.handleResize, this);
             
-            // 8. Debug Tools
             this.debugManager = new DebugManager(this);
 
-            // 9. Input & Zoom Control
             this.input.mouse?.disableContextMenu();
 
             this.input.on('wheel', (pointer: any, gameObjects: any, deltaX: number, deltaY: number, deltaZ: number) => {
@@ -238,7 +212,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     showCastEffect(id: string, x: number, y: number) {
-        let config = SPELL_REGISTRY['circle']; // Default
+        let config = SPELL_REGISTRY['circle']; 
         for (const key in SPELL_REGISTRY) {
             if (id.includes(key)) {
                 config = SPELL_REGISTRY[key];
@@ -247,13 +221,11 @@ export class GameScene extends Phaser.Scene {
         }
         const color = config.color;
 
-        // 1. Shape Graphics (Outline)
         const graphics = this.add.graphics({ x, y });
         graphics.lineStyle(3, color, 1);
         graphics.setBlendMode(Phaser.BlendModes.ADD);
-        graphics.setDepth(2000); // Top
+        graphics.setDepth(2000); 
         
-        // Emulate Glow by drawing twice? Or just rely on Light
         if (config.shape === 'triangle') {
             graphics.strokeTriangle(-20, -17, 20, -17, 0, 23);
         } else if (config.shape === 'square') {
@@ -262,16 +234,13 @@ export class GameScene extends Phaser.Scene {
             graphics.strokeCircle(0, 0, 20);
         }
 
-        // 2. Real Light Emission
-        // Note: 'radius' and 'intensity'
         const light = this.lights.addLight(x, y, 120, color, 3.0);
 
-        // 3. Animation: Expand and Fade
         this.tweens.add({
             targets: graphics,
             alpha: 0,
             scale: 1.5,
-            angle: 45, // Rotate slightly
+            angle: 45, 
             duration: 800,
             ease: 'Sine.easeOut',
             onComplete: () => {
@@ -280,13 +249,21 @@ export class GameScene extends Phaser.Scene {
             }
         });
 
-        // Animate Light
         this.tweens.add({
             targets: light,
             intensity: 0,
-            radius: 200, // Expand light area as it fades
+            radius: 200, 
             duration: 800
         });
+    }
+
+    // --- CORREGIDO: LOGIN LOGIC ---
+    
+    private getApiUrl(endpoint: string) {
+        const host = window.location.hostname;
+        const port = (host === "localhost" || host === "127.0.0.1") ? ":2568" : "";
+        const protocol = window.location.protocol;
+        return `${protocol}//${host}${port}${endpoint}`;
     }
 
     async autoLogin() {
@@ -295,11 +272,34 @@ export class GameScene extends Phaser.Scene {
         const skin = urlParams.get("skin");
 
         if (devUser) {
-            // 1. Direct Link Login (Dev/Link sharing)
-            document.getElementById('login-screen')?.classList.add('hidden');
-            this.doDevLogin(devUser, skin || "player_idle");
+            console.log(`[DEBUG] Attempting Dev Login for: ${devUser}`);
+            try {
+                const apiUrl = this.getApiUrl("/api/dev-login");
+
+                const res = await fetch(apiUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username: devUser })
+                });
+
+                if (!res.ok) throw new Error("Dev Login Failed");
+                
+                const data = await res.json();
+                console.log("[DEBUG] Got Token:", data.token);
+                
+                this.authToken = data.token;
+                this.skin = skin || "player_idle";
+
+                this.uiManager = new UIManager(this, this.network);
+                this.uiManager.create();
+                
+                console.log("[DEBUG] Calling connect()...");
+                this.connect();
+            } catch (e) {
+                console.error("Dev Auto-Login Error:", e);
+                this.setupLoginScreen();
+            }
         } else {
-            // 2. Show Login Screen
             console.log("Waiting for user login...");
             this.setupLoginScreen();
         }
@@ -310,25 +310,23 @@ export class GameScene extends Phaser.Scene {
         if (!screen) return;
         screen.classList.remove('hidden');
 
-        // House Masters
         document.querySelectorAll('.house-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const user = (e.target as HTMLElement).getAttribute('data-user');
-                if (user) this.doDevLogin(user, 'player_idle'); // Skin is auto-resolved by server for Masters
+                if (user) this.doDevLogin(user, 'player_idle'); 
                 screen.classList.add('hidden');
             });
         });
 
-        // Custom Login
         const btnCustom = document.getElementById('btn-login-custom');
         const inputUser = document.getElementById('login-username') as HTMLInputElement;
         const selectHouse = document.getElementById('login-house') as HTMLSelectElement;
 
-        btnCustom?.addEventListener('click', () => {
+        btnCustom?.addEventListener('click', (e) => {
+            e.stopPropagation(); 
             const user = inputUser.value.trim();
             if (!user) return;
             
-            // Map house to skin
             const house = selectHouse.value;
             let skin = "player_idle";
             if (house === 'ignis') skin = "player_red";
@@ -342,12 +340,16 @@ export class GameScene extends Phaser.Scene {
     
     async doDevLogin(username: string, skin: string) {
         try {
-            const apiUrl = `http://${window.location.hostname}:2568/api/dev-login`;
+            const apiUrl = this.getApiUrl("/api/dev-login");
+
             const res = await fetch(apiUrl, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ username })
             });
+            
+            if (!res.ok) throw new Error("Login Failed: " + res.statusText);
+
             const data = await res.json();
             
             this.authToken = data.token;
@@ -359,7 +361,9 @@ export class GameScene extends Phaser.Scene {
             this.connect();
         } catch (e) { 
             console.error("Login Failed:", e);
-            // Retry login in 2s
+            const status = document.getElementById('login-status');
+            if (status) status.innerText = "Login Error. Retrying...";
+            
             setTimeout(() => this.doDevLogin(username, skin), 2000);
         }
     }
@@ -373,14 +377,12 @@ export class GameScene extends Phaser.Scene {
                 this.room = this.network.room;
                 console.log("Joined successfully!", this.room.sessionId);
                 
-                // Setup callbacks
                 this.network.onPong = (latency) => this.currentLatency = latency;
 
                 this.network.onChatMessage = (msg) => {
                     this.uiManager.appendChatMessage(msg);
                 };
 
-                // ROBUST LISTENER ATTACHMENT
                 const attachRoomListeners = () => {
                     if (!this.room || !this.room.state) return;
                     console.log("[MAIN] Attaching Room Listeners");
@@ -394,14 +396,12 @@ export class GameScene extends Phaser.Scene {
                         }
                     };
 
-                    // ITEMS SYNC (Cards)
                     if (this.room.state.items) {
                         attach(this.room.state.items, 'onAdd', (item: any, id: string) => {
                             const sprite = this.add.rectangle(item.x, item.y, 14, 14, 0xFFD700);
                             sprite.setStrokeStyle(2, 0xFFFFFF);
-                            sprite.setDepth(-80); // On floor
+                            sprite.setDepth(-80); 
                             
-                            // Tween: Float
                             this.tweens.add({
                                 targets: sprite,
                                 y: item.y - 5,
@@ -449,20 +449,16 @@ export class GameScene extends Phaser.Scene {
                         this.room.onStateChange.once(() => attachRoomListeners());
                     }
 
-                    // 4. Auto-Reconnect Logic (delegated or kept hybrid)
                     this.room.onLeave((code) => {
                         console.warn(`[NETWORK] Disconnected (Code: ${code}). Attempting Auto-Reconnect...`);
-                        // Clear state
                         this.playerController.players.forEach((entity) => {
                             if (entity.player) this.playerController.removePlayer(entity.player.sessionId);
                         });
                         
-                        // Show Reconnecting UI
                         this.uiManager.showReconnecting();
                         
-                        // Retry Loop
                         setTimeout(() => {
-                            this.connect(); // Recursive re-connect
+                            this.connect(); 
                         }, 2000);
                     });
                 }
@@ -477,7 +473,7 @@ export class GameScene extends Phaser.Scene {
         let projectile: Phaser.GameObjects.Shape;
         const angle = Math.atan2(data.vy, data.vx);
         
-        let config = SPELL_REGISTRY['circle']; // Default fallback
+        let config = SPELL_REGISTRY['circle']; 
         for (const key in SPELL_REGISTRY) {
             if (data.spellId.includes(key)) {
                 config = SPELL_REGISTRY[key];
@@ -507,22 +503,18 @@ export class GameScene extends Phaser.Scene {
             });
         }
 
-        // Play Audio (Only if fresh)
         const now = Date.now();
-        const timestamp = creationTime || now; // Local cast = now
+        const timestamp = creationTime || now; 
         const age = now - timestamp;
 
         if (age < 1000) { 
-            const audioKey = `audio_${config.shape}`; // circle, square, triangle
+            const audioKey = `audio_${config.shape}`; 
             if (this.sound.get(audioKey) || this.cache.audio.exists(audioKey)) {
-                // console.log(`[AUDIO] Playing: ${audioKey} for spell ${data.spellId} (Age: ${age}ms)`);
                 this.sound.play(audioKey);
             } else {
                 console.warn(`[AUDIO] Missing key: ${audioKey}`);
             }
-        } else {
-            // console.log(`[AUDIO] Skipped old projectile ${data.spellId} (Age: ${age}ms)`);
-        }
+        } 
 
         return projectile;
     }
@@ -530,7 +522,6 @@ export class GameScene extends Phaser.Scene {
     update(time: number, delta: number) {
         if (!this.playerController || !this.network || !this.network.room) return;
 
-        // --- DYNAMIC CAMERA LOGIC ---
         const localPlayerEnt = this.playerController.players.get(this.network.room.sessionId);
         const localPlayer = localPlayerEnt?.visual?.sprite;
         if (localPlayer && this.cameraTarget) {
@@ -571,7 +562,6 @@ export class GameScene extends Phaser.Scene {
             }
         }
 
-        // --- TABLE SHADOWS UPDATE ---
         const pointer = this.input.activePointer;
         const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
         
@@ -579,15 +569,14 @@ export class GameScene extends Phaser.Scene {
             const baseX = shadow.getData('baseX');
             const baseY = shadow.getData('baseY');
             
-            // Table height is tileheight (32)
             ShadowUtils.updateShadow(
                 shadow,
                 baseX,
                 baseY,
                 1.0, 
                 1.0, 
-                -99, // Source Depth
-                32,  // Height
+                -99, 
+                32,  
                 worldPoint.x,
                 worldPoint.y
             );
@@ -595,26 +584,21 @@ export class GameScene extends Phaser.Scene {
 
         if (this.debugManager) this.debugManager.update();
 
-        // Update Clock UI & Lighting (System Time Based)
         const gameTime = getGameTime(Date.now());
         const decimalHour = gameTime.hour + (gameTime.minute / 60);
 
         const uiScene = this.scene.get('UIScene') as UIScene;
         if (uiScene) {
-            // UIScene expects seconds for "wrappedTime" to show HH:MM
-            // We can reconstruct seconds: hour * 3600 + minute * 60
             const displaySeconds = gameTime.hour * 3600 + gameTime.minute * 60;
             if (this.network.room) {
                  uiScene.updateTime(displaySeconds, this.network.room.state.currentCourse, this.network.room.state.currentMonth);
             }
         }
 
-        // Update Dynamic Lighting
         if (this.lightManager) {
             this.lightManager.update(decimalHour);
         }
 
-        // Update UI Timetable
         if (this.uiManager) {
             this.uiManager.updateTimetable(gameTime.hour);
         }
@@ -645,10 +629,8 @@ export class GameScene extends Phaser.Scene {
         if (state && state.players) {
             const players = state.players;
             
-            // 1. Sync / Add
             players.forEach((p: any, id: string) => this.syncPlayer(id, p));
             
-            // 2. Remove missing
             this.playerController.players.forEach((_, id) => {
                 if (!players.has(id)) {
                     console.log(`[NET] Removing player/echo from client: ${id}`);
@@ -679,7 +661,6 @@ export class GameScene extends Phaser.Scene {
             return { left: false, right: false, up: false, down: false };
         }
         
-        // Keyboard Input
         let input = {
             left: this.cursors.left.isDown || this.wasd.A.isDown,
             right: this.cursors.right.isDown || this.wasd.D.isDown,
@@ -687,7 +668,6 @@ export class GameScene extends Phaser.Scene {
             down: this.cursors.down.isDown || this.wasd.S.isDown
         };
 
-        // Mobile Joystick Input
         const uiScene = this.scene.get('UIScene') as UIScene;
         if (uiScene && uiScene.joystick) {
             const joyInput = uiScene.joystick.getInput();
