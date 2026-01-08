@@ -94,9 +94,8 @@ import path from "path";
 
 // Serve Static Client (Production)
 if (process.env.NODE_ENV === "production") {
-    // Robust Path Resolution using CWD
-    // Changed to 'dist-client' to match new build output
-    const clientDist = path.join(process.cwd(), "dist-client");
+    // Client is now bundled INSIDE dist-server/public
+    const clientDist = path.join(__dirname, "../public");
     console.log(`[SERVER] Serving static from: ${clientDist}`);
     
     // Debug: Check if directory exists
@@ -106,12 +105,6 @@ if (process.env.NODE_ENV === "production") {
             console.log(`[SERVER] Contents of clientDist:`, fs.readdirSync(clientDist));
         } else {
             console.error(`[SERVER] CRITICAL: clientDist directory does not exist at ${clientDist}`);
-            // Fallback: Try searching relative to __dirname just in case
-            const fallbackPath = path.join(__dirname, "../client");
-            if (fs.existsSync(fallbackPath)) {
-                 console.log(`[SERVER] Found client at fallback: ${fallbackPath}`);
-                 // We can't reassign const, but we can log it.
-            }
         }
     } catch(e) { console.error("[SERVER] FS Check Failed:", e); }
 
