@@ -362,12 +362,6 @@ export class WorldRoom extends Room<GameState> {
                     invItem.itemId = dbItem.itemId;
                     invItem.qty = dbItem.count;
                     playerState.inventory.push(invItem);
-
-                    // 2. Legacy Card Support (for Album UI)
-                    if (dbItem.itemId.startsWith("card_")) {
-                        const cardId = parseInt(dbItem.itemId.split("_")[1]);
-                        if (!isNaN(cardId)) playerState.cardCollection.push(cardId);
-                    }
                 });
             }
 

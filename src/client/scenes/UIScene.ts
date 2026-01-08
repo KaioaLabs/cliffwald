@@ -65,7 +65,8 @@ export class UIScene extends Phaser.Scene {
             const room = gameScene.network?.room;
             if (room) {
                 const player = room.state.players.get(room.sessionId);
-                const collection = player ? player.cardCollection.toArray() : [];
+                // Map inventory schema objects to simple ID strings
+                const collection = player ? player.inventory.map((i: any) => i.itemId) : [];
                 this.scene.launch('CardAlbumScene', { collection });
                 this.scene.bringToTop('CardAlbumScene');
             }
