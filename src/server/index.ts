@@ -6,6 +6,7 @@ import cors from "cors";
 import { WebSocketTransport } from "@colyseus/ws-transport";
 import { WorldRoom } from "./WorldRoom";
 import { AuthService } from "./services/AuthService";
+import { initDatabase } from "./init_db";
 
 const port = Number(process.env.PORT || 2568);
 const app = express();
@@ -146,8 +147,11 @@ const gameServer = new Server({
 // Define rooms
 gameServer.define("world", WorldRoom);
 
-gameServer.listen(port).then(() => {
-    console.log(`[GameServer] Listening on Port: ${port}`);
+// Initialize DB then Start
+initDatabase().then(() => {
+    gameServer.listen(port).then(() => {
+        console.log(`[GameServer] Listening on Port: ${port}`);
+    });
 });
 
 process.on('unhandledRejection', (reason, p) => {
