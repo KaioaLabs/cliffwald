@@ -15,6 +15,6 @@
     "emitDecoratorMetadata": true,
     "useDefineForClassFields": false
   },
-  "include": ["src/server/**/*", "src/shared/**/*"],
+  "include": ["src/server/**/*", "src/shared/**/*", "src/generated/**/*"],
   "exclude": ["dist", "node_modules", "**/*.spec.ts", "**/*.test.ts", "src/client", "**/*.tsx"]
 }

@@ -10,7 +10,7 @@
     "predev": "npx kill-port 2567 2568 3000",
     "map": "start ./Tiled/tiled.exe ./assets/maps/world.json",
     "test": "vitest run",
-    "build": "npx prisma generate && npm run build:client && npm run build:server && mkdir -p dist-server/public && (cp -r dist-client/* dist-server/public/ || cp -r src/client/dist-client/* dist-server/public/)",
+    "build": "npx prisma generate && npm run build:client && npm run build:server && mkdir -p dist-server/public && cp -r dist-client/* dist-server/public/ && mkdir -p dist-server/generated && cp -r src/generated/* dist-server/generated/",
     "build:client": "vite build --outDir dist-client --emptyOutDir",
     "build:server": "tsc",
     "start:prod": "export DATABASE_URL=\"file:/tmp/dev.db\" && npx prisma db push && npx ts-node seed.ts && node dist-server/server/index.js"
