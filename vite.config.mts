@@ -9,7 +9,7 @@ export default defineConfig({
   root: './src/client',
   publicDir: '../../assets', // Serve assets from root assets folder
   build: {
-    outDir: '../../dist-client',
+    outDir: path.resolve(__dirname, 'dist-client'),
     emptyOutDir: true
   },
   server: {
