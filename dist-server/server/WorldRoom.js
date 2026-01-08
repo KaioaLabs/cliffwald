@@ -117,7 +117,6 @@ class WorldRoom extends colyseus_1.Room {
             const currentHour = (0, Config_1.getGameHour)(this.state.worldStartTime);
             const { currentCourse, currentMonth, currentWeek } = (0, Config_1.getAcademicProgress)(this.state.worldStartTime);
             // Sync Calendar State
-            // Sync Calendar State
             if (this.state.currentMonth !== currentMonth) {
                 console.log(`[CALENDAR] Welcome to ${currentMonth}`);
                 this.state.currentMonth = currentMonth;
@@ -195,8 +194,7 @@ class WorldRoom extends colyseus_1.Room {
                 }
             });
             logTimer += deltaTime;
-            // ... (stats) ...
-        });
+        }, 1000 / 15);
         this.onMessage("move", (client, input) => {
             const entity = this.entities.get(client.sessionId);
             if (entity && entity.input) {
@@ -219,6 +217,7 @@ class WorldRoom extends colyseus_1.Room {
             }
         });
         this.onMessage("cast", (client, data) => {
+            console.log(`[SERVER] Received cast from ${client.sessionId}: ${data.spellId}`);
             this.handleCast(client.sessionId, data.spellId, data.vx, data.vy);
         });
         this.onMessage("collect", (client, itemId) => {
@@ -229,6 +228,7 @@ class WorldRoom extends colyseus_1.Room {
         });
         this.onMessage("chat", (client, text) => {
             const player = this.state.players.get(client.sessionId);
+            console.log(`[SERVER] Chat request from ${client.sessionId}. Player found: ${!!player}. Text: "${text}"`);
             if (player && text) {
                 const msg = new SchemaDef_1.ChatMessage();
                 msg.sender = player.username;
@@ -241,19 +241,28 @@ class WorldRoom extends colyseus_1.Room {
                 }
                 console.log(`[CHAT] ${msg.sender}: ${msg.text}`);
             }
+            else {
+                console.warn(`[SERVER] Chat ignored. Player: ${player}, Text: ${text}`);
+            }
         });
     }
     handleCast(sessionId, spellId, vx, vy) {
         const entity = this.entities.get(sessionId);
-        if (!entity || !entity.body)
+        if (!entity || !entity.body) {
+            console.warn(`[SERVER] Cast failed: Entity ${sessionId} not found or has no body`);
             return;
+        }
         const spellConfig = SpellRegistry_1.SPELL_REGISTRY[spellId];
-        if (!spellConfig)
+        if (!spellConfig) {
+            console.warn(`[SERVER] Cast failed: Spell ${spellId} not in registry`);
             return;
+        }
         const now = Date.now();
         const lastCast = this.lastCastTimes.get(sessionId) || 0;
-        if (now - lastCast < spellConfig.cooldown)
+        if (now - lastCast < spellConfig.cooldown) {
+            console.log(`[SERVER] Cast on cooldown for ${sessionId}`);
             return;
+        }
         this.lastCastTimes.set(sessionId, now);
         // Spawn projectile
         const pos = entity.body.translation();
@@ -270,6 +279,7 @@ class WorldRoom extends colyseus_1.Room {
         proj.creationTime = now;
         proj.maxRange = 600;
         this.state.projectiles.set(id, proj);
+        console.log(`[SERVER] Projectile created: ${id} at ${proj.x},${proj.y}`);
     }
     async onJoin(client, options) {
         try {

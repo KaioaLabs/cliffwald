@@ -94,40 +94,52 @@ app.post("/api/logs", (req, res) => {
     console.log(`${color}[CLIENT:${user || 'UNK'}] [${type.toUpperCase()}] ${message}\x1b[0m`);
     res.sendStatus(200);
 });
-// -----------------------
-const path_1 = __importDefault(require("path"));
 // ...
 // Serve Static Client (Production)
 if (process.env.NODE_ENV === "production") {
-    // Client is now bundled INSIDE dist-server/public
-    const clientDist = path_1.default.join(__dirname, "../public");
-    console.log(`[SERVER] Serving static from: ${clientDist}`);
-    // Debug: Check if directory exists
+    const fs = require('fs');
+    const path = require('path');
+    // DEBUG: Recursive List to find where the files are
+    console.log("--- DEBUG: FILE SYSTEM STRUCTURE ---");
+    console.log("CWD:", process.cwd());
+    console.log("__dirname:", __dirname);
     try {
-        const fs = require('fs');
-        if (fs.existsSync(clientDist)) {
-            console.log(`[SERVER] Contents of clientDist:`, fs.readdirSync(clientDist));
-        }
-        else {
-            console.error(`[SERVER] CRITICAL: clientDist directory does not exist at ${clientDist}`);
-        }
+        const listDir = (dir, level = 0) => {
+            if (level > 2)
+                return; // Limit depth
+            if (!fs.existsSync(dir))
+                return;
+            const files = fs.readdirSync(dir);
+            files.forEach((file) => {
+                console.log("  ".repeat(level) + " - " + file);
+                const fullPath = path.join(dir, file);
+                if (fs.lstatSync(fullPath).isDirectory()) {
+                    listDir(fullPath, level + 1);
+                }
+            });
+        };
+        // List 'dist-server' (parent of current script)
+        listDir(path.join(__dirname, ".."));
     }
     catch (e) {
-        console.error("[SERVER] FS Check Failed:", e);
+        console.error("Debug listing failed:", e);
     }
+    console.log("------------------------------------");
+    // Robust path resolution
+    // If we are in dist-server/server/index.js, public should be in dist-server/public
+    const clientDist = path.join(__dirname, "../public");
+    console.log(`[SERVER] Serving static from: ${clientDist}`);
     app.use(express_1.default.static(clientDist));
-    // Fix for Express 5 Wildcard Match
-    app.get("/{0,}", (req, res) => {
-        // Exclude API routes explicitly if needed, though 'use' handles order.
+    app.get(/.*/, (req, res) => {
         if (req.path.startsWith("/api"))
             return res.status(404).send("API Not Found");
-        const indexPath = path_1.default.join(clientDist, "index.html");
-        const fs = require('fs');
-        if (!fs.existsSync(indexPath)) {
-            console.error(`[SERVER] 404: Request for ${req.path} failed. index.html missing at ${indexPath}`);
-            return res.status(500).send(`CRITICAL ERROR: index.html not found at ${indexPath}. Deployment failed?`);
+        const indexPath = path.join(clientDist, "index.html");
+        if (fs.existsSync(indexPath)) {
+            res.sendFile(indexPath);
         }
-        res.sendFile(indexPath);
+        else {
+            res.status(404).send("Client build not found. Check server logs.");
+        }
     });
 }
 else {

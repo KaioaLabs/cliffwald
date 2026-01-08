@@ -133,7 +133,7 @@ if (process.env.NODE_ENV === "production") {
 
     app.use(express.static(clientDist));
     
-    app.get("*", (req, res) => {
+    app.get(/.*/, (req, res) => {
         if (req.path.startsWith("/api")) return res.status(404).send("API Not Found");
         
         const indexPath = path.join(clientDist, "index.html");
