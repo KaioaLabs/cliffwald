@@ -50,7 +50,7 @@ const config: runtime.GetPrismaClientConfig = {
   "datasourceNames": [
     "db"
   ],
-  "activeProvider": "postgresql",
+  "activeProvider": "sqlite",
   "inlineDatasources": {
     "db": {
       "url": {
@@ -59,8 +59,8 @@ const config: runtime.GetPrismaClientConfig = {
       }
     }
   },
-  "inlineSchema": "// This is your Prisma schema file,\n// learn more about it in the docs: https://pris.ly/d/prisma-schema\n\ngenerator client {\n  provider      = \"prisma-client\"\n  output        = \"../src/generated/client\"\n  binaryTargets = [\"native\", \"debian-openssl-3.0.x\"]\n}\n\ndatasource db {\n  provider  = \"postgresql\"\n  url       = env(\"DATABASE_URL\")\n  directUrl = env(\"DIRECT_URL\")\n}\n\nmodel User {\n  id        Int      @id @default(autoincrement())\n  username  String   @unique\n  password  String // In a real app, this should be hashed. For Phase 1 prototype, we'll store as is or simple hash.\n  createdAt DateTime @default(now())\n\n  player Player?\n}\n\nmodel Player {\n  id     Int  @id @default(autoincrement())\n  userId Int  @unique\n  user   User @relation(fields: [userId], references: [id])\n\n  x Float @default(0)\n  y Float @default(0)\n\n  skin     String @default(\"player_idle\") // e.g. \"player_red\", \"player_blue\"\n  house    String @default(\"ignis\") // \"ignis\", \"axiom\", \"vesper\"\n  prestige Int    @default(0)\n\n  // Future proofing for Phase 2\n  health    Int @default(100)\n  maxHealth Int @default(100)\n\n  inventory InventoryItem[]\n}\n\nmodel InventoryItem {\n  id       Int    @id @default(autoincrement())\n  playerId Int\n  player   Player @relation(fields: [playerId], references: [id])\n\n  itemId String // e.g. \"sword_wood\", \"potion_hp\"\n  count  Int    @default(1)\n\n  equipped Boolean @default(false) // Is this item currently equipped?\n}\n",
-  "inlineSchemaHash": "cccd747964794edb904bbe35f753faf103bfaa6893e8ae64df295b3acb8eaf3d",
+  "inlineSchema": "// This is your Prisma schema file,\n// learn more about it in the docs: https://pris.ly/d/prisma-schema\n\ngenerator client {\n  provider      = \"prisma-client\"\n  output        = \"../src/generated/client\"\n  binaryTargets = [\"native\", \"debian-openssl-3.0.x\"]\n}\n\ndatasource db {\n  provider = \"sqlite\"\n  url      = env(\"DATABASE_URL\")\n}\n\nmodel User {\n  id        Int      @id @default(autoincrement())\n  username  String   @unique\n  password  String // In a real app, this should be hashed. For Phase 1 prototype, we'll store as is or simple hash.\n  createdAt DateTime @default(now())\n\n  player Player?\n}\n\nmodel Player {\n  id     Int  @id @default(autoincrement())\n  userId Int  @unique\n  user   User @relation(fields: [userId], references: [id])\n\n  x Float @default(0)\n  y Float @default(0)\n\n  skin     String @default(\"player_idle\") // e.g. \"player_red\", \"player_blue\"\n  house    String @default(\"ignis\") // \"ignis\", \"axiom\", \"vesper\"\n  prestige Int    @default(0)\n\n  // Future proofing for Phase 2\n  health    Int @default(100)\n  maxHealth Int @default(100)\n\n  inventory InventoryItem[]\n}\n\nmodel InventoryItem {\n  id       Int    @id @default(autoincrement())\n  playerId Int\n  player   Player @relation(fields: [playerId], references: [id])\n\n  itemId String // e.g. \"sword_wood\", \"potion_hp\"\n  count  Int    @default(1)\n\n  equipped Boolean @default(false) // Is this item currently equipped?\n}\n",
+  "inlineSchemaHash": "4691623fdfcbdc52f5ba130bed16a33161f0d8c877d40726af0e97c4eb6efe51",
   "copyEngine": true,
   "runtimeDataModel": {
     "models": {},

@@ -107,29 +107,23 @@ if (process.env.NODE_ENV === "production") {
     console.log("--- DEBUG: FILE SYSTEM STRUCTURE ---");
     console.log("CWD:", process.cwd());
     console.log("__dirname:", __dirname);
-    
-    try {
-        const listDir = (dir: string, level = 0) => {
-            if (level > 2) return; // Limit depth
-            if (!fs.existsSync(dir)) return;
-            const files = fs.readdirSync(dir);
-            files.forEach((file: string) => {
-                console.log("  ".repeat(level) + " - " + file);
-                const fullPath = path.join(dir, file);
-                if (fs.lstatSync(fullPath).isDirectory()) {
-                    listDir(fullPath, level + 1);
-                }
-            });
-        };
-        // List 'dist-server' (parent of current script)
-        listDir(path.join(__dirname, ".."));
-    } catch (e) { console.error("Debug listing failed:", e); }
     console.log("------------------------------------");
 
-    // Robust path resolution
-    // If we are in dist-server/server/index.js, public should be in dist-server/public
-    const clientDist = path.join(__dirname, "../public");
-    console.log(`[SERVER] Serving static from: ${clientDist}`);
+    // Robust path resolution using process.cwd()
+    // Priority 1: Standard Vite output at root/dist-client
+    const viteDist = path.join(process.cwd(), "dist-client");
+    // Priority 2: Legacy/Copied path at dist-server/public
+    const legacyDist = path.join(__dirname, "../public");
+
+    let clientDist = viteDist;
+    if (fs.existsSync(viteDist)) {
+        console.log(`[SERVER] Serving static from VITE build: ${clientDist}`);
+    } else if (fs.existsSync(legacyDist)) {
+        clientDist = legacyDist;
+        console.log(`[SERVER] Serving static from LEGACY build: ${clientDist}`);
+    } else {
+        console.error(`[SERVER] CRITICAL: No client build found at ${viteDist} or ${legacyDist}`);
+    }
 
     app.use(express.static(clientDist));
     
@@ -140,7 +134,7 @@ if (process.env.NODE_ENV === "production") {
         if (fs.existsSync(indexPath)) {
             res.sendFile(indexPath);
         } else {
-            res.status(404).send("Client build not found. Check server logs.");
+            res.status(404).send(`Client build not found. Checked: ${clientDist}`);
         }
     });
 } else {

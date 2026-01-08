@@ -436,7 +436,6 @@ export type InventoryItemCreateOrConnectWithoutPlayerInput = {
 
 export type InventoryItemCreateManyPlayerInputEnvelope = {
   data: Prisma.InventoryItemCreateManyPlayerInput | Prisma.InventoryItemCreateManyPlayerInput[]
-  skipDuplicates?: boolean
 }
 
 export type InventoryItemUpsertWithWhereUniqueWithoutPlayerInput = {
@@ -1210,7 +1209,6 @@ export type InventoryItemCreateManyArgs<ExtArgs extends runtime.Types.Extensions
    * The data used to create many InventoryItems.
    */
   data: Prisma.InventoryItemCreateManyInput | Prisma.InventoryItemCreateManyInput[]
-  skipDuplicates?: boolean
 }
 
 /**
@@ -1229,7 +1227,6 @@ export type InventoryItemCreateManyAndReturnArgs<ExtArgs extends runtime.Types.E
    * The data used to create many InventoryItems.
    */
   data: Prisma.InventoryItemCreateManyInput | Prisma.InventoryItemCreateManyInput[]
-  skipDuplicates?: boolean
   /**
    * Choose, which related nodes to fetch as well
    */
