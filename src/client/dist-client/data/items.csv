@@ -1,0 +1,57 @@
+ID,Name,Type,Stats,Description,Rarity,Stackable
+robe_plain,Plain Work Robe,Robe,Defense: Low,Generic apprentice work robes. Starter equipment.,Common,false
+robe_silk,Silk Robe,Robe,Magic Defense: Med,Fine silk robes that resonate with magical energy.,Rare,false
+cloak_winter,Winter Cloak,Cloak,Def: Med + Frost Resist,Heavy wool cloak designed for the frozen highlands.,Rare,false
+robe_velvet,Velvet Robe,Robe,Defense: High + Bonus,Luxurious velvet robes. Best non-unique equipment.,Legendary,false
+belt_plain,Plain Belt,Belt,Defense: Low,A simple leather belt for holding pouches.,Common,true
+belt_studded,Studded Belt,Belt,Defense: Medium,Reinforced leather belt with metal studs.,Rare,true
+belt_dragon,Dragon Hide Belt,Belt,Defense: High,Tough belt crafted from authentic dragon hide.,Legendary,true
+boots_leather,Leather Boots,Boots,Agility: Low,Basic sturdy boots for exploring the academy.,Common,false
+boots_hardened,Hardened Boots,Boots,Agility: Med + Defense,Reinforced boots for better protection.,Rare,false
+boots_dragon,Dragon Skin Boots,Boots,Agility: High + Def: High,Lightweight and indestructible dragon skin footwear.,Legendary,false
+gloves_leather,Leather Gloves,Gloves,Magic: Low + Str: Low,Simple gloves for handling magical ingredients.,Common,false
+gloves_hardened,Hardened Gloves,Gloves,Magic: Medium,Reinforced gloves for stable spellcasting.,Rare,false
+gloves_dragon,Dragon Skin Gloves,Gloves,Magic: High + Strength,Ancient dragon skin provides superior power.,Legendary,false
+hat_pointed,Pointed Hat,Hat,Defense: Low / Visual,The quintessential wizard headwear.,Common,false
+cloak_heavy,Heavy Cloak,Cloak,Physical Defense: High,A thick heavy cloak that dampens physical blows.,Rare,false
+cloak_starched,Starched Cloak,Cloak,Status Resistance,Chemically treated cloak that resists magical ailments.,Rare,false
+acc_wooden_beads,Wooden Beads,Accessory,Magic Defense: Low,A simple necklace of enchanted wooden beads.,Common,true
+acc_crystal_beads,Crystal Beads,Accessory,Magic Defense: Med,Necklace made of magic-conducting crystals.,Rare,true
+acc_spectacles,Spectacles,Accessory,Accuracy: High,Enchanted glasses that improve focus and hit rate.,Rare,false
+card_1,Abe no Seimei,Card,Lore: Abe no Seimei,Legendary Japanese onmyoji master of spirits.,Legendary,false
+card_2,Baba Yaga,Card,Lore: Baba Yaga,Slavic witch who flies in a mortar.,Rare,false
+card_3,Circe,Card,Lore: Circe,Greek goddess famous for beast transformation.,Rare,false
+card_4,Merlin,Card,Lore: Merlin,The quintessential advisor to kings and master of prophecy.,Legendary,false
+card_5,Morgan le Fay,Card,Lore: Morgan le Fay,Powerful enchantress of Avalon and master healer.,Legendary,false
+card_6,Nicholas Flamel,Card,Lore: Nicholas Flamel,Creator of the Philosopher's Stone.,Rare,false
+card_7,Marie Laveau,Card,Lore: Marie Laveau,The Voodoo Queen of New Orleans.,Rare,false
+card_8,Hecate,Card,Lore: Hecate,Titaness of magic crossroads and the moon.,Legendary,false
+card_9,Faust,Card,Lore: Faust,Scholar who bartered his soul for infinite knowledge.,Rare,false
+card_10,Medea,Card,Lore: Medea,Expert in herbs poisons and dark enchantments.,Rare,false
+card_11,Paracelsus,Card,Lore: Paracelsus,Pioneer of elemental studies and alchemy.,Rare,false
+card_12,Thoth,Card,Lore: Thoth,Ancient Egyptian god of wisdom and divine magic.,Legendary,false
+card_13,Cassandra,Card,Lore: Cassandra,Prophetess cursed to never be believed.,Common,false
+card_14,Solomon,Card,Lore: Solomon,Biblical king with power over many spirits.,Rare,false
+card_15,Michael Scot,Card,Lore: Michael Scot,Medieval polymath and imperial wizard.,Common,false
+card_16,Völva,Card,Lore: Völva,Norse seeress and practitioner of Seidr magic.,Common,false
+pot_antidote,Antidote,Potion,Cures Poison,A standard medicinal brew that neutralizes most common toxins.,Common,true
+food_rock_cake,Rock Cake,Food,Small HP Heal,A very hard traditional fruit cake. Mind your teeth!,Common,true
+mat_wolfsbane,Wolfsbane,Plant,Toxic Ingredient,Highly toxic plant also known as Aconite. Used in specialized potions.,Rare,true
+mat_monkshood,Monkshood,Plant,Potion Ingredient,A variety of Aconite with hood-shaped flowers.,Rare,true
+mat_wormwood,Wormwood,Plant,Sleeping Ingredient,A bitter herb essential for brewing Draught of Living Death.,Common,true
+mat_asphodel,Asphodel,Plant,Potion Ingredient,A lily-like flower associated with the afterlife and mourning.,Common,true
+mat_mandrake,Mandrake Root,Plant,Cure Petrify / Revive,A root that resembles a human. Its cry is fatal when mature.,Rare,true
+mat_bezoar,Bezoar,Object,Universal Antidote,A stone taken from the stomach of a goat. Saves you from most poisons.,Rare,true
+mat_aconite,Aconite,Plant,Potion Ingredient,A general term for highly toxic plants like Wolfsbane.,Common,true
+mat_beetle_eyes,Beetle Eyes,Part,Basic Ingredient,Small crunchy eyes used as a catalyst in low-level brews.,Common,true
+card_agrippa,Cornelius Agrippa,Card,+ Magic Attack,Historic occultist and writer.,Rare,false
+card_cyclops,Cyclops,Card,+ Physical Defense,One-eyed giant of Greek myth.,Common,false
+card_goliath,Goliath,Card,+ Physical Defense,Ancient giant warrior from history.,Common,false
+card_dragon,Dragon,Card,+ Physical Strength,Legendary fire-breathing reptile of immense power.,Legendary,false
+card_giant,Giant,Card,+ Physical Defense,Massive humanoid of immense strength.,Common,false
+card_vampire,Vampire,Card,+ HP Drain,Immortal creature of the night that drinks blood.,Rare,false
+card_imp,Imp,Card,Status Resist,Small mischievous devil of germanic folklore.,Common,false
+card_pixie,Pixie,Card,Status Resist,Tiny flying trickster of british folklore.,Common,false
+card_gnome,Gnome,Card,Status Resist,Earth-dwelling garden spirit defined by Paracelsus.,Common,false
+card_unicorn,Unicorn,Card,Healing / Purity,Pure white horse with a single horn.,Rare,false
+card_griffin,Griffin,Card,Strength / Speed,Majestic creature half lion half eagle.,Rare,false

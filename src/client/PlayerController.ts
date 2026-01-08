@@ -9,7 +9,7 @@ import { ShadowUtils } from './ShadowUtils';
 
 // Extended Entity type for Client-side only properties
 type ClientEntity = Entity & {
-    shadow?: Phaser.GameObjects.Sprite;
+    shadow?: Phaser.GameObjects.Image;
     nameTag?: Phaser.GameObjects.Text;
     isLocal?: boolean;
     lastDir?: string;
@@ -28,21 +28,6 @@ export class PlayerController {
         this.scene = scene;
         this.physicsWorld = physicsWorld;
         this.world = createWorld();
-
-        // Create a tiny pixelated shadow texture if it doesn't exist
-        if (!this.scene.textures.exists('shadow-tex')) {
-            const canvas = this.scene.textures.createCanvas('shadow-tex', 8, 8);
-            if (canvas) {
-                const ctx = canvas.getContext();
-                ctx.fillStyle = '#000000';
-                ctx.fillRect(2, 0, 4, 1);
-                ctx.fillRect(1, 1, 6, 1);
-                ctx.fillRect(0, 2, 8, 4);
-                ctx.fillRect(1, 6, 6, 1);
-                ctx.fillRect(2, 7, 4, 1);
-                canvas.refresh();
-            }
-        }
     }
 
     addPlayer(sessionId: string, x: number, y: number, isLocal: boolean = false, skin: string = "player_idle", username: string = "", house: string = "ignis") {
@@ -52,10 +37,11 @@ export class PlayerController {
 
         const displayName = username || sessionId.slice(0, 4);
         
-        const shadow = this.scene.add.sprite(x, y, 'player_idle', 0);
+        // Shadow as Image (Fallback)
+        const shadow = this.scene.add.image(x, y, 'player_idle');
         shadow.setTint(0x000000);
         shadow.setAlpha(0.3);
-        shadow.setOrigin(0.5, 1.0); 
+        // Image uses setOrigin in ShadowUtils
         
         const sprite = this.scene.add.sprite(x, y, 'player_idle', 0);
         if (CONFIG.USE_LIGHTS) sprite.setPipeline('Light2D'); 
@@ -222,8 +208,18 @@ export class PlayerController {
             const shadow = entity.shadow;
             if (shadow) {
                 const worldPoint = this.scene.cameras.main.getWorldPoint(this.scene.input.activePointer.x, this.scene.input.activePointer.y);
-                shadow.setTexture(sprite.texture.key).setFrame(sprite.frame.name).setFlipX(sprite.flipX).setVisible(sprite.visible);
-                ShadowUtils.updateShadow(shadow, sprite.x, sprite.y, sprite.scaleX, sprite.scaleY, sprite.depth, sprite.displayHeight || 40, worldPoint.x, worldPoint.y);
+                
+                // Update shadow texture to match player animation
+                shadow.setTexture(sprite.texture.key, sprite.frame.name);
+                shadow.setVisible(sprite.visible);
+                // Note: Flipping logic for Quad UVs is complex, skipping for now as shadow is black.
+                
+                let shadowY = sprite.y;
+                if (sprite.getData('isTeacher')) {
+                    shadowY -= (sprite.displayHeight || 64) * 0.15;
+                }
+
+                ShadowUtils.updateShadow(shadow, sprite.x, shadowY, sprite.scaleX, sprite.scaleY, sprite.depth, sprite.displayHeight || 40, worldPoint.x, worldPoint.y);
             }
 
             if (entity.nameTag) entity.nameTag.setPosition(sprite.x, sprite.y + CONFIG.NAME_TAG_Y_OFFSET).setDepth(sprite.y + 100);

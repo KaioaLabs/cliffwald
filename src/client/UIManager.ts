@@ -23,16 +23,37 @@ export class UIManager {
     private inventoryModal?: HTMLElement; // New
     private quickMenu?: HTMLElement;
 
+    // Cleanup Tracker
+    private eventListeners: { target: EventTarget, type: string, listener: EventListenerOrEventListenerObject }[] = [];
+
     constructor(scene: Phaser.Scene, network: NetworkManager) {
         this.scene = scene;
         this.network = network;
         this.container = document.getElementById('ui-layer');
     }
 
+    private addListener(target: EventTarget | null, type: string, listener: EventListenerOrEventListenerObject) {
+        if (!target) return;
+        target.addEventListener(type, listener);
+        this.eventListeners.push({ target, type, listener });
+    }
+
     public create() {
         this.createPhaserUI();
         this.bindDOMUI();
         this.setupEventListeners();
+    }
+    
+    public destroy() {
+        this.eventListeners.forEach(l => {
+            l.target.removeEventListener(l.type, l.listener);
+        });
+        this.eventListeners = [];
+        
+        // Cleanup Phaser specific
+        if (this.scene && this.scene.input && this.scene.input.keyboard) {
+            this.scene.input.keyboard.off('keydown-ESC');
+        }
     }
 
     private createPhaserUI() {
@@ -64,17 +85,17 @@ export class UIManager {
         if (!this.chatInput || !this.chatContainer) return;
 
         // --- Chat Logic ---
-        this.chatInput.addEventListener('focus', () => {
+        this.addListener(this.chatInput, 'focus', () => {
             this.chatContainer?.classList.add('active');
         });
 
-        this.chatInput.addEventListener('blur', () => {
+        this.addListener(this.chatInput, 'blur', () => {
             setTimeout(() => {
                 this.chatContainer?.classList.remove('active');
             }, 100);
         });
 
-        this.chatInput.addEventListener('keydown', (e) => {
+        this.addListener(this.chatInput, 'keydown', (e: any) => {
             e.stopPropagation(); 
             if (e.key === 'Enter') {
                 if (this.chatInput!.value.trim().length > 0) {
@@ -85,7 +106,7 @@ export class UIManager {
             }
         });
 
-        window.addEventListener('keydown', (e) => {
+        this.addListener(window, 'keydown', (e: any) => {
             if (e.key === 'Enter' && document.activeElement !== this.chatInput) {
                 e.preventDefault();
                 this.chatInput?.focus();
@@ -100,12 +121,12 @@ export class UIManager {
         const settingsMenu = document.getElementById('settings-menu');
         const btnClose = document.getElementById('btn-close');
 
-        settingsBtn?.addEventListener('click', (e) => { e.stopPropagation(); toggle(settingsMenu); });
-        btnClose?.addEventListener('click', (e) => { e.stopPropagation(); settingsMenu?.classList.add('hidden'); });
+        this.addListener(settingsBtn, 'click', (e: any) => { e.stopPropagation(); toggle(settingsMenu); });
+        this.addListener(btnClose, 'click', (e: any) => { e.stopPropagation(); settingsMenu?.classList.add('hidden'); });
 
         // --- Album ---
         const btnAlbum = document.getElementById('btn-album');
-        btnAlbum?.addEventListener('click', (e) => { 
+        this.addListener(btnAlbum, 'click', (e: any) => { 
             e.stopPropagation(); 
             toggle(this.albumModal || null); 
             if (!this.albumModal?.classList.contains('hidden')) {
@@ -123,14 +144,14 @@ export class UIManager {
 
         // --- Timetable ---
         const btnTimetable = document.getElementById('btn-timetable');
-        btnTimetable?.addEventListener('click', (e) => { 
+        this.addListener(btnTimetable, 'click', (e: any) => { 
             e.stopPropagation(); 
             toggle(this.timetableModal || null); 
         });
 
         // --- Inventory ---
         const btnInventory = document.getElementById('btn-inventory');
-        btnInventory?.addEventListener('click', (e) => { 
+        this.addListener(btnInventory, 'click', (e: any) => { 
             e.stopPropagation(); 
             toggle(this.inventoryModal || null); 
             if (!this.inventoryModal?.classList.contains('hidden')) {
@@ -140,13 +161,13 @@ export class UIManager {
 
         // Close Buttons
         document.querySelectorAll('.close-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
+            this.addListener(btn, 'click', (e: any) => {
                 e.stopPropagation();
                 (e.target as HTMLElement).closest('.modal')?.classList.add('hidden');
             });
         });
 
-        this.btnAudio?.addEventListener('click', (e) => {
+        this.addListener(this.btnAudio, 'click', (e: any) => {
             e.stopPropagation();
             this.scene.sound.mute = !this.scene.sound.mute;
             if (this.btnAudio) {

@@ -97,22 +97,77 @@ export class LightManager {
         }
         if (intensity <= 0) return;
 
-        const tipX = x + Math.sin(angle) * length;
-        const tipY = y + Math.cos(angle) * length;
+        // Calculate geometry
+        // Vector for length
+        const dx = Math.sin(angle) * length;
+        const dy = Math.cos(angle) * length;
+        
+        // Tip position
+        const tipX = x + dx;
+        const tipY = y + dy;
 
-        // Gradient simulation
-        const steps = 20;
-        for (let i = 0; i < steps; i++) {
-            const alpha = (1 - i/steps) * 0.3 * intensity;
-            const progress = i/steps;
-            
-            const px = Phaser.Math.Linear(x, tipX, progress);
-            const py = Phaser.Math.Linear(y, tipY, progress);
-            const w = baseWidth + (i * 2);
+        // Perpendicular vector for width
+        // Angle + 90deg
+        const perpX = Math.cos(angle);
+        const perpY = -Math.sin(angle); // Screen coords Y is down?
 
-            graphics.fillStyle(0xffffee, alpha);
-            graphics.fillCircle(px, py, w/2);
-        }
+        // Base Corners (Narrower)
+        const halfBase = baseWidth / 2;
+        const bx1 = x - perpX * halfBase;
+        const by1 = y - perpY * halfBase;
+        const bx2 = x + perpX * halfBase;
+        const by2 = y + perpY * halfBase;
+
+        // Tip Corners (Wider - e.g. 2x)
+        const tipWidth = baseWidth * 2.5;
+        const halfTip = tipWidth / 2;
+        const tx1 = tipX - perpX * halfTip;
+        const ty1 = tipY - perpY * halfTip;
+        const tx2 = tipX + perpX * halfTip;
+        const ty2 = tipY + perpY * halfTip;
+
+        // Draw Gradient Trapezoid
+        // fillGradientStyle(topLeft, topRight, bottomLeft, bottomRight, alphaTL, alphaTR, alphaBL, alphaBR)
+        // We map our geometry.
+        // Color: Warm Sunlight (0xFFFFDD)
+        const color = 0xFFFFDD;
+        const startAlpha = 0.4 * intensity;
+        const endAlpha = 0.0; // Fade to nothing
+
+        // Using fillGradientStyle for a quad
+        // Note: fillGradientStyle fills the path. We must define the path first? 
+        // No, fillGradientStyle is for a rect usually?
+        // Actually, Phaser Graphics API for gradients on paths is limited.
+        // It's often better to use 'fillGradientStyle' on a specific rect, OR simulate it.
+        // BUT, we can use `fillPoints` with a color, but Gradient on arbitrary polygon is hard in Phaser Graphics (Canvas).
+        // WebGL supports Gouraud shading on vertices if we use `fillGradientStyle` on a RECT or specific shapes.
+        
+        // ALTERNATIVE: Use a Triangle Fan with alpha?
+        // SIMPLEST ROBUST FIX: Use `fillGradientStyle` but since we want a trapezoid...
+        // Let's try drawing a textured quad? No, too complex for this tool.
+        // Let's use `fillTriangle` or just standard fill with low alpha if gradient is hard on Poly.
+        
+        // WAIT: Phaser 3 `fillGradientStyle` works on the current path in some versions? No.
+        // Only `fillRect` supports it fully in standard docs?
+        // Let's check: graphics.fillGradientStyle(...) followed by fillRect, fillTriangle, etc.
+        // Actually, for a Beam, a simple `fillStyle` with low alpha is often "Clean" enough if edges are hard.
+        // But the user asked for "Light dura degradada" (Hard light, degraded).
+        
+        // Let's use multiple Rects/Quads with degrading alpha if we can't do smooth gradient?
+        // OR: Use `graphics.fillGradientStyle` then `graphics.fillPath`?
+        // In Phaser 3, `fillGradientStyle` sets the brush.
+        
+        // Let's try:
+        graphics.fillGradientStyle(color, color, color, color, startAlpha, startAlpha, endAlpha, endAlpha);
+        
+        // We need to draw a Quad (2 Triangles)
+        graphics.beginPath();
+        graphics.moveTo(bx1, by1);
+        graphics.lineTo(bx2, by2);
+        graphics.lineTo(tx2, ty2);
+        graphics.lineTo(tx1, ty1);
+        graphics.closePath();
+        graphics.fillPath();
     }
 
     private calculateAmbientColor(hour: number): number {

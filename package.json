@@ -13,7 +13,7 @@
     "build": "npx prisma generate && npm run build:client && npm run build:server && mkdir -p dist-server/public && cp -r dist-client/. dist-server/public/ && mkdir -p dist-server/generated && cp -r src/generated/. dist-server/generated/",
     "build:client": "vite build --outDir dist-client --emptyOutDir",
     "build:server": "tsc",
-    "start:prod": "export DATABASE_URL=\"file:/tmp/dev.db\" && npx prisma db push && npx ts-node seed.ts && node dist-server/server/index.js"
+    "start:prod": "npx prisma migrate deploy && node dist-server/server/index.js"
   },
   "keywords": [],
   "author": "",

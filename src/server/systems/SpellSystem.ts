@@ -5,29 +5,41 @@ import RAPIER from "@dimforge/rapier2d-compat";
 
 export class SpellSystem {
     private room: WorldRoom;
+    private ray: RAPIER.Ray;
 
     constructor(room: WorldRoom) {
         this.room = room;
+        // Initialize reusable ray
+        this.ray = new RAPIER.Ray({ x: 0, y: 0 }, { x: 0, y: 0 });
     }
 
     public update(dt: number) {
         const projectiles = this.room.state.projectiles;
         const now = Date.now();
         const toRemove: Set<string> = new Set();
+        
+        // Cache entries to avoid repeated iterator creation and allow indexed access
+        const entries = Array.from(projectiles.entries());
+        const count = entries.length;
 
         // 1. Move & Check Player Collisions (Raycast)
-        projectiles.forEach((proj, id) => {
-            if (toRemove.has(id)) return;
+        for (let i = 0; i < count; i++) {
+            const [id, proj] = entries[i];
+            if (toRemove.has(id)) continue;
 
             const dx = (proj.vx * dt) / 1000;
             const dy = (proj.vy * dt) / 1000;
             const dist = Math.sqrt(dx*dx + dy*dy);
 
             if (dist > 0) {
-                // Raycast for players
-                const ray = new RAPIER.Ray({ x: proj.x, y: proj.y }, { x: dx, y: dy });
+                // Reuse Ray
+                this.ray.origin.x = proj.x;
+                this.ray.origin.y = proj.y;
+                this.ray.dir.x = dx;
+                this.ray.dir.y = dy;
+
                 // Limit ray to movement distance + radius
-                const hit = this.room.physicsWorld.castRay(ray, dist + 10, true);
+                const hit = this.room.physicsWorld.castRay(this.ray, dist + 10, true);
                 
                 if (hit) {
                     const collider = hit.collider;
@@ -48,21 +60,16 @@ export class SpellSystem {
 
             // Cleanup Age
             if (now - proj.creationTime > 2000) toRemove.add(id);
-        });
+        }
 
         // 2. Projectile vs Projectile (RPS Logic)
-        const keys = Array.from(projectiles.keys());
-        for (let i = 0; i < keys.length; i++) {
-            const idA = keys[i];
+        for (let i = 0; i < count; i++) {
+            const [idA, projA] = entries[i];
             if (toRemove.has(idA)) continue;
-            const projA = projectiles.get(idA);
-            if (!projA) continue;
 
-            for (let j = i + 1; j < keys.length; j++) {
-                const idB = keys[j];
+            for (let j = i + 1; j < count; j++) {
+                const [idB, projB] = entries[j];
                 if (toRemove.has(idB)) continue;
-                const projB = projectiles.get(idB);
-                if (!projB) continue;
 
                 const distSq = (projA.x - projB.x)**2 + (projA.y - projB.y)**2;
                 if (distSq < 900) { // 30px collision radius
@@ -73,7 +80,6 @@ export class SpellSystem {
 
         toRemove.forEach(id => {
             projectiles.delete(id);
-            console.log(`[SPELL] Removed projectile ${id}`);
         });
     }
 
@@ -107,11 +113,6 @@ export class SpellSystem {
 
         if (attacker && victim) {
              // Basic duel score logic
-             // Only count if both are in "Duel Mode" or just generally allow PVP?
-             // Prompt says: "cuando dos jugadores entran empieza el duelo"
-             // I'll check distance to DUEL_ZONE later, but here we just score.
-             
-             // If victim is Echo/Bot, we also track score?
              attacker.duelScore = (attacker.duelScore || 0) + 1;
              console.log(`[PVP] ${attacker.username} scored against ${victim.username}. Score: ${attacker.duelScore}`);
              
@@ -128,8 +129,6 @@ export class SpellSystem {
                      if (ent?.ai) {
                          ent.ai.state = 'idle';
                          ent.ai.targetId = undefined;
-                         // Force move away slightly to indicate "done"?
-                         // ent.ai.home = { x: 2640, y: 1800 }; // Walk to benches
                      }
                  };
 

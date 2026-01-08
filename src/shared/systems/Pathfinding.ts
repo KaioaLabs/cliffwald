@@ -28,25 +28,25 @@ export class Pathfinding {
         if (endX < 0 || endX >= this.width || endY < 0 || endY >= this.height) return null;
         if (this.grid[startY][startX] === 1 || this.grid[endY][endX] === 1) return null;
 
-        const openSet: Node[] = [];
-        const closedSet = new Set<string>();
+        const openSet = new BinaryHeap<Node>((a, b) => a.f - b.f);
+        const closedSet = new Set<number>(); // Numeric Key: y * width + x
+        const nodeMap = new Map<number, Node>(); // Track nodes for updates
         
         const startNode = new Node(startX, startY, 0, this.dist(startX, startY, endX, endY));
         openSet.push(startNode);
+        nodeMap.set(startY * this.width + startX, startNode);
 
-        while (openSet.length > 0) {
-            // Find node with lowest fScore
-            let currentIdx = 0;
-            for (let i = 1; i < openSet.length; i++) {
-                if (openSet[i].f < openSet[currentIdx].f) currentIdx = i;
-            }
-            const current = openSet.splice(currentIdx, 1)[0];
+        while (openSet.size() > 0) {
+            const current = openSet.pop();
 
+            if (!current) break;
+            
             if (current.x === endX && current.y === endY) {
                 return this.reconstructPath(current);
             }
 
-            closedSet.add(`${current.x},${current.y}`);
+            const currentKey = current.y * this.width + current.x;
+            closedSet.add(currentKey);
 
             // Neighbors (8 directions)
             // Directions: Right, Left, Down, Up, DR, DL, UR, UL
@@ -63,25 +63,27 @@ export class Pathfinding {
 
                 if (nx < 0 || nx >= this.width || ny < 0 || ny >= this.height) continue;
                 if (this.grid[ny][nx] === 1) continue;
-                if (closedSet.has(`${nx},${ny}`)) continue;
+                
+                const neighborKey = ny * this.width + nx;
+                if (closedSet.has(neighborKey)) continue;
 
                 // Corner Cutting Prevention for Diagonals
                 if (dir.cost > 1) {
-                    // Check if orthogonal neighbors are blocked
-                    // e.g. moving (1, 1), check (1, 0) and (0, 1)
                     if (this.grid[current.y][nx] === 1 || this.grid[ny][current.x] === 1) continue;
                 }
 
                 const gScore = current.g + dir.cost;
-                let neighborNode = openSet.find(n => n.x === nx && n.y === ny);
+                let neighborNode = nodeMap.get(neighborKey);
 
                 if (!neighborNode) {
                     neighborNode = new Node(nx, ny, gScore, this.dist(nx, ny, endX, endY), current);
+                    nodeMap.set(neighborKey, neighborNode);
                     openSet.push(neighborNode);
                 } else if (gScore < neighborNode.g) {
                     neighborNode.g = gScore;
                     neighborNode.f = gScore + neighborNode.h;
                     neighborNode.parent = current;
+                    openSet.rescoreElement(neighborNode);
                 }
             }
         }
@@ -114,5 +116,99 @@ class Node {
     f: number;
     constructor(public x: number, public y: number, public g: number, public h: number, public parent?: Node) {
         this.f = g + h;
+    }
+}
+
+class BinaryHeap<T> {
+    content: T[];
+    scoreFunction: (a: T, b: T) => number;
+
+    constructor(scoreFunction: (a: T, b: T) => number) {
+        this.content = [];
+        this.scoreFunction = scoreFunction;
+    }
+
+    push(element: T) {
+        this.content.push(element);
+        this.sinkDown(this.content.length - 1);
+    }
+
+    pop(): T | undefined {
+        const result = this.content[0];
+        const end = this.content.pop();
+        if (this.content.length > 0 && end !== undefined) {
+            this.content[0] = end;
+            this.bubbleUp(0);
+        }
+        return result;
+    }
+
+    remove(node: T) {
+        const i = this.content.indexOf(node);
+        const end = this.content.pop();
+        if (i !== this.content.length - 1 && end !== undefined) {
+            this.content[i] = end;
+            if (this.scoreFunction(end, node) < 0) {
+                this.sinkDown(i);
+            } else {
+                this.bubbleUp(i);
+            }
+        }
+    }
+
+    size() {
+        return this.content.length;
+    }
+
+    rescoreElement(node: T) {
+        this.sinkDown(this.content.indexOf(node));
+    }
+
+    sinkDown(n: number) {
+        const element = this.content[n];
+        while (n > 0) {
+            const parentN = ((n + 1) >> 1) - 1;
+            const parent = this.content[parentN];
+            if (this.scoreFunction(element, parent) < 0) {
+                this.content[parentN] = element;
+                this.content[n] = parent;
+                n = parentN;
+            } else {
+                break;
+            }
+        }
+    }
+
+    bubbleUp(n: number) {
+        const length = this.content.length;
+        const element = this.content[n];
+        const elemScore = this.scoreFunction;
+
+        while (true) {
+            const child2N = (n + 1) << 1;
+            const child1N = child2N - 1;
+            let swap: number | null = null;
+            let child1Score: T; // Hacky typing, just need ref
+
+            if (child1N < length) {
+                const child1 = this.content[child1N];
+                if (elemScore(child1, element) < 0)
+                    swap = child1N;
+            }
+            if (child2N < length) {
+                const child2 = this.content[child2N];
+                const child1 = this.content[child1N];
+                if (elemScore(child2, (swap === null ? element : child1)) < 0)
+                    swap = child2N;
+            }
+
+            if (swap !== null) {
+                this.content[n] = this.content[swap];
+                this.content[swap] = element;
+                n = swap;
+            } else {
+                break;
+            }
+        }
     }
 }

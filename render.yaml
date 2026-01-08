@@ -3,6 +3,7 @@ services:
     name: cliffwald-server
     env: node
     plan: free
+    region: ohio
     buildCommand: npm install && npm run build
     startCommand: npm run start:prod
     envVars:

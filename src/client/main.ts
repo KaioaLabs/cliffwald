@@ -18,11 +18,13 @@ import { UIScene } from './scenes/UIScene';
 import { AssetManager } from './managers/AssetManager';
 import { UIManager } from './UIManager';
 import { LightManager } from './managers/LightManager';
+import { VisualProjectileManager } from './managers/VisualProjectileManager';
 
 export class GameScene extends Phaser.Scene {
     network: NetworkManager;
     uiManager!: UIManager;
     lightManager!: LightManager;
+    projectileManager!: VisualProjectileManager;
     
     room?: Colyseus.Room;
 
@@ -125,15 +127,25 @@ export class GameScene extends Phaser.Scene {
 
                     furnitureLayer.forEachTile((tile) => {
                         if (tile.index !== -1) {
+                            // OPTIMIZATION: Only create shadow for the BOTTOM tile of an object
+                            const tileBelow = furnitureLayer.getTileAt(tile.x, tile.y + 1);
+                            
+                            // If there is a tile below with an index != -1, it's part of the same object column.
+                            // We only want a shadow at the feet/base.
+                            if (tileBelow && tileBelow.index !== -1) {
+                                return; 
+                            }
+
                             const tx = tile.getCenterX();
                             const ty = tile.getBottom();
                             
+                            // Fallback to Image (Quad missing)
                             const shadow = this.add.image(tx, ty, 'table');
                             shadow.setTint(0x000000);
                             shadow.setAlpha(0.3);
-                            shadow.setOrigin(0.5, 1.0); 
-                            shadow.setDepth(-99.5); 
+                            shadow.setDepth(-99.5);
                             
+                            // Store base position
                             shadow.setData('baseX', tx);
                             shadow.setData('baseY', ty);
 
@@ -374,101 +386,128 @@ export class GameScene extends Phaser.Scene {
     async connect() {
         try {
             console.log("Connecting to Colyseus...");
+
+            // Setup Network Listeners BEFORE connecting
+            this.network.onPong = (latency) => this.currentLatency = latency;
+            this.network.onChatMessage = (msg) => this.uiManager.appendChatMessage(msg);
+
+            this.network.onProjectileAdd = (proj: Projectile, id: string) => {
+                console.log(`[MAIN] onProjectileAdd: ${id} Owner: ${proj.ownerId} Me: ${this.room?.sessionId}`);
+                if (this.room && proj.ownerId === this.room.sessionId) return;
+                
+                console.log(`[MAIN] Spawning Remote Projectile at ${proj.x}, ${proj.y} with V=${proj.vx},${proj.vy}`);
+                const visual = this.createProjectileSprite({
+                    x: proj.x, y: proj.y, spellId: proj.spellId, vx: proj.vx, vy: proj.vy
+                }, proj.creationTime);
+                this.visualProjectiles.set(id, visual);
+            };
+
+            this.network.onProjectileRemove = (proj: Projectile, id: string) => {
+                const visual = this.visualProjectiles.get(id);
+                if (visual) {
+                    visual.destroy();
+                    this.visualProjectiles.delete(id);
+                }
+            };
+
+            // Items (if NetworkManager supports it - we need to check/add if missing)
+            // Checking NetworkManager.ts, it doesn't have onItemAdd yet. 
+            // We should add it to NetworkManager first, OR keep the manual attach for items for now 
+            // if we want to be atomic. But the instruction says "Refactor... items". 
+            // I will implement the callback on NetworkManager side too.
+            // For now, let's assume I will update NetworkManager.ts in the next step.
+            
+            /* 
+               Wait, the previous `attachRoomListeners` handled items too. 
+               If I remove it, I lose item sync. 
+               I must update NetworkManager.ts to support `onItemAdd` / `onItemRemove`.
+            */
+
             const success = await this.network.connect(this.authToken, this.skin);
             
             if (success && this.network.room) {
                 this.room = this.network.room;
                 console.log("Joined successfully!", this.room.sessionId);
                 
-                this.network.onPong = (latency) => this.currentLatency = latency;
+                // Item Sync (Manual for now until NetworkManager is updated, or I can update NetworkManager first)
+                // Actually, let's keep the manual Item sync here temporarily but use the better 'attach' pattern
+                // OR better yet, let's just delegate the Item sync to a new method in this file 
+                // to avoid the nested complexity, while I prepare to update NetworkManager.
+                
+                this.setupItemSync();
 
-                this.network.onChatMessage = (msg) => {
-                    this.uiManager.appendChatMessage(msg);
-                };
-
-                const attachRoomListeners = () => {
-                    if (!this.room || !this.room.state) return;
-                    console.log("[MAIN] Attaching Room Listeners");
-
-                    const attach = <T>(collection: any, event: 'onAdd' | 'onRemove', cb: (item: T, key: string) => void) => {
-                        if (!collection) return;
-                        if (typeof collection[event] === 'function') {
-                            collection[event](cb);
-                        } else {
-                            collection[event] = cb;
-                        }
-                    };
-
-                    if (this.room.state.items) {
-                        attach(this.room.state.items, 'onAdd', (item: any, id: string) => {
-                            const sprite = this.add.rectangle(item.x, item.y, 14, 14, 0xFFD700);
-                            sprite.setStrokeStyle(2, 0xFFFFFF);
-                            sprite.setDepth(-80); 
-                            
-                            this.tweens.add({
-                                targets: sprite,
-                                y: item.y - 5,
-                                duration: 1500,
-                                yoyo: true,
-                                repeat: -1
-                            });
-
-                            sprite.setInteractive({ cursor: 'pointer' });
-                            sprite.on('pointerdown', () => {
-                                this.network.room?.send("collect", id);
-                            });
-                            
-                            this.itemVisuals.set(id, sprite);
-                        });
-                        attach(this.room.state.items, 'onRemove', (_: any, id: string) => {
-                            const v = this.itemVisuals.get(id);
-                            if (v) v.destroy();
-                            this.itemVisuals.delete(id);
-                        });
-                    }
-
-                    if (this.room.state.projectiles) {
-                        attach(this.room.state.projectiles, 'onAdd', (proj: Projectile, id: string) => {
-                            if (this.room && proj.ownerId === this.room.sessionId) return;
-                            const visual = this.createProjectileSprite({
-                                x: proj.x, y: proj.y, spellId: proj.spellId, vx: proj.vx, vy: proj.vy
-                            }, proj.creationTime);
-                            this.visualProjectiles.set(id, visual);
-                        });
-                        attach(this.room.state.projectiles, 'onRemove', (_: Projectile, id: string) => {
-                            const visual = this.visualProjectiles.get(id);
-                            if (visual) {
-                                visual.destroy();
-                                this.visualProjectiles.delete(id);
-                            }
-                        });
-                    }
-                };
-
-                if (this.room) {
-                    if (this.room.state && this.room.state.players && this.room.state.projectiles) {
-                        attachRoomListeners();
-                    } else {
-                        this.room.onStateChange.once(() => attachRoomListeners());
-                    }
-
-                    this.room.onLeave((code) => {
-                        console.warn(`[NETWORK] Disconnected (Code: ${code}). Attempting Auto-Reconnect...`);
-                        this.playerController.players.forEach((entity) => {
-                            if (entity.player) this.playerController.removePlayer(entity.player.sessionId);
-                        });
-                        
-                        this.uiManager.showReconnecting();
-                        
-                        setTimeout(() => {
-                            this.connect(); 
-                        }, 2000);
+                this.room.onLeave((code) => {
+                    console.warn(`[NETWORK] Disconnected (Code: ${code}). Attempting Auto-Reconnect...`);
+                    this.playerController.players.forEach((entity) => {
+                        if (entity.player) this.playerController.removePlayer(entity.player.sessionId);
                     });
-                }
+                    
+                    this.uiManager.showReconnecting();
+                    
+                    setTimeout(() => {
+                        this.connect(); 
+                    }, 2000);
+                });
             }
 
         } catch (e) {
             console.error("Join Error:", e);
+        }
+    }
+
+    setupItemSync() {
+        if (!this.room || !this.room.state) return;
+
+        const attach = <T>(collection: any, event: 'onAdd' | 'onRemove', cb: (item: T, key: string) => void) => {
+            if (!collection) return;
+            if (typeof collection[event] === 'function') {
+                collection[event](cb);
+            } else {
+                collection[event] = cb;
+            }
+             // Trigger for existing items
+            if (event === 'onAdd' && collection.forEach) {
+                collection.forEach((item: T, key: string) => cb(item, key));
+            }
+        };
+
+        const setup = () => {
+            if (this.room?.state.items) {
+                attach(this.room.state.items, 'onAdd', (item: any, id: string) => {
+                    if (this.itemVisuals.has(id)) return;
+                    
+                    const sprite = this.add.rectangle(item.x, item.y, 14, 14, 0xFFD700);
+                    sprite.setStrokeStyle(2, 0xFFFFFF);
+                    sprite.setDepth(-80); 
+                    
+                    this.tweens.add({
+                        targets: sprite,
+                        y: item.y - 5,
+                        duration: 1500,
+                        yoyo: true,
+                        repeat: -1
+                    });
+
+                    sprite.setInteractive({ cursor: 'pointer' });
+                    sprite.on('pointerdown', () => {
+                        this.network.room?.send("collect", id);
+                    });
+                    
+                    this.itemVisuals.set(id, sprite);
+                });
+
+                attach(this.room.state.items, 'onRemove', (_: any, id: string) => {
+                    const v = this.itemVisuals.get(id);
+                    if (v) v.destroy();
+                    this.itemVisuals.delete(id);
+                });
+            }
+        };
+
+        if (this.room.state.items) {
+            setup();
+        } else {
+            this.room.onStateChange.once(() => setup());
         }
     }
 

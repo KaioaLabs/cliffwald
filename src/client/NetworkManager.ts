@@ -83,6 +83,7 @@ export class NetworkManager {
 
         // 2. State Sync (Robust)
         const attachSync = () => {
+            console.log("[NET] attachSync called");
             if (!this.room || !this.room.state) return;
             
             if (this.room.state.players) {
@@ -96,19 +97,28 @@ export class NetworkManager {
             }
 
             if (this.room.state.projectiles) {
+                console.log("[NET] Attaching Projectile Listeners");
                 attach(this.room.state.projectiles, 'onAdd', (proj: Projectile, id: string) => {
-                    if (this.onProjectileAdd) this.onProjectileAdd(proj, id);
+                    console.log(`[NET] Projectile Added: ${id}`);
+                    if (this.onProjectileAdd) {
+                        this.onProjectileAdd(proj, id);
+                    } else {
+                        console.warn("[NET] onProjectileAdd callback NOT set!");
+                    }
                 });
-                                attach(this.room.state.projectiles, 'onRemove', (proj: Projectile, id: string) => {
-                                    if (this.onProjectileRemove) this.onProjectileRemove(proj, id);
-                                });            }
+                attach(this.room.state.projectiles, 'onRemove', (proj: Projectile, id: string) => {
+                    if (this.onProjectileRemove) this.onProjectileRemove(proj, id);
+                });            
+            } else {
+                console.warn("[NET] Room state has no projectiles collection!");
+            }
         };
 
         if (this.room.state && this.room.state.players && this.room.state.projectiles) {
             attachSync();
         } else {
-            // console.warn("[NET] State not ready, waiting for first patch...");
-            this.room.onStateChange.once(() => attachSync());
+             console.log("[NET] State not ready, waiting for first patch...");
+             this.room.onStateChange.once(() => attachSync());
         }
     }
 

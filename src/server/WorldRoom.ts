@@ -3,7 +3,7 @@ import { GameState, Player, ChatMessage, Projectile, InventoryItem } from "../sh
 import { CONFIG, getGameHour, getAcademicProgress } from "../shared/Config";
 import { PlayerInput, JoinOptions } from "../shared/types/NetworkTypes";
 import RAPIER from "@dimforge/rapier2d-compat";
-import { buildPhysics } from "../shared/MapParser";
+import { buildPhysics, MapData, parseEntities } from "../shared/MapParser";
 import { createWorld, ECSWorld } from "../shared/ecs/world";
 import { MovementSystem } from "../shared/systems/MovementSystem";
 import { AISystem } from "../shared/systems/AISystem";
@@ -73,10 +73,14 @@ export class WorldRoom extends Room<GameState> {
         try {
             const mapPath = path.join(process.cwd(), "assets/maps/world.json");
             const mapFile = await fs.readFile(mapPath, "utf-8");
-            const mapData = JSON.parse(mapFile);
+            const mapData = JSON.parse(mapFile) as MapData;
+            
             const result = buildPhysics(this.physicsWorld, mapData);
-            this.spawnPos = result.spawnPos;
+            const entitiesResult = parseEntities(mapData);
+            
+            this.spawnPos = entitiesResult.spawnPos;
             this.pathfinder = new Pathfinding(result.navGrid);
+            
             console.log(`[SERVER] Map loaded. Initializing 24 Student Slots...`);
             this.spawnManager.loadSeats(mapData);
             this.spawnManager.spawnEchoes(24, this.spawnPos);
@@ -174,9 +178,16 @@ export class WorldRoom extends Room<GameState> {
                 if (entity.body) {
                     const pos = entity.body.translation();
                     const playerState = this.state.players.get(sessionId);
+                    
                     if (playerState) {
-                        playerState.x = pos.x;
-                        playerState.y = pos.y;
+                        // OPTIMIZATION: Round to 2 decimals to prevent micro-jitter network spam
+                        const newX = Math.round(pos.x * 100) / 100;
+                        const newY = Math.round(pos.y * 100) / 100;
+                        
+                        if (playerState.x !== newX || playerState.y !== newY) {
+                            playerState.x = newX;
+                            playerState.y = newY;
+                        }
                     }
                 }
             });
@@ -207,6 +218,7 @@ export class WorldRoom extends Room<GameState> {
         });
 
         this.onMessage("cast", (client, data: { spellId: string, vx: number, vy: number }) => {
+            console.log(`[SERVER] Received cast from ${client.sessionId}: ${data.spellId}`);
             this.handleCast(client.sessionId, data.spellId, data.vx, data.vy);
         });
 
@@ -220,6 +232,8 @@ export class WorldRoom extends Room<GameState> {
 
         this.onMessage("chat", (client, text: string) => {
             const player = this.state.players.get(client.sessionId);
+            console.log(`[SERVER] Chat request from ${client.sessionId}. Player found: ${!!player}. Text: "${text}"`);
+            
             if (player && text) {
                 const msg = new ChatMessage();
                 msg.sender = player.username;
@@ -231,20 +245,31 @@ export class WorldRoom extends Room<GameState> {
                     this.state.messages.shift();
                 }
                 console.log(`[CHAT] ${msg.sender}: ${msg.text}`);
+            } else {
+                console.warn(`[SERVER] Chat ignored. Player: ${player}, Text: ${text}`);
             }
         });
     }
 
     handleCast(sessionId: string, spellId: string, vx: number, vy: number) {
         const entity = this.entities.get(sessionId);
-        if (!entity || !entity.body) return;
+        if (!entity || !entity.body) {
+            console.warn(`[SERVER] Cast failed: Entity ${sessionId} not found or has no body`);
+            return;
+        }
 
         const spellConfig = SPELL_REGISTRY[spellId];
-        if (!spellConfig) return;
+        if (!spellConfig) {
+            console.warn(`[SERVER] Cast failed: Spell ${spellId} not in registry`);
+            return;
+        }
 
         const now = Date.now();
         const lastCast = this.lastCastTimes.get(sessionId) || 0;
-        if (now - lastCast < spellConfig.cooldown) return;
+        if (now - lastCast < spellConfig.cooldown) {
+            console.log(`[SERVER] Cast on cooldown for ${sessionId}`);
+            return;
+        }
         this.lastCastTimes.set(sessionId, now);
 
         // Spawn projectile
@@ -265,6 +290,7 @@ export class WorldRoom extends Room<GameState> {
         proj.maxRange = 600;
 
         this.state.projectiles.set(id, proj);
+        console.log(`[SERVER] Projectile created: ${id} at ${proj.x},${proj.y}`);
     }
 
     async onJoin(client: Client, options: JoinOptions) {

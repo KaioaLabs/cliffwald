@@ -3,7 +3,7 @@ import { ECSWorld } from "../../shared/ecs/world";
 import { CONFIG } from "../../shared/Config";
 import { GameState, Player } from "../../shared/SchemaDef";
 import { Entity } from "../../shared/ecs/components";
-import { MapSchema } from "@colyseus/schema";
+import { MapData, parseSeats, parseNPCs } from "../../shared/MapParser";
 
 export class SpawnManager {
     private world: ECSWorld;
@@ -25,18 +25,8 @@ export class SpawnManager {
         this.entities = entities;
     }
 
-    public loadSeats(mapData: any) {
-        const seatLayer = mapData.layers.find((l: any) => l.name === "FixedSeats");
-        if (!seatLayer) return;
-
-        seatLayer.objects.forEach((obj: any) => {
-            const studentId = obj.properties?.find((p: any) => p.name === 'studentId')?.value;
-            if (studentId === undefined) return;
-
-            if (obj.type === 'bed') this.seats.bed.set(studentId, { x: obj.x, y: obj.y });
-            if (obj.type === 'seat_class') this.seats.class.set(studentId, { x: obj.x, y: obj.y });
-            if (obj.type === 'seat_food') this.seats.food.set(studentId, { x: obj.x, y: obj.y });
-        });
+    public loadSeats(mapData: MapData) {
+        this.seats = parseSeats(mapData);
         console.log(`[SPAWN] Loaded ${this.seats.bed.size} beds, ${this.seats.class.size} class seats, ${this.seats.food.size} food seats.`);
     }
 
@@ -49,8 +39,6 @@ export class SpawnManager {
         });
 
         if (echoKeys.length >= this.MAX_ECHOES) {
-            // Remove the oldest (first in list usually, or just random)
-            // To be safe, remove enough to make room.
             const toRemoveCount = echoKeys.length - this.MAX_ECHOES + 1;
             
             for (let i = 0; i < toRemoveCount; i++) {
@@ -97,34 +85,28 @@ export class SpawnManager {
             }
         });
         
-        // this.spawnTeachers(); // Moved to explicit call in WorldRoom
         console.log(`[SPAWN] Population complete.`);
     }
 
-    public spawnFromMap(mapData: any) {
-        // Find NPC Layer
-        const npcLayer = mapData.layers.find((l: any) => l.name === "NPCs" && l.type === "objectgroup");
+    public spawnFromMap(mapData: MapData) {
+        const npcs = parseNPCs(mapData);
         
-        if (npcLayer && npcLayer.objects.length > 0) {
-            console.log(`[SPAWN] Found NPC Layer with ${npcLayer.objects.length} entities.`);
-            npcLayer.objects.forEach((obj: any) => {
-                // Check if it is a teacher (by type or name convention)
-                // We support 'type' property in Tiled or checking name
-                if (obj.type === "teacher" || (obj.properties && obj.properties.find((p:any) => p.name === "type" && p.value === "teacher"))) {
-                     const id = `teacher_${obj.id}`; // Use Tiled ID for persistence
-                     const name = obj.name || "Unknown Teacher";
-                     const skin = "teacher"; // Fixed for now, could be a property
+        if (npcs.length > 0) {
+            console.log(`[SPAWN] Found NPC Layer with ${npcs.length} entities.`);
+            npcs.forEach(npc => {
+                 const id = `teacher_${npc.id}`; 
+                 const name = npc.name;
+                 const skin = npc.skin;
 
-                     this.createEchoEntity(id, obj.x, obj.y, skin, name, 'ignis', undefined);
-                     
-                     // Set AI to Static/Idle
-                     const entity = this.entities.get(id);
-                     if (entity && entity.ai) {
-                         entity.ai.routineSpots = undefined;
-                         entity.ai.home = { x: obj.x, y: obj.y };
-                         entity.ai.state = 'idle';
-                     }
-                }
+                 this.createEchoEntity(id, npc.x, npc.y, skin, name, 'ignis', undefined);
+                 
+                 // Set AI to Static/Idle
+                 const entity = this.entities.get(id);
+                 if (entity && entity.ai) {
+                     entity.ai.routineSpots = undefined;
+                     entity.ai.home = { x: npc.x, y: npc.y };
+                     entity.ai.state = 'idle';
+                 }
             });
         } else {
             console.log("[SPAWN] NPC Layer not found or empty. Using Legacy Hardcoded Spawns.");

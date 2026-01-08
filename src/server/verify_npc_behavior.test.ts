@@ -29,6 +29,7 @@ describe('NPC Behavior & Seating Verification', () => {
             layers: [
                 {
                     name: 'FixedSeats',
+                    type: 'objectgroup',
                     objects: [
                         { type: 'bed', x: 100, y: 100, properties: [{ name: 'studentId', value: 0 }] }, // Student 0 Bed
                         { type: 'seat_class', x: 500, y: 500, properties: [{ name: 'studentId', value: 0 }] }, // Student 0 Class
@@ -54,6 +55,7 @@ describe('NPC Behavior & Seating Verification', () => {
             layers: [
                 {
                     name: 'FixedSeats',
+                    type: 'objectgroup',
                     objects: [
                         { type: 'bed', x: 100, y: 100, properties: [{ name: 'studentId', value: 0 }] },
                         { type: 'bed', x: 200, y: 200, properties: [{ name: 'studentId', value: 1 }] }

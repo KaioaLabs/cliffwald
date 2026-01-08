@@ -3,6 +3,10 @@ import { CONFIG } from "../Config";
 import { Pathfinding } from "./Pathfinding";
 import RAPIER from "@dimforge/rapier2d-compat";
 
+// Shared reuseable objects to reduce GC
+const SHARED_SEARCH_SHAPE = new RAPIER.Ball(24);
+let frameCount = 0;
+
 export const AISystem = (
     world: ECSWorld, 
     physicsWorld: RAPIER.World, 
@@ -13,6 +17,7 @@ export const AISystem = (
     targetProvider?: (id: string) => { x: number, y: number } | null
 ) => {
     const entities = world.with("ai", "body", "input");
+    frameCount++;
 
     for (const entity of entities) {
         const { ai, body, input, id, facing } = entity;
@@ -21,6 +26,7 @@ export const AISystem = (
 
         ai.timer += dt;
         const currentPos = body.translation();
+        const numericId = typeof entity.id === 'number' ? entity.id : (parseInt(entity.id || "0") || 0);
 
         // 0. DUEL STATE
         if (ai.state === 'duel' && ai.targetId && castCallback && targetProvider) {
@@ -39,7 +45,7 @@ export const AISystem = (
                 else if (dist < 150) { moveX = -nx; moveY = -ny; }
                 else {
                     // Random Strafe based on ID and time
-                    const strafe = Math.sin(Date.now() / 1000 + (entity.id || 0)) > 0 ? 1 : -1;
+                    const strafe = Math.sin(Date.now() / 1000 + (numericId)) > 0 ? 1 : -1;
                     moveX = -ny * strafe * 0.5;
                     moveY = nx * strafe * 0.5;
                 }
@@ -56,6 +62,7 @@ export const AISystem = (
                 }
             } else {
                 ai.state = 'idle';
+                ai.timer = 0;
             }
             continue; // Skip routine logic
         }
@@ -73,11 +80,10 @@ export const AISystem = (
             else if (isClass) { desiredPos = ai.routineSpots.class; forceFacing = { x: 0, y: -1 }; }
             else if (isSleeping) { desiredPos = ai.routineSpots.sleep; forceFacing = { x: 0, y: 1 }; }
             else {
-                const idVal = entity.id || 0;
                 // Deterministic Dispersion: Golden Angle spread
                 const getSpread = (center: {x: number, y: number}, radius: number) => {
-                    const angle = idVal * 2.399; // Golden Angle in radians (~137.5 deg)
-                    const r = Math.sqrt(idVal + 1) * (radius / 5); // Spread outwards
+                    const angle = numericId * 2.399; // Golden Angle in radians (~137.5 deg)
+                    const r = Math.sqrt(numericId + 1) * (radius / 5); // Spread outwards
                     // Clamp to max radius
                     const finalR = Math.min(r, radius);
                     return { x: center.x + Math.cos(angle) * finalR, y: center.y + Math.sin(angle) * finalR };
@@ -94,17 +100,32 @@ export const AISystem = (
         const distToTarget = Math.sqrt(Math.pow(desiredPos.x - currentPos.x, 2) + Math.pow(desiredPos.y - currentPos.y, 2));
 
         if (distToTarget > 20) {
-            if (!ai.targetPos || Math.abs(ai.targetPos.x - desiredPos.x) > 5 || Math.abs(ai.targetPos.y - desiredPos.y) > 5) {
+            // Check if we need to change target
+            const targetChanged = !ai.targetPos || Math.abs(ai.targetPos.x - desiredPos.x) > 5 || Math.abs(ai.targetPos.y - desiredPos.y) > 5;
+            
+            if (targetChanged) {
                 // STAGGERED START: Students wait a bit based on ID before moving to a new task
-                const startDelay = ((id || 0) % 8) * 0.5; // Up to 4 seconds delay
-                if (ai.timer > startDelay) {
-                    ai.targetPos = desiredPos;
+                const startDelay = (numericId % 8) * 500; // Up to 4 seconds delay (in ms)
+                
+                // Only reset if we haven't already started waiting
+                if (ai.state !== 'idle' || ai.targetPos !== desiredPos) {
+                     ai.state = 'idle';
+                     ai.timer = 0;
+                     ai.targetPos = desiredPos; // Tentative target
+                }
+
+                if (ai.state === 'idle' && ai.timer > startDelay) {
                     ai.state = 'routine';
                     ai.path = undefined;
-                } else {
-                    ai.state = 'idle'; // Wait for my turn to move
+                    ai.timer = 0; // Reset timer for stuck detection
                 }
             }
+        } else {
+             // Arrived
+             if (ai.state !== 'idle') {
+                 ai.state = 'idle';
+                 ai.timer = 0;
+             }
         }
 
         // 3. EXECUTE ROUTINE
@@ -131,34 +152,33 @@ export const AISystem = (
                     let finalY = seekY;
 
                     // 2. Separation Force (Avoid crowded areas)
-                    let sepX = 0;
-                    let sepY = 0;
-
-                    const separationRadius = 24; 
-                    const searchShape = new RAPIER.Ball(separationRadius);
-                    
-                    physicsWorld.intersectionsWithShape(currentPos, 0, searchShape, (otherCollider) => {
-                        const otherBody = otherCollider.parent();
+                    // THROTTLE: Only run every 3rd frame to save CPU
+                    if (frameCount % 3 === (numericId % 3)) {
+                        let sepX = 0;
+                        let sepY = 0;
+                        const separationRadius = 24; 
                         
-                        if (!otherBody || otherBody === body) return true; // continue
+                        physicsWorld.intersectionsWithShape(currentPos, 0, SHARED_SEARCH_SHAPE, (otherCollider) => {
+                            const otherBody = otherCollider.parent();
+                            if (!otherBody || otherBody === body) return true; // continue
 
-                        const oPos = otherBody.translation();
-                        const vx = currentPos.x - oPos.x; 
-                        const vy = currentPos.y - oPos.y;
-                        const distSq = vx*vx + vy*vy;
+                            const oPos = otherBody.translation();
+                            const vx = currentPos.x - oPos.x; 
+                            const vy = currentPos.y - oPos.y;
+                            const distSq = vx*vx + vy*vy;
+                            
+                            if (distSq < (separationRadius * separationRadius) && distSq > 0.001) {
+                                const dist = Math.sqrt(distSq);
+                                const strength = (separationRadius - dist) / separationRadius; 
+                                sepX += (vx / dist) * strength * 2.5; 
+                                sepY += (vy / dist) * strength * 2.5;
+                            }
+                            return true; // continue
+                        });
                         
-                        if (distSq < (separationRadius * separationRadius) && distSq > 0.001) {
-                            const dist = Math.sqrt(distSq);
-                            const strength = (separationRadius - dist) / separationRadius; 
-                            sepX += (vx / dist) * strength * 2.5; 
-                            sepY += (vy / dist) * strength * 2.5;
-                        }
-                        return true; // continue
-                    });
-
-                    // 3. Combine Forces
-                    finalX += sepX;
-                    finalY += sepY;
+                        finalX += sepX;
+                        finalY += sepY;
+                    }
 
                     // Normalize result
                     const finalLen = Math.sqrt(finalX*finalX + finalY*finalY);
@@ -178,8 +198,10 @@ export const AISystem = (
 
                     // STUCK DETECTION
                     const vel = body.linvel();
-                    const currentSpeed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
-                    if (currentSpeed < 5 && ai.timer > 2.0) {
+                    const currentSpeedSq = vel.x * vel.x + vel.y * vel.y;
+                    
+                    // Speed < 5 (sq < 25)
+                    if (currentSpeedSq < 25 && ai.timer > 2000) { // 2 seconds
                         ai.path = undefined; 
                         ai.timer = 0;
                     }
