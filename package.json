@@ -13,7 +13,7 @@
     "build": "npx prisma generate && npm run build:server && npm run build:client",
     "build:client": "vite build --emptyOutDir",
     "build:server": "tsc",
-    "start:prod": "npx prisma db push && node dist-server/server/index.js"
+    "start:prod": "node tools/ensure_postgres.js && npx prisma db push && node dist-server/server/index.js"
   },
   "keywords": [],
   "author": "",

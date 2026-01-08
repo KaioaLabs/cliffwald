@@ -1,11 +1,19 @@
 # Reglas del Proyecto
 
-## Arquitectura Modular
-- **Servidor Autoritativo**: Node.js + Colyseus.
-- **Cliente Modular**: 
-    - `AssetManager`: Carga centralizada de recursos.
-    - `UIScene`: Interfaz separada del juego.
-    - `NetworkManager`: Tipado estricto con Schema.
+## Arquitectura Modular & Build Pipeline (Actualizado Enero 2026)
+- **Servidor Autoritativo**: Node.js + Colyseus + Express 5.
+- **Serving Strategy**: El servidor sirve el cliente estático directamente desde la raíz `dist-client`.
+    - **Fix Crítico**: Express 5 requiere Regex `/.*/` para rutas SPA, no strings `*`.
+- **Build Zero-Copy**: Se eliminó `postbuild.js`. Vite construye directamente en `dist-client` y el servidor lee de ahí. Menos pasos = Menos errores.
+- **Base de Datos Dual**:
+    - **Local**: SQLite (rápido, desarrollo).
+    - **Prod**: PostgreSQL/Supabase (persistente).
+    - **Control**: `start_mmo.bat` actúa como Dashboard Unificado para cambiar entornos y lanzar procesos.
+
+## Cliente Modular
+- `AssetManager`: Carga centralizada de recursos.
+- `UIScene`: Interfaz separada del juego.
+- `NetworkManager`: Tipado estricto con Schema.
 - **Entidad Unificada (CRÍTICO)**: En el cliente (`PlayerController`), **NUNCA** mantener listas separadas para Sprites y Lógica. Usar un único mapa `Map<string, Entity>` donde la `Entity` contiene componentes visuales (`sprite`) y lógicos (`body`).
 
 ## Física y Determinismo
