@@ -273,7 +273,7 @@ export class GameScene extends Phaser.Scene {
     
     private getApiUrl(endpoint: string) {
         const host = window.location.hostname;
-        const port = (host === "localhost" || host === "127.0.0.1") ? ":2568" : "";
+        const port = (host === "localhost" || host === "127.0.0.1") ? ":2568" : (window.location.port ? ':' + window.location.port : '');
         const protocol = window.location.protocol;
         return `${protocol}//${host}${port}${endpoint}`;
     }
