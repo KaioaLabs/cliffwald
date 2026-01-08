@@ -53,7 +53,7 @@ export class ShadowUtils {
         // Skew X > 0 leans top to the right? No, Skew X leans the horizontal axis?
         // Phaser setSkewX(rad). 
         
-        shadow.setSkewX(Math.atan2(dx, 300)); // Use atan to cap it nicely
+        shadow.skewX = Math.atan2(dx, 300); // Use atan to cap it nicely
         
         // Height (Length of shadow)
         // Dependent on Y distance? Or just general distance?
