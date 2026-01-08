@@ -207,7 +207,10 @@ export class GameScene extends Phaser.Scene {
 
             this.scale.on('resize', this.handleResize, this);
             
+            // Initialize DebugManager ONLY in Development Mode
+        if (import.meta.env.DEV) {
             this.debugManager = new DebugManager(this);
+        }
 
             this.input.mouse?.disableContextMenu();
 
