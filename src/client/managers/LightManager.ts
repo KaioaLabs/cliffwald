@@ -16,10 +16,13 @@ export class LightManager {
 
     constructor(scene: Phaser.Scene) {
         this.scene = scene;
-        this.scene.lights.enable();
+        if (CONFIG.USE_LIGHTS) {
+            this.scene.lights.enable();
+        }
     }
 
     public initFromMap(map: Phaser.Tilemaps.Tilemap) {
+        if (!CONFIG.USE_LIGHTS) return;
         const lightsLayer = map.getObjectLayer('Lights');
         if (!lightsLayer) return;
 

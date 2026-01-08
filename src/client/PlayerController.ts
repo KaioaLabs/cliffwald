@@ -7,11 +7,22 @@ import { createWorld, ECSWorld } from '../shared/ecs/world';
 import { Entity } from '../shared/ecs/components';
 import { ShadowUtils } from './ShadowUtils';
 
+// Extended Entity type for Client-side only properties
+type ClientEntity = Entity & {
+    shadow?: Phaser.GameObjects.Sprite;
+    nameTag?: Phaser.GameObjects.Text;
+    isLocal?: boolean;
+    lastDir?: string;
+    positionBuffer?: { x: number, y: number, timestamp: number }[];
+    lastMoveTime?: number;
+    serverPos?: { x: number, y: number };
+};
+
 export class PlayerController {
     scene: Phaser.Scene;
     physicsWorld?: RAPIER.World;
     public world: ECSWorld; 
-    players: Map<string, Entity> = new Map();
+    players: Map<string, ClientEntity> = new Map();
 
     constructor(scene: Phaser.Scene, physicsWorld?: RAPIER.World) {
         this.scene = scene;
@@ -47,7 +58,7 @@ export class PlayerController {
         shadow.setOrigin(0.5, 1.0); 
         
         const sprite = this.scene.add.sprite(x, y, 'player_idle', 0);
-        sprite.setPipeline('Light2D'); 
+        if (CONFIG.USE_LIGHTS) sprite.setPipeline('Light2D'); 
         sprite.setOrigin(0.5, 0.75); 
         sprite.setScale(CONFIG.PLAYER_SCALE);
         
@@ -76,22 +87,24 @@ export class PlayerController {
             align: 'center'
         }).setOrigin(0.5);
 
+        console.log(`[CLIENT] Adding Player Sprite: ${displayName} (Local: ${isLocal})`);
+
         // 2. Create ECS Entity
         const entity = this.world.add({
             player: { sessionId },
             visual: { sprite },
             input: { left: false, right: false, up: false, down: false },
             facing: { x: 0, y: 1 }
-        });
+        }) as ClientEntity;
 
         // Store extra visual data on the entity (managed state)
-        (entity as any).shadow = shadow;
-        (entity as any).nameTag = nameTag;
-        (entity as any).isLocal = isLocal;
-        (entity as any).lastDir = 'down';
-        (entity as any).positionBuffer = [];
-        (entity as any).lastMoveTime = 0;
-        (entity as any).serverPos = { x, y };
+        entity.shadow = shadow;
+        entity.nameTag = nameTag;
+        entity.isLocal = isLocal;
+        entity.lastDir = 'down';
+        entity.positionBuffer = [];
+        entity.lastMoveTime = 0;
+        entity.serverPos = { x, y };
 
         if (isLocal && this.physicsWorld) {
             this.setupLocalPhysics(entity, x, y);
@@ -169,9 +182,10 @@ export class PlayerController {
         const now = Date.now();
         const renderTime = now - CONFIG.RENDER_DELAY;
 
-        for (const entity of this.world.with("visual", "player")) {
+        for (const e of this.world.with("visual", "player")) {
+            const entity = e as ClientEntity;
             const sprite = entity.visual!.sprite as Phaser.GameObjects.Sprite;
-            const isLocal = (entity as any).isLocal;
+            const isLocal = entity.isLocal;
             
             let targetX = sprite.x;
             let targetY = sprite.y;
@@ -180,8 +194,8 @@ export class PlayerController {
                 const pos = entity.body.translation();
                 targetX = pos.x; targetY = pos.y;
             } else {
-                const buffer = (entity as any).positionBuffer;
-                if (buffer?.length >= 2) {
+                const buffer = entity.positionBuffer;
+                if (buffer?.length && buffer.length >= 2) {
                     while (buffer.length > 2 && buffer[1].timestamp <= renderTime) buffer.shift();
                     if (buffer[1].timestamp > renderTime) {
                         const t0 = buffer[0], t1 = buffer[1];
@@ -191,7 +205,7 @@ export class PlayerController {
                         targetY = Phaser.Math.Linear(t0.y, t1.y, factor);
                     }
                 } else {
-                    const sPos = (entity as any).serverPos || { x: sprite.x, y: sprite.y };
+                    const sPos = entity.serverPos || { x: sprite.x, y: sprite.y };
                     targetX = Phaser.Math.Linear(sprite.x, sPos.x, CONFIG.INTERPOLATION_FACTOR);
                     targetY = Phaser.Math.Linear(sprite.y, sPos.y, CONFIG.INTERPOLATION_FACTOR);
                 }
@@ -205,26 +219,26 @@ export class PlayerController {
             sprite.setDepth(sprite.y + 100);
 
             // Shadow Logic
-            const shadow = (entity as any).shadow;
+            const shadow = entity.shadow;
             if (shadow) {
                 const worldPoint = this.scene.cameras.main.getWorldPoint(this.scene.input.activePointer.x, this.scene.input.activePointer.y);
                 shadow.setTexture(sprite.texture.key).setFrame(sprite.frame.name).setFlipX(sprite.flipX).setVisible(sprite.visible);
                 ShadowUtils.updateShadow(shadow, sprite.x, sprite.y, sprite.scaleX, sprite.scaleY, sprite.depth, sprite.displayHeight || 40, worldPoint.x, worldPoint.y);
             }
 
-            if ((entity as any).nameTag) (entity as any).nameTag.setPosition(sprite.x, sprite.y + CONFIG.NAME_TAG_Y_OFFSET).setDepth(sprite.y + 100);
+            if (entity.nameTag) entity.nameTag.setPosition(sprite.x, sprite.y + CONFIG.NAME_TAG_Y_OFFSET).setDepth(sprite.y + 100);
 
             this.handleAnimation(entity, dx, dy);
         }
     }
 
-    private handleAnimation(entity: Entity, dx: number, dy: number) {
+    private handleAnimation(entity: ClientEntity, dx: number, dy: number) {
         const sprite = entity.visual?.sprite;
         if (!sprite) return;
 
-        const isLocal = (entity as any).isLocal;
+        const isLocal = entity.isLocal;
         const velocity = Math.sqrt(dx * dx + dy * dy);
-        let anim = 'idle', dir = (entity as any).lastDir || 'down', targetDx = dx, targetDy = dy, shouldUpdate = false;
+        let anim = 'idle', dir = entity.lastDir || 'down', targetDx = dx, targetDy = dy, shouldUpdate = false;
 
         if (isLocal && entity.input) {
             const isMoving = entity.input.left || entity.input.right || entity.input.up || entity.input.down;
@@ -235,8 +249,8 @@ export class PlayerController {
             }
         } else if (velocity > 0.1) {
             anim = 'run'; shouldUpdate = true;
-            (entity as any).lastMoveTime = Date.now();
-        } else if (Date.now() - (entity as any).lastMoveTime < 100) {
+            entity.lastMoveTime = Date.now();
+        } else if (Date.now() - (entity.lastMoveTime || 0) < 100) {
             anim = 'run';
         }
 
@@ -251,7 +265,7 @@ export class PlayerController {
             else if (angle >= -157.5 && angle < -112.5) { dir = 'up-right'; sprite.setFlipX(true); }
             else if (angle >= 112.5 && angle < 157.5) { dir = 'down-right'; sprite.setFlipX(true); }
             else { dir = 'right'; sprite.setFlipX(true); }
-            (entity as any).lastDir = dir;
+            entity.lastDir = dir;
         }
 
         const isTeacher = sprite.getData('isTeacher');

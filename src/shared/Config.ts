@@ -51,6 +51,7 @@ export const CONFIG = {
     // Debug
     SHOW_COLLIDERS: false,
     LOG_INTERVAL: 10000,
+    USE_LIGHTS: true,
 
     // AI Navigation
     AI_DETECTION_RADIUS: 100,

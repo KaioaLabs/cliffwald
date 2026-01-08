@@ -108,19 +108,19 @@ export class GameScene extends Phaser.Scene {
             if (tileset && tilesetTable && tilesetFloor) {
                 const floorLayer = map.createLayer('floor_text', tilesetFloor, 0, 0);
                 if (floorLayer) {
-                    floorLayer.setPipeline('Light2D');
+                    if (CONFIG.USE_LIGHTS) floorLayer.setPipeline('Light2D');
                     floorLayer.setDepth(-101); 
                 }
 
                 const groundLayer = map.createLayer('Ground', tileset, 0, 0);
                 if (groundLayer) {
-                    groundLayer.setPipeline('Light2D');
+                    if (CONFIG.USE_LIGHTS) groundLayer.setPipeline('Light2D');
                     groundLayer.setDepth(-100); 
                 }
 
                 const furnitureLayer = map.createLayer('Furniture', tilesetTable, 0, 0);
                 if (furnitureLayer) {
-                    furnitureLayer.setPipeline('Light2D');
+                    if (CONFIG.USE_LIGHTS) furnitureLayer.setPipeline('Light2D');
                     furnitureLayer.setDepth(-99);
 
                     furnitureLayer.forEachTile((tile) => {
@@ -293,9 +293,12 @@ export class GameScene extends Phaser.Scene {
                 this.uiManager = new UIManager(this, this.network);
                 this.uiManager.create();
                 
+                // Hide login screen if it was visible
+                const screen = document.getElementById('login-screen');
+                if (screen) screen.classList.add('hidden');
+                
                 console.log("[DEBUG] Calling connect()...");
-                this.connect();
-            } catch (e) {
+                this.connect();            } catch (e) {
                 console.error("Dev Auto-Login Error:", e);
                 this.setupLoginScreen();
             }
