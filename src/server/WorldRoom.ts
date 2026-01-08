@@ -99,8 +99,6 @@ export class WorldRoom extends Room<GameState> {
             const { currentCourse, currentMonth, currentWeek } = getAcademicProgress(this.state.worldStartTime);
             
             // Sync Calendar State
-            
-            // Sync Calendar State
             if (this.state.currentMonth !== currentMonth) {
                 console.log(`[CALENDAR] Welcome to ${currentMonth}`);
                 this.state.currentMonth = currentMonth;
@@ -193,8 +191,7 @@ export class WorldRoom extends Room<GameState> {
             });
 
             logTimer += deltaTime;
-            // ... (stats) ...
-        });
+        }, 1000 / 15);
 
         this.onMessage("move", (client, input: PlayerInput) => {
             const entity = this.entities.get(client.sessionId);
