@@ -20,9 +20,11 @@ export class NetworkManager {
     constructor(scene?: Phaser.Scene) {
         const protocol = window.location.protocol.replace("http", "ws");
         const host = window.location.hostname;
-        const port = 2567;
+        // Only append port in local development. In prod (Render), use standard port (implicit).
+        const port = (host === "localhost" || host === "127.0.0.1") ? ":2568" : "";
         
-        this.client = new Client(`${protocol}://${host}:${port}`);
+        console.log(`[NET] Connecting to: ${protocol}//${host}${port}`);
+        this.client = new Client(`${protocol}//${host}${port}`);
     }
 
     async connect(token: string, skin: string): Promise<boolean> {
