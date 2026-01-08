@@ -4,7 +4,7 @@ export const CONFIG = {
     
     // Physics (Scaled for 32x32 tiles)
     PLAYER_SPEED: 120, 
-    PLAYER_RADIUS: 20,
+    PLAYER_RADIUS: 12,
     
     // Visuals
     PLAYER_SCALE: 1.0, 
