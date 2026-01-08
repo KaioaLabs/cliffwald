@@ -13,7 +13,7 @@
     "build": "npx prisma generate && npm run build:client && npm run build:server && node tools/postbuild.js",
     "build:client": "vite build --outDir dist-client --emptyOutDir",
     "build:server": "tsc",
-    "start:prod": "npx prisma migrate deploy && node dist-server/server/index.js"
+    "start:prod": "npx prisma db push && node dist-server/server/index.js"
   },
   "keywords": [],
   "author": "",

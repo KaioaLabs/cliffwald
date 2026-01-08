@@ -51,9 +51,7 @@ const distServerPublic = path.join(projectRoot, 'dist-server', 'public');
 const srcGenerated = path.join(projectRoot, 'src', 'generated');
 const distServerGenerated = path.join(projectRoot, 'dist-server', 'generated');
 
-// 1. Copy Client to Public
-console.log(`Copying ${distClient} -> ${distServerPublic}`);
-copyFolderSync(distClient, distServerPublic);
+// 1. Client is now built directly to dist-server/public by Vite. Skipping copy.
 
 // 2. Copy Generated Prisma Client
 console.log(`Copying ${srcGenerated} -> ${distServerGenerated}`);
