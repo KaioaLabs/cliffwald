@@ -405,6 +405,27 @@ export class GameScene extends Phaser.Scene {
                 this.visualProjectiles.set(id, visual);
             };
 
+            this.network.onProjectileChange = (proj: Projectile, id: string) => {
+                const visual = this.visualProjectiles.get(id);
+                if (visual) {
+                    // Smooth lerp to new server position
+                    // We can use a tween for smoothing or just set it if update rate is high (30fps)
+                    // Given 30fps, let's use a very short tween or direct set.
+                    // Direct set is safest to avoid overshooting.
+                    // Or a small lerp factor.
+                    
+                    // Simple LERP manually in update loop is best, but here we are in an event callback.
+                    // Let's use a tween of 33ms (1 frame) to smooth it.
+                    this.tweens.add({
+                        targets: visual,
+                        x: proj.x,
+                        y: proj.y,
+                        duration: 50, // slightly more than 1 tick (33ms) to buffer
+                        ease: 'Linear'
+                    });
+                }
+            };
+
             this.network.onProjectileRemove = (proj: Projectile, id: string) => {
                 const visual = this.visualProjectiles.get(id);
                 if (visual) {
@@ -610,6 +631,7 @@ export class GameScene extends Phaser.Scene {
         const pointer = this.input.activePointer;
         const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
         
+        /* OPTIMIZATION: Static shadows do not need updates
         this.tableShadows.forEach(shadow => {
             const baseX = shadow.getData('baseX');
             const baseY = shadow.getData('baseY');
@@ -626,6 +648,7 @@ export class GameScene extends Phaser.Scene {
                 worldPoint.y
             );
         });
+        */
 
         if (this.debugManager) this.debugManager.update();
 

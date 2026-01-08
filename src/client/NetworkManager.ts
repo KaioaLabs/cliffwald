@@ -12,6 +12,7 @@ export class NetworkManager {
     public onPlayerAdd?: (player: Player, id: string) => void;
     public onPlayerRemove?: (player: Player, id: string) => void;
     public onProjectileAdd?: (proj: Projectile, id: string) => void;
+    public onProjectileChange?: (proj: Projectile, id: string) => void;
     public onProjectileRemove?: (proj: Projectile, id: string) => void;
     public onPong?: (latency: number) => void;
     public onChatMessage?: (msg: { sender: string, text: string }) => void;
@@ -105,6 +106,11 @@ export class NetworkManager {
                     } else {
                         console.warn("[NET] onProjectileAdd callback NOT set!");
                     }
+                    
+                    // Listen for updates on this specific projectile instance
+                    proj.onChange(() => {
+                        if (this.onProjectileChange) this.onProjectileChange(proj, id);
+                    });
                 });
                 attach(this.room.state.projectiles, 'onRemove', (proj: Projectile, id: string) => {
                     if (this.onProjectileRemove) this.onProjectileRemove(proj, id);
