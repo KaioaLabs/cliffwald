@@ -6,6 +6,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export default defineConfig({
+  base: './',
   root: './src/client',
   publicDir: '../../assets', // Serve assets from root assets folder
   build: {
