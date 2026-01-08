@@ -75,7 +75,12 @@ app.post("/api/dev-login", async (req, res) => {
         res.json({ token });
     } catch (e: any) {
         console.error("[API] Dev Login Error:", e);
-        res.status(500).json({ error: e.message });
+        // Send FULL error details to client for debugging
+        res.status(500).json({ 
+            error: e.message, 
+            stack: e.stack,
+            dbPath: process.env.DATABASE_URL || "unknown" 
+        });
     }
 });
 
