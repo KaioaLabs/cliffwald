@@ -143,3 +143,13 @@ process.on('uncaughtException', (err) => {
     console.error('[SERVER] Uncaught Exception:', err);
     // Optional: process.exit(1); // Don't exit immediately to see if it recovers or if it's minor
 });
+
+// --- GRACEFUL SHUTDOWN ---
+const shutdown = async () => {
+    console.log("[SERVER] Shutdown signal received. Closing GameServer...");
+    await gameServer.gracefullyShutdown();
+    process.exit(0);
+};
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);

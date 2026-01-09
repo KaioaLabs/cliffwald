@@ -218,7 +218,7 @@ export class WorldRoom extends Room<GameState> {
             console.log(`[SERVER] Chat request from ${client.sessionId}. Player found: ${!!player}. Text: "${text}"`);
             
             if (player && text) {
-                const msg = new ChatMessage();
+                const msg = new SchemaDef_1.ChatMessage();
                 msg.sender = player.username;
                 msg.text = text.slice(0, CONFIG.CHAT_MAX_LENGTH);
                 msg.timestamp = Date.now();
@@ -232,6 +232,40 @@ export class WorldRoom extends Room<GameState> {
                 console.warn(`[SERVER] Chat ignored. Player: ${player}, Text: ${text}`);
             }
         });
+
+        // --- PERIODIC AUTO-SAVE (Every 5 minutes) ---
+        this.clock.setInterval(() => {
+            this.saveAllPlayers();
+        }, 1000 * 60 * 5); 
+    }
+
+    private async saveAllPlayers() {
+        const activePlayersCount = this.clients.length;
+        if (activePlayersCount === 0) return;
+
+        console.log(`[DB] Auto-saving ${activePlayersCount} active players...`);
+        
+        for (const client of this.clients) {
+            const dbId = this.playerDbIds.get(client.sessionId);
+            const playerState = this.state.players.get(client.sessionId);
+            const entity = this.entities.get(client.sessionId);
+
+            if (dbId && playerState && entity?.body) {
+                // Update state with latest physics pos before saving
+                const pos = entity.body.translation();
+                playerState.x = pos.x;
+                playerState.y = pos.y;
+                
+                // We don't await inside the loop to avoid blocking, 
+                // but we handle errors in the service
+                PlayerService.saveSession(dbId, playerState);
+            }
+        }
+    }
+
+    async onDispose() {
+        console.log("[SERVER] Room disposing. Attempting final save for all players...");
+        await this.saveAllPlayers();
     }
 
     handleCast(sessionId: string, spellId: string, vx: number, vy: number) {

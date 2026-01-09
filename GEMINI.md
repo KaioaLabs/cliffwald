@@ -1,6 +1,7 @@
 # Reglas del Proyecto
 
 ## Hitos Técnicos Recientes (v0.1.1)
+- **Seguridad (v0.1.2)**: Implementado sistema de Cuentas Reales (Seamless Auth) con contraseñas encriptadas y protección anti-cheat básica (Server Authority estricto).
 - **Replicación de Hechizos**: Implementado sistema `onChange` en `NetworkManager`. Los proyectiles remotos ahora son autoritativos (posición del servidor) en lugar de predictivos (interpolación local insegura).
 - **Rendimiento**:
     - **Servidor**: Aumentado Tick Rate de 15 a **30 FPS** para suavidad en red.
@@ -35,6 +36,13 @@
     - Población finita (24 slots).
     - Al crear cuenta, el jugador **sobrescribe** un Echo (NPC) permanentemente.
     - Al desconectar, el personaje se queda como NPC con el nombre del jugador. **Persistencia 24/7**.
+
+## Seguridad y Cuentas
+- **Seamless Auth**: Login/Registro unificado. Sin correos de confirmación, pero con contraseñas encriptadas (`bcrypt`).
+- **Server Authority**: 
+    - El cliente es solo un visor. NUNCA confiar en inputs para stats (prestigio, items).
+    - Base de datos (PostgreSQL) es la fuente de la verdad.
+    - Servidor (Colyseus) valida toda lógica.
 
 ## Código y Estilo
 - **Lenguaje**: TypeScript estricto. Evitar `any` en capas de red.

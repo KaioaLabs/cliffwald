@@ -56,4 +56,21 @@ Activities drive the world state.
 *Note: The Dueling Zone (Tatami) is mechanically active 24/7, allowing players to practice or settle disputes whenever they choose, though Echoes are most active during Free Time.*
 
 ## 8. Progression
-*   **Prestige = XP:** Gaining House Points unlocks personal progression.
+*   **Prestige = XP:** Gaining House Points unlocks personal progression. (Note: Mechanics currently paused for balancing).
+
+## 9. Data Architecture & Security
+The game follows strictly **Authoritative Server** principles to prevent cheating.
+
+### Authentication (Seamless Auth)
+*   **Unified Flow:** Login and Registration happen in the same interface.
+*   **Smart Detection:** The system automatically detects if a username exists to verify password (Login) or create a new account (Register).
+*   **Security:** Passwords are salted and hashed (bcrypt).
+
+### Server Authority
+*   **The "Vault" (Database):** PostgreSQL stores the source of truth for Inventory, Prestige, and Identity.
+*   **The "Accountant" (Server):** Validates all actions. The client cannot "tell" the server to add gold/prestige; it can only request actions (e.g., "I cast a spell"). The server calculates the result.
+*   **The "Viewer" (Client):** Displays the state replicated by the server. Any client-side memory hacking is ignored by the server.
+
+### Persistence Strategy
+*   **Real-time Sync:** Critical events (like trading) are processed immediately in memory.
+*   **Atomic Save:** Player data is committed to the database on logout (`onLeave`) to ensure consistency.
