@@ -154,8 +154,12 @@ export class GestureManager {
     }
 
     private setupTemplates() {
-        this.templates.set("line", this.normalizePipeline([{ x: 0, y: 0 }, { x: 100, y: 0 }]));
-        this.templates.set("circle", this.normalizePipeline(this.createPolygonPoints(32, 100, -Math.PI / 2)));
+        // Removed "line" to prevent accidental casts on simple swipes.
+        
+        // Circle needs multiple start points to be robust against "where did the user start drawing?"
+        // We add circles starting at 0, 90, 180, 270 degrees.
+        this.addRotatedTemplates("circle", this.createPolygonPoints(32, 100, 0)); 
+        
         this.addRotatedTemplates("triangle", [{ x: 0, y: 100 }, { x: 50, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }]);
         this.addRotatedTemplates("square", [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }, { x: 0, y: 0 }]);
     }
