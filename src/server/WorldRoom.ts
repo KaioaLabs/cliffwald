@@ -177,7 +177,7 @@ export class WorldRoom extends Room<GameState> {
             });
 
             logTimer += deltaTime;
-        }, 1000 / 30);
+        }, 1000 / CONFIG.SERVER_FPS);
 
         this.onMessage("move", (client, input: PlayerInput) => {
             const entity = this.entities.get(client.sessionId);
@@ -218,7 +218,7 @@ export class WorldRoom extends Room<GameState> {
             console.log(`[SERVER] Chat request from ${client.sessionId}. Player found: ${!!player}. Text: "${text}"`);
             
             if (player && text) {
-                const msg = new SchemaDef_1.ChatMessage();
+                const msg = new ChatMessage();
                 msg.sender = player.username;
                 msg.text = text.slice(0, CONFIG.CHAT_MAX_LENGTH);
                 msg.timestamp = Date.now();
@@ -236,7 +236,7 @@ export class WorldRoom extends Room<GameState> {
         // --- PERIODIC AUTO-SAVE (Every 5 minutes) ---
         this.clock.setInterval(() => {
             this.saveAllPlayers();
-        }, 1000 * 60 * 5); 
+        }, CONFIG.DB_CONFIG.AUTO_SAVE_INTERVAL); 
     }
 
     private async saveAllPlayers() {
@@ -304,7 +304,7 @@ export class WorldRoom extends Room<GameState> {
         proj.ownerId = sessionId;
         
         proj.creationTime = now;
-        proj.maxRange = 600;
+        proj.maxRange = CONFIG.SPELL_CONFIG.BASE_RANGE;
 
         this.state.projectiles.set(id, proj);
         console.log(`[SERVER] Projectile created: ${id} at ${proj.x},${proj.y}`);

@@ -59,20 +59,28 @@ export class SpellSystem {
             proj.y += dy;
 
             // Cleanup Age
-            if (now - proj.creationTime > 2000) toRemove.add(id);
+            if (now - proj.creationTime > CONFIG.SPELL_CONFIG.BASE_LIFETIME) toRemove.add(id);
         }
 
-        // 2. Projectile vs Projectile (RPS Logic)
+        // 2. Projectile vs Projectile (RPS Logic) - Optimized with Sweep & Prune
+        // Sort by X coordinate to reduce checks from O(N^2) to near O(N)
+        entries.sort((a, b) => a[1].x - b[1].x);
+
         for (let i = 0; i < count; i++) {
             const [idA, projA] = entries[i];
             if (toRemove.has(idA)) continue;
 
             for (let j = i + 1; j < count; j++) {
                 const [idB, projB] = entries[j];
+                
+                // Sweep & Prune: If X distance is greater than collision threshold (30px),
+                // no further projectiles in the list can possibly collide. Break early.
+                if (projB.x - projA.x > CONFIG.COLLISION_CONFIG.SWEEP_PRUNE_THRESHOLD) break;
+
                 if (toRemove.has(idB)) continue;
 
                 const distSq = (projA.x - projB.x)**2 + (projA.y - projB.y)**2;
-                if (distSq < 900) { // 30px collision radius
+                if (distSq < CONFIG.COLLISION_CONFIG.PROJECTILE_RADIUS_SQ) { // 30px collision radius
                     this.resolveRPS(projA, projB, idA, idB, toRemove);
                 }
             }

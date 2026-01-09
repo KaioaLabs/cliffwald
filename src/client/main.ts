@@ -20,12 +20,14 @@ import { AssetManager } from './managers/AssetManager';
 import { UIManager } from './UIManager';
 import { LightManager } from './managers/LightManager';
 import { VisualProjectileManager } from './managers/VisualProjectileManager';
+import { LoginManager } from './managers/LoginManager';
 
 export class GameScene extends Phaser.Scene {
     network: NetworkManager;
     uiManager!: UIManager;
     lightManager!: LightManager;
     projectileManager!: VisualProjectileManager;
+    loginManager!: LoginManager;
     
     room?: Colyseus.Room;
 
@@ -204,7 +206,18 @@ export class GameScene extends Phaser.Scene {
                 }
             };
 
-            this.autoLogin();
+            this.loginManager = new LoginManager((token, skin) => {
+                this.authToken = token;
+                this.skin = skin;
+
+                this.uiManager = new UIManager(this, this.network);
+                this.uiManager.create();
+
+                console.log("[DEBUG] Calling connect()...");
+                this.connect();
+            });
+
+            this.loginManager.autoLogin();
 
             this.scale.on('resize', this.handleResize, this);
             
@@ -274,123 +287,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     // --- CORREGIDO: LOGIN LOGIC ---
-    
-    private getApiUrl(endpoint: string) {
-        const host = window.location.hostname;
-        const port = (host === "localhost" || host === "127.0.0.1") ? ":2568" : (window.location.port ? ':' + window.location.port : '');
-        const protocol = window.location.protocol;
-        return `${protocol}//${host}${port}${endpoint}`;
-    }
-
-    async autoLogin() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const devUser = urlParams.get("dev_user");
-        const skin = urlParams.get("skin");
-
-        if (devUser) {
-            console.log(`[DEBUG] Attempting Dev Login for: ${devUser}`);
-            try {
-                const apiUrl = this.getApiUrl("/api/dev-login");
-
-                const res = await fetch(apiUrl, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ username: devUser })
-                });
-
-                if (!res.ok) throw new Error("Dev Login Failed");
-                
-                const data = await res.json();
-                console.log("[DEBUG] Got Token:", data.token);
-                
-                this.authToken = data.token;
-                this.skin = skin || "player_idle";
-
-                this.uiManager = new UIManager(this, this.network);
-                this.uiManager.create();
-                
-                // Hide login screen if it was visible
-                const screen = document.getElementById('login-screen');
-                if (screen) screen.classList.add('hidden');
-                
-                console.log("[DEBUG] Calling connect()...");
-                this.connect();            } catch (e) {
-                console.error("Dev Auto-Login Error:", e);
-                this.setupLoginScreen();
-            }
-        } else {
-            console.log("Waiting for user login...");
-            this.setupLoginScreen();
-        }
-    }
-
-    setupLoginScreen() {
-        const screen = document.getElementById('login-screen');
-        if (!screen) return;
-        screen.classList.remove('hidden');
-
-        const btnCustom = document.getElementById('btn-login-custom');
-        const inputUser = document.getElementById('login-username') as HTMLInputElement;
-        const inputPass = document.getElementById('login-password') as HTMLInputElement;
-        const selectHouse = document.getElementById('login-house') as HTMLSelectElement;
-
-        btnCustom?.addEventListener('click', (e) => {
-            e.stopPropagation(); 
-            const user = inputUser.value.trim();
-            const pass = inputPass.value.trim();
-            if (!user || !pass) {
-                const status = document.getElementById('login-status');
-                if (status) status.innerText = "Username and Password required.";
-                return;
-            }
-            
-            const house = selectHouse.value;
-            let skin = "player_idle";
-            if (house === 'ignis') skin = "player_red";
-            if (house === 'axiom') skin = "player_blue";
-            if (house === 'vesper') skin = "player_green";
-
-            this.doLogin(user, pass, skin, house);
-        });
-    }
-    
-    async doLogin(username: string, password: string, skin: string, house: string) {
-        try {
-            // We use the dev-login endpoint logic but enhanced, or switch to real login
-            // For Seamless Auth, we'll use a new endpoint or update dev-login to handle passwords.
-            // Let's assume we update the server to accept password on /api/dev-login or create /api/auth
-            const apiUrl = this.getApiUrl("/api/auth"); // Unified endpoint
-
-            const res = await fetch(apiUrl, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username, password, skin, house })
-            });
-            
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || res.statusText);
-            }
-
-            const data = await res.json();
-            
-            this.authToken = data.token;
-            this.skin = skin;
-            
-            this.uiManager = new UIManager(this, this.network);
-            this.uiManager.create();
-            
-            // Hide login screen
-            const screen = document.getElementById('login-screen');
-            if (screen) screen.classList.add('hidden');
-
-            this.connect();
-        } catch (e: any) { 
-            console.error("Login Failed:", e);
-            const status = document.getElementById('login-status');
-            if (status) status.innerText = `Login Failed: ${e.message}`;
-        }
-    }
+    // Logic moved to managers/LoginManager.ts
 
     async connect() {
         try {

@@ -95,6 +95,17 @@ export const CONFIG = {
         BASE_RANGE: 600,     // px
         VISUAL_TWEEN_DURATION: 3000 // ms (Safety margin for visuals)
     },
+
+    // Collision & Physics Optimization
+    COLLISION_CONFIG: {
+        PROJECTILE_RADIUS_SQ: 900, // 30px * 30px
+        SWEEP_PRUNE_THRESHOLD: 30  // px
+    },
+
+    // Database & Persistence
+    DB_CONFIG: {
+        AUTO_SAVE_INTERVAL: 300000 // 5 minutes
+    },
     
     // Rock Paper Scissors Logic
     // Circle = Rock, Square = Paper, Triangle = Scissors
