@@ -154,7 +154,8 @@ export class GestureManager {
     }
 
     private setupTemplates() {
-        // Removed "line" to prevent accidental casts on simple swipes.
+        // Line (Simple Swipe) - Restored for functionality completeness
+        this.addRotatedTemplates("line", [{ x: 0, y: 0 }, { x: 0, y: 100 }]);
         
         // Circle needs multiple start points to be robust against "where did the user start drawing?"
         // We add circles starting at 0, 90, 180, 270 degrees.

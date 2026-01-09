@@ -70,6 +70,8 @@ Thumbs.db
 # Build artifacts
 dist/
 build/
+dist-client/
+dist-server/
 
 # IDEs
 .idea/
@@ -84,6 +86,12 @@ build/
 # Tiled Binaries
 Tiled/
 *.exe
+
+# Prisma Generated Binaries (Keep TS files)
+src/generated/**/*.node
+src/generated/**/*.dll
+src/generated/**/*.so
+src/generated/**/*.tmp*
 
 # External Assets & Reference
 assets_External/

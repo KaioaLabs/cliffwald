@@ -13,7 +13,6 @@ import { PrestigeSystem } from "./systems/PrestigeSystem";
 import { SPELL_REGISTRY } from "../shared/items/SpellRegistry";
 import { Entity } from "../shared/ecs/components";
 import { AuthService } from "./services/AuthService";
-import { PersistenceManager } from "./managers/PersistenceManager";
 import { SpawnManager } from "./managers/SpawnManager";
 import { PlayerService } from "./services/PlayerService";
 import * as fs from "fs/promises";
@@ -21,6 +20,8 @@ import path from "path";
 
 import { DuelSystem } from "./systems/DuelSystem";
 import { ItemSystem } from "./systems/ItemSystem";
+import { ChatManager } from "./managers/ChatManager";
+import { PersistenceSystem } from "./systems/PersistenceSystem";
 
 export class WorldRoom extends Room<GameState> {
     physicsWorld!: RAPIER.World;
@@ -32,6 +33,8 @@ export class WorldRoom extends Room<GameState> {
     prestigeSystem!: PrestigeSystem;
     duelSystem!: DuelSystem;
     itemSystem!: ItemSystem;
+    chatManager!: ChatManager;
+    persistenceSystem!: PersistenceSystem;
     entities = new Map<string, Entity>();
     playerDbIds = new Map<string, number>();
     spawnPos = { x: 300, y: 300 };
@@ -69,6 +72,8 @@ export class WorldRoom extends Room<GameState> {
         this.prestigeSystem = new PrestigeSystem(this);
         this.duelSystem = new DuelSystem(this);
         this.itemSystem = new ItemSystem(this);
+        this.chatManager = new ChatManager(this);
+        this.persistenceSystem = new PersistenceSystem(this.entities, this.state.players, this.playerDbIds);
 
         try {
             const mapPath = path.join(process.cwd(), "assets/maps/world.json");
@@ -115,12 +120,10 @@ export class WorldRoom extends Room<GameState> {
                 scores.sort((a, b) => b.score - a.score);
                 if (scores[0].score > scores[1].score) winner = scores[0].name;
 
-                const msg = new ChatMessage();
-                msg.sender = "HEADMASTER";
-                msg.text = `THE ACADEMIC YEAR ENDS! The winner of the Cup is: ${winner}!`;
-                msg.timestamp = Date.now();
-                this.state.messages.push(msg);
-                this.broadcast("chat", msg);
+                this.chatManager.broadcastSystemMessage(
+                    `THE ACADEMIC YEAR ENDS! The winner of the Cup is: ${winner}!`,
+                    "HEADMASTER"
+                );
 
                 this.state.ignisPoints = 0;
                 this.state.axiomPoints = 0;
@@ -214,58 +217,17 @@ export class WorldRoom extends Room<GameState> {
         });
 
         this.onMessage("chat", (client, text: string) => {
-            const player = this.state.players.get(client.sessionId);
-            console.log(`[SERVER] Chat request from ${client.sessionId}. Player found: ${!!player}. Text: "${text}"`);
-            
-            if (player && text) {
-                const msg = new ChatMessage();
-                msg.sender = player.username;
-                msg.text = text.slice(0, CONFIG.CHAT_MAX_LENGTH);
-                msg.timestamp = Date.now();
-                this.state.messages.push(msg);
-                this.broadcast("chat", msg);
-                if (this.state.messages.length > CONFIG.CHAT_HISTORY_SIZE) {
-                    this.state.messages.shift();
-                }
-                console.log(`[CHAT] ${msg.sender}: ${msg.text}`);
-            } else {
-                console.warn(`[SERVER] Chat ignored. Player: ${player}, Text: ${text}`);
-            }
+            this.chatManager.handleChat(client.sessionId, text);
         });
 
-        // --- PERIODIC AUTO-SAVE (Every 5 minutes) ---
-        this.clock.setInterval(() => {
-            this.saveAllPlayers();
-        }, CONFIG.DB_CONFIG.AUTO_SAVE_INTERVAL); 
-    }
-
-    private async saveAllPlayers() {
-        const activePlayersCount = this.clients.length;
-        if (activePlayersCount === 0) return;
-
-        console.log(`[DB] Auto-saving ${activePlayersCount} active players...`);
-        
-        for (const client of this.clients) {
-            const dbId = this.playerDbIds.get(client.sessionId);
-            const playerState = this.state.players.get(client.sessionId);
-            const entity = this.entities.get(client.sessionId);
-
-            if (dbId && playerState && entity?.body) {
-                // Update state with latest physics pos before saving
-                const pos = entity.body.translation();
-                playerState.x = pos.x;
-                playerState.y = pos.y;
-                
-                // We don't await inside the loop to avoid blocking, 
-                // but we handle errors in the service
-                PlayerService.saveSession(dbId, playerState);
-            }
-        }
+        // Start Auto-Save
+        this.persistenceSystem.startAutoSave();
     }
 
     async onDispose() {
         console.log("[SERVER] Room disposing. Attempting final save for all players...");
-        await this.saveAllPlayers();
+        this.persistenceSystem.stopAutoSave();
+        await this.persistenceSystem.saveAllPlayers();
     }
 
     handleCast(sessionId: string, spellId: string, vx: number, vy: number) {
