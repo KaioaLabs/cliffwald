@@ -32,13 +32,13 @@ export class PlayerService {
             });
         }
 
-        // 2. Update Skin if changed
-        if (options.skin && options.skin !== dbPlayer.skin) {
-            dbPlayer = await db.player.update({
-                where: { id: dbPlayer.id },
-                data: { skin: options.skin },
-                include: { inventory: true }
-            });
+        // 2. Enforce Permanent Identity (Do NOT update skin/house on login)
+        // The Sorting Hat's choice is final.
+        if (dbPlayer) {
+            // Optional: Log if user tried to change skin but was ignored
+            if (options.skin && options.skin !== dbPlayer.skin) {
+                console.log(`[AUTH] User ${username} tried to change skin/house to ${options.skin}, but identity is permanent.`);
+            }
         }
 
         return { dbPlayer };
