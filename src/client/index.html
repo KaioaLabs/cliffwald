@@ -15,26 +15,20 @@
             <h1 style="color:#f0c040; margin-bottom: 20px;">CLIFFWALD 2D</h1>
             
             <div id="login-forms">
-                <!-- Quick Login Section -->
-                <div style="margin-bottom: 20px; border-bottom: 1px solid #444; padding-bottom: 20px;">
-                    <h3 style="margin-top:0; color:#aaa;">Select House Master</h3>
-                    <div style="display: flex; gap: 10px; justify-content: center;">
-                        <button class="house-btn" data-user="Ignis_Master" style="background:#800;">IGNIS</button>
-                        <button class="house-btn" data-user="Axiom_Master" style="background:#006;">AXIOM</button>
-                        <button class="house-btn" data-user="Vesper_Master" style="background:#060;">VESPER</button>
-                    </div>
-                </div>
-
-                <!-- Custom Login -->
+                <!-- Unified Login -->
                 <div>
-                    <h3 style="margin-top:0; color:#aaa;">Or Enter World</h3>
-                    <input type="text" id="login-username" placeholder="Username" />
-                    <select id="login-house">
+                    <h3 style="margin-top:0; color:#aaa;">Enter World</h3>
+                    <input type="text" id="login-username" placeholder="Username" autocomplete="username" />
+                    <input type="password" id="login-password" placeholder="Password" autocomplete="current-password" />
+                    
+                    <select id="login-house" style="margin-top: 10px;">
                         <option value="ignis">Ignis (Red)</option>
                         <option value="axiom">Axiom (Blue)</option>
                         <option value="vesper">Vesper (Green)</option>
                     </select>
-                    <button id="btn-login-custom" style="background:#444;">ENTER</button>
+                    
+                    <button id="btn-login-custom" style="background:#444; margin-top: 10px;">PLAY</button>
+                    <p style="font-size: 10px; color: #666; margin-top: 5px;">If account exists, logs in. If not, registers new.</p>
                 </div>
             </div>
             

@@ -329,22 +329,20 @@ export class GameScene extends Phaser.Scene {
         if (!screen) return;
         screen.classList.remove('hidden');
 
-        document.querySelectorAll('.house-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const user = (e.target as HTMLElement).getAttribute('data-user');
-                if (user) this.doDevLogin(user, 'player_idle'); 
-                screen.classList.add('hidden');
-            });
-        });
-
         const btnCustom = document.getElementById('btn-login-custom');
         const inputUser = document.getElementById('login-username') as HTMLInputElement;
+        const inputPass = document.getElementById('login-password') as HTMLInputElement;
         const selectHouse = document.getElementById('login-house') as HTMLSelectElement;
 
         btnCustom?.addEventListener('click', (e) => {
             e.stopPropagation(); 
             const user = inputUser.value.trim();
-            if (!user) return;
+            const pass = inputPass.value.trim();
+            if (!user || !pass) {
+                const status = document.getElementById('login-status');
+                if (status) status.innerText = "Username and Password required.";
+                return;
+            }
             
             const house = selectHouse.value;
             let skin = "player_idle";
@@ -352,22 +350,27 @@ export class GameScene extends Phaser.Scene {
             if (house === 'axiom') skin = "player_blue";
             if (house === 'vesper') skin = "player_green";
 
-            this.doDevLogin(user, skin);
-            screen.classList.add('hidden');
+            this.doLogin(user, pass, skin, house);
         });
     }
     
-    async doDevLogin(username: string, skin: string) {
+    async doLogin(username: string, password: string, skin: string, house: string) {
         try {
-            const apiUrl = this.getApiUrl("/api/dev-login");
+            // We use the dev-login endpoint logic but enhanced, or switch to real login
+            // For Seamless Auth, we'll use a new endpoint or update dev-login to handle passwords.
+            // Let's assume we update the server to accept password on /api/dev-login or create /api/auth
+            const apiUrl = this.getApiUrl("/api/auth"); // Unified endpoint
 
             const res = await fetch(apiUrl, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username })
+                body: JSON.stringify({ username, password, skin, house })
             });
             
-            if (!res.ok) throw new Error("Login Failed: " + res.statusText);
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || res.statusText);
+            }
 
             const data = await res.json();
             
@@ -376,14 +379,16 @@ export class GameScene extends Phaser.Scene {
             
             this.uiManager = new UIManager(this, this.network);
             this.uiManager.create();
+            
+            // Hide login screen
+            const screen = document.getElementById('login-screen');
+            if (screen) screen.classList.add('hidden');
 
             this.connect();
-        } catch (e) { 
+        } catch (e: any) { 
             console.error("Login Failed:", e);
             const status = document.getElementById('login-status');
-            if (status) status.innerText = "Login Error. Retrying...";
-            
-            setTimeout(() => this.doDevLogin(username, skin), 2000);
+            if (status) status.innerText = `Login Failed: ${e.message}`;
         }
     }
 

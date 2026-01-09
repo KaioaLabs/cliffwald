@@ -45,43 +45,16 @@ app.get("/debug-paths", (req, res) => {
 
 // --- AUTH API ROUTES ---
 
-app.post("/api/register", async (req, res) => {
+app.post("/api/auth", async (req, res) => {
     try {
-        const { username, password } = req.body;
+        const { username, password, skin, house } = req.body;
         if (!username || !password) return res.status(400).json({ error: "Missing fields" });
-        const token = await AuthService.register(username, password);
+        
+        const token = await AuthService.seamlessAuth(username, password, skin, house);
         res.json({ token });
     } catch (e: any) {
-        res.status(400).json({ error: e.message });
-    }
-});
-
-app.post("/api/login", async (req, res) => {
-    try {
-        const { username, password } = req.body;
-        if (!username || !password) return res.status(400).json({ error: "Missing fields" });
-        const token = await AuthService.login(username, password);
-        res.json({ token });
-    } catch (e: any) {
+        console.error("[AUTH] Error:", e.message);
         res.status(401).json({ error: e.message });
-    }
-});
-
-app.post("/api/dev-login", async (req, res) => {
-    try {
-        const { username } = req.body;
-        if (!username) return res.status(400).json({ error: "Missing username" });
-        // In a real app, verify some secret header or env var here
-        const token = await AuthService.devLogin(username);
-        res.json({ token });
-    } catch (e: any) {
-        console.error("[API] Dev Login Error:", e);
-        // Send FULL error details to client for debugging
-        res.status(500).json({ 
-            error: e.message, 
-            stack: e.stack,
-            dbPath: process.env.DATABASE_URL || "unknown" 
-        });
     }
 });
 

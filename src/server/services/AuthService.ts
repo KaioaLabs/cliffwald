@@ -47,6 +47,43 @@ export class AuthService {
     }
 
     /**
+     * Seamless Auth: Tries to login, or registers if user doesn't exist.
+     */
+    static async seamlessAuth(username: string, passwordRaw: string, skin: string, house: string) {
+        const existingUser = await db.user.findUnique({ where: { username } });
+        
+        if (existingUser) {
+            // LOGIN PATH
+            const isValid = await bcrypt.compare(passwordRaw, existingUser.password);
+            if (!isValid) {
+                throw new Error("Incorrect Password");
+            }
+            return this.generateToken(existingUser.id, existingUser.username);
+        } else {
+            // REGISTER PATH
+            const hashedPassword = await bcrypt.hash(passwordRaw, this.SALT_ROUNDS);
+            const newUser = await db.user.create({
+                data: {
+                    username,
+                    password: hashedPassword,
+                    player: {
+                        create: {
+                            x: CONFIG.SPAWN_POINT.x,
+                            y: CONFIG.SPAWN_POINT.y,
+                            skin: skin || "player_idle",
+                            house: house || "ignis",
+                            prestige: 0
+                        }
+                    }
+                },
+                include: { player: true }
+            });
+            console.log(`[AUTH] New User Registered: ${username} (${house})`);
+            return this.generateToken(newUser.id, newUser.username);
+        }
+    }
+
+    /**
      * For Development ONLY: Automatically creates a user if not exists, 
      * always logs them in.
      */
