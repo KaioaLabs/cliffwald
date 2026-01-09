@@ -43,6 +43,10 @@
     - El cliente es solo un visor. NUNCA confiar en inputs para stats (prestigio, items).
     - Base de datos (PostgreSQL) es la fuente de la verdad.
     - Servidor (Colyseus) valida toda lógica.
+- **Credenciales de Desarrollo (Admin)**:
+    - Usuario: `admin`
+    - Contraseña: `Miaularizador42`
+    - *Nota: Esta cuenta se autogenera si no existe al arrancar el servidor.*
 
 ## Código y Estilo
 - **Lenguaje**: TypeScript estricto. Evitar `any` en capas de red.
