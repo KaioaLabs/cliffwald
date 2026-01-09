@@ -39,15 +39,31 @@ export class GestureManager {
         this.setupInput();
     }
 
+    private drawingPointerId: number | null = null;
+
     private setupInput() {
         this.scene.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-            // Draw if Right Click OR (Left Click/Touch on Right Half of Screen)
-            // This prevents conflict with Joystick (Left side) and UI buttons (usually corners, but mainly joystick)
-            const isRightClick = pointer.rightButtonDown();
-            const isDrawZone = pointer.x > this.scene.scale.width * 0.4; // Generous right zone
+            if (this.isDrawing) return; // Already drawing with another finger
+
+            // Logic:
+            // Desktop: Right Click ONLY.
+            // Mobile: Touch on Right Half (> 40% width).
             
-            if (isRightClick || isDrawZone) {
+            const isDesktop = this.scene.sys.game.device.os.desktop;
+            const isRightClick = pointer.rightButtonDown();
+            const isRightSide = pointer.x > this.scene.scale.width * 0.4;
+
+            let shouldStart = false;
+
+            if (isDesktop) {
+                if (isRightClick) shouldStart = true;
+            } else {
+                if (isRightSide) shouldStart = true;
+            }
+            
+            if (shouldStart) {
                 this.isDrawing = true;
+                this.drawingPointerId = pointer.id; // LOCK to this finger
                 this.points = [{ x: pointer.x, y: pointer.y }];
                 this.emitter.setPosition(pointer.x, pointer.y);
                 this.emitter.start();
@@ -63,7 +79,7 @@ export class GestureManager {
         });
 
         this.scene.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-            if (this.isDrawing) {
+            if (this.isDrawing && pointer.id === this.drawingPointerId) {
                 this.points.push({ x: pointer.x, y: pointer.y });
                 this.emitter.setPosition(pointer.x, pointer.y);
                 
@@ -75,8 +91,9 @@ export class GestureManager {
         });
 
         this.scene.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
-            if (this.isDrawing) {
+            if (this.isDrawing && pointer.id === this.drawingPointerId) {
                 this.isDrawing = false;
+                this.drawingPointerId = null;
                 this.emitter.stop();
                 
                 if (this.graphics) {
