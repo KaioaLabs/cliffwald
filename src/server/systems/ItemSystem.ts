@@ -48,12 +48,6 @@ export class ItemSystem {
         item.type = itemDef.Type.toLowerCase(); // 'card', 'potion', etc.
         item.itemId = randomKey;
 
-        // Legacy support for numeric card IDs if needed (parse from card_X)
-        if (randomKey.startsWith('card_')) {
-            const numId = parseInt(randomKey.split('_')[1]);
-            if (!isNaN(numId)) item.dataId = numId;
-        }
-
         this.room.state.items.set(id, item);
         console.log(`[ITEM] Spawned ${itemDef.Name} (${randomKey}) at ${Math.floor(x)},${Math.floor(y)}`);
     }
@@ -91,14 +85,9 @@ export class ItemSystem {
                 invItem.itemId = worldItem.itemId;
                 invItem.qty = 1;
                 player.inventory.push(invItem);
-            }
-
-            // 2. Legacy Card Collection (for Album UI)
-            if (worldItem.type === 'card' && worldItem.dataId > 0) {
-                if (!player.cardCollection.includes(worldItem.dataId)) {
-                    player.cardCollection.push(worldItem.dataId);
-                } else {
-                    // Duplicate card bonus
+            } else {
+                // Bonus for Duplicate Cards
+                if (worldItem.type === 'card') {
                     this.room.prestigeSystem.addPrestige(sessionId, 5);
                 }
             }
