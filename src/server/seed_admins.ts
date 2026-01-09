@@ -21,7 +21,7 @@ export async function seedAdmins() {
                         create: {
                             x: CONFIG.SPAWN_POINT.x,
                             y: CONFIG.SPAWN_POINT.y,
-                            skin: "teacher", // Special skin for admin
+                            skin: "player_idle", // Normal student skin
                             house: "ignis",
                             prestige: 9999 // Admin privilege
                         }
