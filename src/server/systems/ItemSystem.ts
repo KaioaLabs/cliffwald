@@ -60,9 +60,9 @@ export class ItemSystem {
         if (!worldItem || !player || !entity || !entity.body) return;
 
         const pos = entity.body.translation();
-        const dist = Math.sqrt((pos.x - worldItem.x)**2 + (pos.y - worldItem.y)**2);
+        const distSq = (pos.x - worldItem.x)**2 + (pos.y - worldItem.y)**2;
 
-        if (dist < 60) {
+        if (distSq < CONFIG.VALIDATION.INTERACTION_RADIUS_SQ) {
             const itemDef = ITEM_REGISTRY[worldItem.itemId];
             if (!itemDef) {
                 this.room.state.items.delete(worldItemId);

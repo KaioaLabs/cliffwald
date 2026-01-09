@@ -28,10 +28,6 @@ export const CONFIG = {
     // Map
     SPAWN_POINT: { x: 256, y: 256 },
     
-    // Chat
-    CHAT_MAX_LENGTH: 100,
-    CHAT_HISTORY_SIZE: 50,
-    
     // Time System (Non-Linear 60-minute Cycle)
     // Day Phase: 45 mins real time -> 06:00 to 22:00 (16h game time)
     // Night Phase: 15 mins real time -> 22:00 to 06:00 (8h game time)
@@ -105,6 +101,20 @@ export const CONFIG = {
     // Database & Persistence
     DB_CONFIG: {
         AUTO_SAVE_INTERVAL: 300000 // 5 minutes
+    },
+
+    // Security & Validation
+    VALIDATION: {
+        INTERACTION_RADIUS: 50, // px (Distance to pick up items)
+        INTERACTION_RADIUS_SQ: 2500 // 50^2
+    },
+
+    // Chat System
+    CHAT: {
+        MAX_LENGTH: 100,
+        HISTORY_SIZE: 50,
+        LOCAL_RADIUS: 400, // px (Radius for local chat)
+        LOCAL_RADIUS_SQ: 160000 // 400^2
     },
     
     // Rock Paper Scissors Logic
