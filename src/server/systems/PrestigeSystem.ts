@@ -12,22 +12,13 @@ export class PrestigeSystem {
      * Adds prestige points to a student and their house.
      */
     public addPrestige(sessionId: string, amount: number) {
+        // SYSTEM PAUSED: No points awarded until official GDD update.
+        return;
+        
+        /*
         const playerState = this.room.state.players.get(sessionId);
-        const entity = this.room.entities.get(sessionId);
-        if (!playerState || !entity) return;
-
-        const house = entity.ai?.house || this.getHouseBySkin(playerState.skin);
-        if (!house) return;
-
-        // 1. Update Student Balance
-        playerState.personalPrestige += amount;
-
-        // 2. Update House Total
-        if (house === 'ignis') this.room.state.ignisPoints += amount;
-        else if (house === 'axiom') this.room.state.axiomPoints += amount;
-        else if (house === 'vesper') this.room.state.vesperPoints += amount;
-
-        console.log(`[PRESTIGE] ${playerState.username} (+${amount}) -> House ${house}`);
+        // ... (Logic Disabled)
+        */
     }
 
     /**

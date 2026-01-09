@@ -86,10 +86,12 @@ export class ItemSystem {
                 invItem.qty = 1;
                 player.inventory.push(invItem);
             } else {
-                // Bonus for Duplicate Cards
+                // Bonus for Duplicate Cards (DISABLED)
+                /*
                 if (worldItem.type === 'card') {
                     this.room.prestigeSystem.addPrestige(sessionId, 5);
                 }
+                */
             }
 
             // Notify

@@ -21,10 +21,23 @@ A social MMO magic academy school-sim.
 *   **Architecture:** Modular Client (AssetManager, UIScene) + Unified ECS Entity System.
 *   **Visuals:** Hi-Bit Pixel Art with Normal Maps and Polar Shadows.
 
-## 6. World Population
-*   **24 Students (Echoes):** Follow class schedules and rivalries.
-*   **4 Teachers:** Static overseers.
-*   **Classroom:** Fixed seating arrangements based on map data.
+## 6. World Population & Identity (Finite Persistence)
+
+The world has a **Finite Population Cap** (initially 24 Student Slots).
+
+### The "Body Claiming" Mechanic
+1.  **Initial State:** The world is populated by 24 AI-controlled **Echoes** with generic names (e.g., "Ignis Student #3").
+2.  **The Baptism (First Login):** When a new player creates an account:
+    *   The system finds the first available Echo of their chosen House.
+    *   The player **permanently claims** that physical slot.
+    *   The Echo's original generic name is **overwritten forever** with the Player's username.
+3.  **Offline Presence:** When a player logs out:
+    *   Their character **does not disappear**.
+    *   It reverts to AI control (becoming an Echo again) but **keeps the Player's Name and Appearance**.
+    *   Other players will see "Xabi" walking to class, eating, or sleeping, even if the real Xabi is offline.
+4.  **Reconnection:** Upon returning, the player re-possesses their specific, named body. They do not get a random one.
+
+*Implication:* The school feels truly alive with specific, known inhabitants, not random instances.
 
 ## 7. The Living Schedule
 Activities drive the world state.

@@ -129,27 +129,13 @@ export class WorldRoom extends Room<GameState> {
                 console.log(`[GRADUATION] House ${winner} won! Resetting points.`);
             }
             
+            /* PRESTIGE SYSTEM PAUSED (Pending Official Design)
             // PRESTIGE REWARDS
             if (currentHour !== lastRewardedHour) {
                 lastRewardedHour = currentHour;
-                this.entities.forEach((entity, sessionId) => {
-                    const spots = entity.ai?.routineSpots || (entity as any).tempSpots;
-                    if (spots) {
-                        const pos = entity.body?.translation();
-                        if (pos) {
-                            let target = spots.sleep;
-                            if (currentHour >= 7 && currentHour < 8) target = spots.eat;
-                            else if (currentHour >= 8 && currentHour < 10) target = spots.class;
-                            else if (currentHour >= 19 && currentHour < 21) target = spots.eat;
-                            else if (currentHour >= 17 && currentHour < 19) target = spots.class;
-
-                            if (Math.sqrt((target.x - pos.x)**2 + (target.y - pos.y)**2) < 50) {
-                                this.prestigeSystem.addPrestige(sessionId, 5);
-                            }
-                        }
-                    }
-                });
+                // ... (Logic removed)
             }
+            */
             
             MovementSystem(this.world);
             this.duelSystem.update();
@@ -413,7 +399,8 @@ export class WorldRoom extends Room<GameState> {
             const oldState = this.state.players.get(client.sessionId);
             const echoState = new Player();
             echoState.id = slotId;
-            echoState.username = `${house.charAt(0).toUpperCase() + house.slice(1)} Student`;
+            // PERSISTENCE: The Echo keeps the Player's name while offline
+            echoState.username = oldState?.username || `${house.charAt(0).toUpperCase() + house.slice(1)} Student`;
             echoState.x = entity.body.translation().x;
             echoState.y = entity.body.translation().y;
             echoState.skin = oldState?.skin || "player_idle";

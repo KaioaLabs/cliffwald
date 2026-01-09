@@ -31,7 +31,10 @@
 ## Mecánicas de Juego Activas
 - **Magia Táctil**: Input $1 Unistroke, Feedback de Partículas y Luz Dinámica.
 - **Sistema de Duelos**: Zona "Tatami" con reglas RPS (Piedra-Papel-Tijera). IA con rivalidad de casas y "strafe".
-- **Población**: 24 Echos (Persistentes) + 4 Profesores (Estáticos/Vigilantes).
+- **Identidad Permanente (Body Claiming)**:
+    - Población finita (24 slots).
+    - Al crear cuenta, el jugador **sobrescribe** un Echo (NPC) permanentemente.
+    - Al desconectar, el personaje se queda como NPC con el nombre del jugador. **Persistencia 24/7**.
 
 ## Código y Estilo
 - **Lenguaje**: TypeScript estricto. Evitar `any` en capas de red.
