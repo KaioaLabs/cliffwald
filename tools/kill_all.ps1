@@ -4,6 +4,7 @@ Write-Host "[SAFE KILL] Analizando procesos de Cliffwald2D..."
 $signatures = @(
     'user-data-dir=*tmp_chrome_data',   # Solo Chrome de este proyecto
     'src/server/index.ts',              # Solo nuestro Server
+    'dist-server/server/index.js',      # Server en Produccion
     'vite --port 3000',                 # Solo nuestro Cliente en puerto 3000
     'tools/dev_launcher.js',            # Nuestro lanzador
     'tools/log_aggregator.ps1',         # Nuestro logger

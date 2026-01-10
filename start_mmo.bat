@@ -34,11 +34,15 @@ if errorlevel 1 goto START_MMO
 :START_MMO
 echo.
 
-[1/2] Cleaning ports...
-call tools\kill_all.bat >nul 2>&1
+echo [1/2] Cleaning ports...
+call tools\kill_all.bat
 echo [2/2] Launching Environment...
-npm run dev
-pause
+call npm run dev
+if %errorlevel% neq 0 (
+    echo [ERROR] npm run dev failed with error code %errorlevel%.
+    echo Check logs above for details.
+    pause
+)
 goto MAIN_MENU
 
 :TILED
