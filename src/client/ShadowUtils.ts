@@ -2,18 +2,9 @@ import Phaser from 'phaser';
 
 export class ShadowUtils {
     /**
-     * Updates an Image-based shadow using Skew/Shear to simulate projection.
-     * Fallback from Quad due to runtime missing constructor issues.
-     * 
-     * @param shadow The Image object serving as the shadow.
-     * @param sourceX The x position of the caster (feet).
-     * @param sourceY The y position of the caster (feet).
-     * @param sourceScaleX The scale x of the caster.
-     * @param sourceScaleY The scale y of the caster.
-     * @param sourceDepth The depth of the caster.
-     * @param height The visual height of the caster.
-     * @param lightX The x position of the light source.
-     * @param lightY The y position of the light source.
+     * Updates an Image-based shadow using Skew/Shear deformation.
+     * This ensures the 'feet' or base of the shadow remains aligned with the object (stuck vertices),
+     * while the top shears away from the light source. Ideal for wide objects like tables.
      */
     static updateShadow(
         shadow: Phaser.GameObjects.Image,
@@ -26,53 +17,36 @@ export class ShadowUtils {
         lightX: number,
         lightY: number
     ) {
-        // Vector from Light to Object
+        // 1. Vector Light -> Object
         const dx = sourceX - lightX;
         const dy = sourceY - lightY;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
-        // Position: Anchored at feet
-        // If the sprite origin is (0.5, 1.0), setting position to sourceX, sourceY is correct.
+        // 2. Position & Anchor
+        // We anchor at the feet (0.5, 1.0) so the base is the pivot
         shadow.setPosition(sourceX, sourceY);
-        shadow.setOrigin(0.5, 1.0); 
+        shadow.setOrigin(0.5, 1.0);
         shadow.setDepth(sourceDepth - 1);
-        
-        // Intensity/Alpha fade
-        shadow.setAlpha(Math.max(0.1, 0.6 - (dist / 1000)));
 
-        // SKEW LOGIC
-        // We want the shadow to lean away from the light.
-        // If light is to the LEFT (negative dx), shadow leans RIGHT (positive skew).
+        // 3. DEFORMATION (SKEW) Logic
+        // Instead of rotating, we SKEW the X axis based on the horizontal light angle.
+        // A factor of 300.0 dampens the skew so it doesn't stretch to infinity.
+        // We clamp it to avoid visual artifacts at extreme angles.
+        const rawSkew = dx / 300.0; 
+        const clampedSkew = Math.max(-1.5, Math.min(1.5, rawSkew));
         
-        // Skew factor: How much to slant per pixel of height?
-        // Proportional to the angle of incidence?
-        // Simple approx: dx / height factor
-        
-        const skewX = (dx / 300) * -1; // Invert? Experimentally check.
-        // If light is at 0, obj at 100. dx = 100. Light is left. Shadow should point right.
-        // Skew X > 0 leans top to the right? No, Skew X leans the horizontal axis?
-        // Phaser setSkewX(rad). 
-        
-        shadow.skewX = Math.atan2(dx, 300); // Use atan to cap it nicely
-        
-        // Height (Length of shadow)
-        // Dependent on Y distance? Or just general distance?
-        // In top down, "Y" is "Depth".
-        // If light is "below" (positive Y relative to screen?), shadow goes "up"?
-        // Usually top down lights are "above" the ground plane.
-        
-        // Let's stick to a rotation approach combined with scaleY for length
-        // But Skew is better for "grounding".
-        
-        // Reset rotation to 0 if using Skew
-        shadow.setRotation(0);
-        
-        // Scale Y to simulate length based on how low the light is (distance)
-        // Longer shadow if light is far?
-        const lengthScale = 1.0 + (dist / 1000);
-        shadow.setScale(sourceScaleX, sourceScaleY * lengthScale * 0.5); // Flatten it a bit
-        
-        // Tint
+        shadow.setRotation(0); // Reset rotation (we use Skew instead)
+        shadow.skewX = -clampedSkew; // Invert skew to point away from light
+
+        // 4. Length Projection (Scale Y)
+        // The further the light, or the lower it is (y-axis), the longer the shadow.
+        // We flatten it (0.6 base) to look like it's on the ground.
+        const shadowLength = 0.6 + (Math.abs(dy) / 1000.0);
+        shadow.setScale(sourceScaleX, sourceScaleY * shadowLength);
+
+        // 5. Visuals
+        const alpha = Math.max(0.1, 0.5 - (dist / 1500));
+        shadow.setAlpha(alpha);
         shadow.setTint(0x000000);
     }
 }

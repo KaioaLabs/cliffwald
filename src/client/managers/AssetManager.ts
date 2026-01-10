@@ -90,5 +90,47 @@ export class AssetManager {
                 starCanvas.refresh();
             }
         }
+
+        // Window Frame (Simple Gothic Arch / Rect)
+        if (!scene.textures.exists('window_frame')) {
+            const wCanvas = scene.textures.createCanvas('window_frame', 32, 48);
+            if (wCanvas) {
+                const ctx = wCanvas.getContext();
+                // Frame
+                ctx.fillStyle = '#2d1e15'; // Dark Wood
+                ctx.fillRect(0, 0, 32, 48);
+                // Glass (Blue-ish dark)
+                ctx.fillStyle = '#1a1a2e';
+                ctx.fillRect(2, 2, 28, 44);
+                // Crossbars
+                ctx.fillStyle = '#3e2723';
+                ctx.fillRect(15, 2, 2, 44); // Vertical
+                ctx.fillRect(2, 16, 28, 2); // Horizontal
+                wCanvas.refresh();
+            }
+        }
+
+        // Window Light Ray (Gradient Trapezoid)
+        if (!scene.textures.exists('window_light_ray')) {
+            const rCanvas = scene.textures.createCanvas('window_light_ray', 64, 256);
+            if (rCanvas) {
+                const ctx = rCanvas.getContext();
+                // Gradient
+                const grd = ctx.createLinearGradient(0, 0, 0, 256);
+                grd.addColorStop(0, 'rgba(255, 255, 255, 0.4)'); // Bright top
+                grd.addColorStop(0.3, 'rgba(255, 255, 255, 0.2)'); 
+                grd.addColorStop(1, 'rgba(255, 255, 255, 0.0)'); // Fade out
+
+                ctx.fillStyle = grd;
+                ctx.beginPath();
+                ctx.moveTo(24, 0); // Top Left (Narrow)
+                ctx.lineTo(40, 0); // Top Right
+                ctx.lineTo(64, 256); // Bottom Right (Wide)
+                ctx.lineTo(0, 256); // Bottom Left
+                ctx.closePath();
+                ctx.fill();
+                rCanvas.refresh();
+            }
+        }
     }
 }
