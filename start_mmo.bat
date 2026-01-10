@@ -8,21 +8,19 @@ echo ========================================================
 echo               CLIFFWALD 2D - CONTROL CENTER
 echo ========================================================
 echo.
-
-  ARCHITECTURE: UNIFIED POSTGRESQL (Supabase)
-  STATUS:       READY
-
-
-========================================================
-  ACTIONS:
-
-  1. [START]  Launch MMO (Server + Client + Logs)
-  2. [TOOLS]  Open Tiled Map Editor
-  3. [CLEAN]  Kill All Node/Java Processes
-  4. [EXIT]   Close Controller
-
-
-========================================================
+echo   ARCHITECTURE: UNIFIED POSTGRESQL (Supabase)
+echo   STATUS:       READY
+echo.
+echo ========================================================
+echo   ACTIONS:
+echo.
+echo   1. [START]  Launch MMO (Server + Client + Logs)
+echo   2. [TOOLS]  Open Tiled Map Editor
+echo   3. [CLEAN]  Kill All Node/Java Processes
+echo   4. [EXIT]   Close Controller
+echo.
+echo ========================================================
+echo.
 
 choice /c 1234 /n /m "Select Option [1-4]: "
 
