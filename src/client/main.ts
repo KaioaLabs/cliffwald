@@ -157,8 +157,12 @@ export class GameScene extends Phaser.Scene {
 
             buildPhysics(this.physicsWorld, this.cache.tilemap.get('map').data);
 
-            this.lightManager = new LightManager(this);
-            this.lightManager.initFromMap(map);
+            try {
+                this.lightManager = new LightManager(this);
+                this.lightManager.initFromMap(map);
+            } catch (e) {
+                console.error("[LIGHTS] Initialization Failed:", e);
+            }
 
             this.projectileManager = new VisualProjectileManager(this);
 
@@ -511,20 +515,22 @@ export class GameScene extends Phaser.Scene {
 
         // Update Static Object Shadows (Tables)
         this.tableShadows.forEach(shadow => {
-            const baseX = shadow.getData('baseX');
-            const baseY = shadow.getData('baseY');
-            
-            ShadowUtils.updateShadow(
-                shadow,
-                baseX,
-                baseY,
-                1.0,  // Scale X
-                1.0,  // Scale Y
-                -99,  // Depth
-                32,   // Height of the object for shadow offset
-                worldPoint.x,
-                worldPoint.y
-            );
+            try {
+                const baseX = shadow.getData('baseX');
+                const baseY = shadow.getData('baseY');
+                
+                ShadowUtils.updateShadow(
+                    shadow,
+                    baseX,
+                    baseY,
+                    1.0,  // Scale X
+                    1.0,  // Scale Y
+                    -99,  // Depth
+                    32,   // Height of the object for shadow offset
+                    worldPoint.x,
+                    worldPoint.y
+                );
+            } catch (e) { }
         });
         
         if (this.debugManager) this.debugManager.update();
@@ -567,7 +573,11 @@ export class GameScene extends Phaser.Scene {
         }
 
         if (this.lightManager) {
-            this.lightManager.update(decimalHour);
+            try {
+                this.lightManager.update(decimalHour);
+            } catch (e) {
+                console.error("[LIGHTS] Update Failed:", e);
+            }
         }
 
         if (this.uiManager) {
