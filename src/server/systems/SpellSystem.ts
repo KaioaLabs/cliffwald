@@ -127,11 +127,19 @@ export class SpellSystem {
              
              if (attacker.duelScore >= 2) {
                  // WINNER DECLARED
-                 console.log(`[DUEL] ${attacker.username} WINS MATCH against ${victim.username}!`);
+                 console.log(`[COMBAT] ${attacker.username} defeated ${victim.username}!`);
                  
                  attacker.duelScore = 0;
-                 // KNOCKOUT: Trigger Health System
-                 this.room.healthSystem.knockOut(victim, victimId);
+                 victim.duelScore = 0; // Reset score for both scenarios
+
+                 // Branch Logic: Duel Zone vs World
+                 if (victim.inDuel) {
+                     // DUEL MODE: Eject to side
+                     this.room.duelSystem.resolveLoss(victimId);
+                 } else {
+                     // WORLD MODE: Send to Infirmary
+                     this.room.healthSystem.knockOut(victim, victimId);
+                 }
 
                  // Stop fighting logic for AI
                  const stopAI = (id: string) => {

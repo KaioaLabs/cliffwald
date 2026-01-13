@@ -269,6 +269,23 @@ export class GameScene extends Phaser.Scene {
             this.cameras.main.startFollow(this.cameraTarget, true, 0.2, 0.2);
             this.cameras.main.centerOn(1600, 1000);
 
+            // --- VISUALS: DUEL ZONE ---
+            CONFIG.DUEL_ZONES.forEach(zone => {
+                const duelZone = this.add.circle(zone.x, zone.y, zone.radius, 0xaa0000, 0.2);
+                duelZone.setStrokeStyle(4, 0xff0000, 0.5);
+                duelZone.setDepth(-90);
+                
+                // Tatami inner ring (decor)
+                this.add.circle(zone.x, zone.y, zone.radius * 0.3, 0xaa0000, 0.1).setDepth(-90);
+                
+                // Ring Number
+                this.add.text(zone.x, zone.y, (zone.id + 1).toString(), {
+                    fontSize: '64px',
+                    color: '#ffffff',
+                    alpha: 0.2
+                }).setOrigin(0.5).setDepth(-90);
+            });
+
             this.gestureManager = new GestureManager(this, uiScene);
             this.gestureManager.onGestureRecognized = (id: string, score: number, centroid: {x: number, y: number}) => {
                 const sessionId = this.room?.sessionId || "";
@@ -495,70 +512,77 @@ export class GameScene extends Phaser.Scene {
                 attach(this.room.state.items, 'onAdd', (item: any, id: string) => {
                     if (this.itemVisuals.has(id)) return;
                     
-                    // Improved Visuals: Use Card Frame if available, else Diamond
-                    let sprite: Phaser.GameObjects.Image | Phaser.GameObjects.Shape;
-                    
-                    if (this.textures.exists('frame_bronze')) {
-                        sprite = this.add.image(item.x, item.y, 'frame_bronze');
-                        (sprite as Phaser.GameObjects.Image).setDisplaySize(20, 28);
-                    } else {
-                        sprite = this.add.rectangle(item.x, item.y, 20, 20, 0x00FFFF);
-                        (sprite as Phaser.GameObjects.Shape).setStrokeStyle(2, 0xFFFFFF);
-                        sprite.rotation = 0.785; // 45 deg
-                    }
-                    
-                    sprite.setDepth(-5); // Higher than floor (-100), lower than players (0)
-                    
-                    // Floating Animation
-                    this.tweens.add({
-                        targets: sprite,
-                        y: item.y - 8,
-                        duration: 1500,
-                        yoyo: true,
-                        repeat: -1,
-                        ease: 'Sine.easeInOut'
-                    });
+                    let sprite: Phaser.GameObjects.GameObject;
 
-                    sprite.setInteractive({ cursor: 'pointer' });
-                    
-                    sprite.on('pointerdown', () => {
-                        // 1. Visual Feedback (Pop)
+                    // --- TIMER VISUAL ---
+                    if (item.type === 'timer') {
+                        const text = this.add.text(item.x, item.y, item.itemId, {
+                            fontSize: '48px',
+                            fontFamily: 'serif',
+                            color: '#FF0000',
+                            stroke: '#000000',
+                            strokeThickness: 6
+                        }).setOrigin(0.5).setDepth(100);
+                        
+                        // Pulse Effect
                         this.tweens.add({
-                            targets: sprite,
-                            scaleX: sprite.scaleX * 0.8,
-                            scaleY: sprite.scaleY * 0.8,
-                            duration: 100,
-                            yoyo: true
+                            targets: text,
+                            scale: 1.2,
+                            duration: 500,
+                            yoyo: true,
+                            repeat: -1
                         });
 
-                        // 2. Distance Check (Client Side Prediction/Feedback)
-                        const localPlayer = this.playerController.players.get(this.network.room.sessionId);
-                        if (localPlayer && localPlayer.visual?.sprite) {
-                            const p = localPlayer.visual.sprite;
-                            const dist = Phaser.Math.Distance.Between(p.x, p.y, item.x, item.y);
-                            
-                            if (dist > 120) { // Slight buffer over server 100
-                                // Show Floating Text Feedback
-                                const txt = this.add.text(item.x, item.y - 20, "Too far!", {
-                                    fontSize: '12px',
-                                    color: '#ff0000',
-                                    stroke: '#000000',
-                                    strokeThickness: 2
-                                }).setOrigin(0.5);
-                                txt.setDepth(100);
-                                
-                                this.tweens.add({
-                                    targets: txt,
-                                    y: item.y - 40,
-                                    alpha: 0,
-                                    duration: 1000,
-                                    onComplete: () => txt.destroy()
-                                });
-                            } else {
-                                this.network.room?.send("collect", id);
-                            }
+                        // Watch for changes to update number
+                        item.onChange(() => {
+                            text.setText(item.itemId);
+                        });
+
+                        sprite = text;
+                    } 
+                    // --- STANDARD ITEM VISUAL ---
+                    else {
+                        let visual: Phaser.GameObjects.Image | Phaser.GameObjects.Shape;
+                        
+                        if (this.textures.exists('frame_bronze')) {
+                            visual = this.add.image(item.x, item.y, 'frame_bronze');
+                            (visual as Phaser.GameObjects.Image).setDisplaySize(20, 28);
+                        } else {
+                            visual = this.add.rectangle(item.x, item.y, 20, 20, 0x00FFFF);
+                            (visual as Phaser.GameObjects.Shape).setStrokeStyle(2, 0xFFFFFF);
+                            visual.rotation = 0.785; // 45 deg
                         }
-                    });
+                        
+                        visual.setDepth(-5);
+                        
+                        this.tweens.add({
+                            targets: visual,
+                            y: item.y - 8,
+                            duration: 1500,
+                            yoyo: true,
+                            repeat: -1,
+                            ease: 'Sine.easeInOut'
+                        });
+
+                        visual.setInteractive({ cursor: 'pointer' });
+                        visual.on('pointerdown', () => {
+                            this.tweens.add({ targets: visual, scaleX: visual.scaleX * 0.8, scaleY: visual.scaleY * 0.8, duration: 100, yoyo: true });
+                            
+                            const localPlayer = this.playerController.players.get(this.network.room.sessionId);
+                            if (localPlayer && localPlayer.visual?.sprite) {
+                                const p = localPlayer.visual.sprite;
+                                const dist = Phaser.Math.Distance.Between(p.x, p.y, item.x, item.y);
+                                if (dist > 120) {
+                                    const txt = this.add.text(item.x, item.y - 20, "Too far!", { fontSize: '12px', color: '#ff0000', stroke: '#000000', strokeThickness: 2 }).setOrigin(0.5);
+                                    txt.setDepth(100);
+                                    this.tweens.add({ targets: txt, y: item.y - 40, alpha: 0, duration: 1000, onComplete: () => txt.destroy() });
+                                } else {
+                                    this.network.room?.send("collect", id);
+                                }
+                            }
+                        });
+                        sprite = visual;
+                    }
                     
                     this.itemVisuals.set(id, sprite);
                 });

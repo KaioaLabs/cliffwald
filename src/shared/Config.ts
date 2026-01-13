@@ -94,11 +94,20 @@ export const CONFIG = {
     INFIRMARY_EXIT: { x: 1600, y: 1050 },
 
     // Duel / Combat
-    DUEL_ZONE: {
-        x: 2640, // Reusing Training Grounds location
-        y: 1520,
-        radius: 300 // Size of the 'Tatami' area
-    },
+    DUEL_ZONES: [
+        { x: 2200, y: 1200, radius: 300, id: 0 },
+        { x: 3000, y: 1200, radius: 300, id: 1 },
+        { x: 2200, y: 1800, radius: 300, id: 2 },
+        { x: 3000, y: 1800, radius: 300, id: 3 }
+    ],
+    DUEL_EXITS: [
+        { x: 2200, y: 1550 },
+        { x: 3000, y: 1550 },
+        { x: 2200, y: 2150 },
+        { x: 3000, y: 2150 }
+    ],
+    DUEL_TIMEOUT_MS: 60000, // 1 Minute Max Duel
+    DUEL_COOLDOWN_MS: 5000, // Time before loser can re-enter
 
     // Spell Configuration
     SPELL_CONFIG: {
