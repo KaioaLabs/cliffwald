@@ -12,7 +12,7 @@ export class SpawnManager {
     private entities: Map<string, Entity>;
     private readonly MAX_ECHOES = 50;
 
-    private seats = {
+    public seats = {
         bed: new Map<number, {x: number, y: number}>(),
         class: new Map<number, {x: number, y: number}>(),
         food: new Map<number, {x: number, y: number}>()

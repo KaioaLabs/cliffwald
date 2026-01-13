@@ -15,6 +15,15 @@
     - Eliminados ~60MB de binarios generados basura (`.node`, `.dll`).
     - Actualizado `.gitignore` y corregidos tests unitarios (`vitest`).
 
+## Hitos Técnicos (v0.1.4 - Ciclo de Vida y Clases)
+- **Sistema de Clases Completo**:
+    - Implementado minijuego de 3 minutos con recompensa (5 PA, 50 XP) para jugadores.
+    - Echoes asisten pasivamente (contador visual "IN CLASS") y ganan mantenimiento (1 PA).
+    - Verificado con test de integración `src/server/audit_class_system.test.ts`.
+- **IA de Echoes Mejorada**:
+    - En "Free Time", el 50% de los Echoes van al Patio (Social) y el 50% a la Zona de Duelos (Entrenamiento).
+    - Integración automática del estado `duel` al llegar a la zona de entrenamiento.
+
 ## Arquitectura Modular & Build Pipeline (Actualizado Enero 2026)
 - **Servidor Autoritativo**: Node.js + Colyseus + Express 5.
 - **Serving Strategy**: El servidor sirve el cliente estático directamente desde la raíz `dist-client`.

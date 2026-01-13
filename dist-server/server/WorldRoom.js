@@ -56,9 +56,11 @@ const fs = __importStar(require("fs/promises"));
 const path_1 = __importDefault(require("path"));
 const DuelSystem_1 = require("./systems/DuelSystem");
 const ItemSystem_1 = require("./systems/ItemSystem");
+const ShopSystem_1 = require("./systems/ShopSystem");
 const ChatManager_1 = require("./managers/ChatManager");
 const PersistenceSystem_1 = require("./systems/PersistenceSystem");
 const TimeManager_1 = require("../shared/managers/TimeManager");
+const HealthSystem_1 = require("./systems/HealthSystem");
 class WorldRoom extends colyseus_1.Room {
     constructor() {
         super(...arguments);
@@ -66,6 +68,8 @@ class WorldRoom extends colyseus_1.Room {
         this.playerDbIds = new Map();
         // Hidden Server-Side State
         this.alignmentMap = new Map(); // <sessionId, alignmentScore> (-100 to +100)
+        this.attendanceLog = new Set(); // Tracks awarded attendance: "Day_WindowIndex_SessionId"
+        this.attendanceTimer = 0;
         this.spawnPos = { x: 300, y: 300 };
         // Security: Cooldown Tracking
         this.lastCastTimes = new Map();
@@ -86,7 +90,7 @@ class WorldRoom extends colyseus_1.Room {
         this.state.axiomPoints = 0;
         this.state.vesperPoints = 0;
         // Time is absolute now
-        this.state.worldStartTime = Date.now();
+        this.state.worldStartTime = Config_1.CONFIG.SEASON_START_DATE;
         await rapier2d_compat_1.default.init();
         const gravity = { x: 0.0, y: 0.0 };
         this.physicsWorld = new rapier2d_compat_1.default.World(gravity);
@@ -97,8 +101,10 @@ class WorldRoom extends colyseus_1.Room {
         this.prestigeSystem = new PrestigeSystem_1.PrestigeSystem(this);
         this.duelSystem = new DuelSystem_1.DuelSystem(this);
         this.itemSystem = new ItemSystem_1.ItemSystem(this);
+        this.shopSystem = new ShopSystem_1.ShopSystem(this);
         this.chatManager = new ChatManager_1.ChatManager(this);
         this.persistenceSystem = new PersistenceSystem_1.PersistenceSystem(this.entities, this.state.players, this.playerDbIds);
+        this.healthSystem = new HealthSystem_1.HealthSystem(this);
         try {
             const mapPath = path_1.default.join(process.cwd(), "assets/maps/world.json");
             const mapFile = await fs.readFile(mapPath, "utf-8");
@@ -136,6 +142,12 @@ class WorldRoom extends colyseus_1.Room {
             }
             // Note: We can also track Day changes here if needed for events
             // if (this.previousDay !== currentDay) { console.log(`[CALENDAR] Day ${currentDay} of Week ${currentWeek}`); }
+            // --- ATTENDANCE CHECK (ECHO MAINTENANCE) ---
+            this.attendanceTimer += deltaTime;
+            if (this.attendanceTimer > 1000) { // Check every 1 second
+                this.attendanceTimer = 0;
+                this.checkClassAttendance(currentHour);
+            }
             // Detect YEAR END / GRADUATION
             if (this.state.currentCourse < currentCourse) {
                 let winner = "Tie";
@@ -169,6 +181,7 @@ class WorldRoom extends colyseus_1.Room {
             });
             this.spellSystem.update(deltaTime);
             this.itemSystem.update(deltaTime);
+            this.healthSystem.update();
             this.physicsWorld.step(this.eventQueue);
             // SYNC PHYSICS TO STATE
             this.entities.forEach((entity, sessionId) => {
@@ -189,6 +202,10 @@ class WorldRoom extends colyseus_1.Room {
             logTimer += deltaTime;
         }, 1000 / Config_1.CONFIG.SERVER_FPS);
         this.onMessage("move", (client, input) => {
+            // Check Unconscious State
+            const playerState = this.state.players.get(client.sessionId);
+            if (playerState && playerState.unconsciousUntil > 0)
+                return; // INPUT BLOCKED
             const entity = this.entities.get(client.sessionId);
             if (entity && entity.input) {
                 entity.input.left = !!input.left;
@@ -216,6 +233,9 @@ class WorldRoom extends colyseus_1.Room {
         this.onMessage("collect", (client, itemId) => {
             this.itemSystem.tryCollectItem(client.sessionId, itemId);
         });
+        this.onMessage("buy", (client, itemId) => {
+            this.shopSystem.handleBuy(client.sessionId, itemId);
+        });
         this.onMessage("ping", (client, timestamp) => {
             client.send("pong", timestamp);
         });
@@ -225,12 +245,114 @@ class WorldRoom extends colyseus_1.Room {
         // Start Auto-Save
         this.persistenceSystem.startAutoSave();
     }
+    checkClassAttendance(currentHour) {
+        // 1. Identify Schedule Window
+        const scheduleIndex = Config_1.CONFIG.ACADEMIC_SCHEDULE.findIndex(item => {
+            if (item.start < item.end)
+                return currentHour >= item.start && currentHour < item.end;
+            return currentHour >= item.start || currentHour < item.end;
+        });
+        if (scheduleIndex === -1)
+            return;
+        const item = Config_1.CONFIG.ACADEMIC_SCHEDULE[scheduleIndex];
+        // We only care about CLASS activity for now
+        if (item.activity !== 'class')
+            return;
+        const now = Date.now();
+        const { currentCourse, currentDay } = (0, Config_1.getAcademicProgress)(this.state.worldStartTime, now);
+        this.entities.forEach((entity, sessionId) => {
+            if (!entity.body)
+                return;
+            const playerState = this.state.players.get(sessionId);
+            if (!playerState)
+                return;
+            // --- REAL PLAYER LOGIC ---
+            if (!entity.ai) {
+                // If already attending class
+                if (playerState.isAttendingClass) {
+                    // Check completion
+                    if (now > playerState.classEndsAt) {
+                        playerState.isAttendingClass = false;
+                        playerState.classEndsAt = 0;
+                        // Reward!
+                        playerState.academicPoints += 5; // Good job!
+                        playerState.xp += 50;
+                        const client = this.clients.find(c => c.sessionId === sessionId);
+                        if (client) {
+                            client.send("class_completed", { grade: "A", points: 5 });
+                            this.chatManager.broadcastSystemMessage(`${playerState.username} finished class!`, "TEACHER");
+                        }
+                    }
+                    return; // Skip proximity check if already in class
+                }
+                // Check Proximity to Desks
+                // Optimization: Only check if velocity is low (not running through room)
+                const vel = entity.body.linvel();
+                if (Math.abs(vel.x) < 0.1 && Math.abs(vel.y) < 0.1) {
+                    const pos = entity.body.translation();
+                    let foundDesk = false;
+                    // Check against all class seats
+                    for (const [seatId, seatPos] of this.spawnManager.seats.class) {
+                        const dx = pos.x - seatPos.x;
+                        const dy = pos.y - seatPos.y;
+                        if (dx * dx + dy * dy < 900) { // 30px radius
+                            foundDesk = true;
+                            break;
+                        }
+                    }
+                    if (foundDesk) {
+                        console.log(`[CLASS] Player ${playerState.username} sat at desk. Starting Class...`);
+                        playerState.isAttendingClass = true;
+                        playerState.classEndsAt = now + 180000; // 3 Minutes
+                        const client = this.clients.find(c => c.sessionId === sessionId);
+                        if (client) {
+                            client.send("start_minigame", { duration: 180000 });
+                        }
+                    }
+                }
+            }
+            // --- ECHO LOGIC (Maintenance) ---
+            else if (entity.ai) {
+                // Check Echo Attendance (Passive)
+                // Re-using the previous logic but inside this loop
+                let targetLoc = Config_1.CONFIG.SCHOOL_LOCATIONS.ACADEMIC_WING;
+                if (item.location === "Forest")
+                    targetLoc = Config_1.CONFIG.SCHOOL_LOCATIONS.FOREST;
+                const key = `${currentCourse}_${currentDay}_${scheduleIndex}_${sessionId}`;
+                if (!this.attendanceLog.has(key)) {
+                    const pos = entity.body.translation();
+                    const dx = pos.x - targetLoc.x;
+                    const dy = pos.y - targetLoc.y;
+                    // Check broad area (Academic Wing) OR specific seat state
+                    // If AI state is 'attending_class', we know they are there
+                    if (entity.ai.state === 'attending_class') {
+                        this.attendanceLog.add(key);
+                        playerState.academicPoints += 1;
+                        // Visual Sync: Set Schema State so clients see countdown
+                        if (!playerState.isAttendingClass) {
+                            playerState.isAttendingClass = true;
+                            playerState.classEndsAt = now + 180000; // Fake timer for visuals
+                        }
+                    }
+                }
+                // Reset Schema State if AI is done
+                if (playerState.isAttendingClass && entity.ai.state !== 'attending_class') {
+                    playerState.isAttendingClass = false;
+                    playerState.classEndsAt = 0;
+                }
+            }
+        });
+    }
     async onDispose() {
         console.log("[SERVER] Room disposing. Attempting final save for all players...");
         this.persistenceSystem.stopAutoSave();
         await this.persistenceSystem.saveAllPlayers();
     }
     handleCast(sessionId, spellId, vx, vy) {
+        // Check Unconscious State
+        const playerState = this.state.players.get(sessionId);
+        if (playerState && playerState.unconsciousUntil > 0)
+            return; // CAST BLOCKED
         const entity = this.entities.get(sessionId);
         if (!entity || !entity.body) {
             console.warn(`[SERVER] Cast failed: Entity ${sessionId} not found or has no body`);

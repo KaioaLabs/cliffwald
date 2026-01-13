@@ -44,8 +44,12 @@ class Player extends schema_1.Schema {
         // Duel Stats
         this.duelScore = 0;
         this.inDuel = false;
+        this.unconsciousUntil = 0; // Timestamp for waking up
         // Universal Inventory (String IDs)
         this.inventory = new schema_1.ArraySchema();
+        // Class / Activity State
+        this.isAttendingClass = false;
+        this.classEndsAt = 0; // Timestamp when class finishes
     }
 }
 exports.Player = Player;
@@ -102,9 +106,21 @@ __decorate([
     __metadata("design:type", Boolean)
 ], Player.prototype, "inDuel", void 0);
 __decorate([
+    (0, schema_1.type)("number"),
+    __metadata("design:type", Number)
+], Player.prototype, "unconsciousUntil", void 0);
+__decorate([
     (0, schema_1.type)([InventoryItem]),
     __metadata("design:type", Object)
 ], Player.prototype, "inventory", void 0);
+__decorate([
+    (0, schema_1.type)("boolean"),
+    __metadata("design:type", Boolean)
+], Player.prototype, "isAttendingClass", void 0);
+__decorate([
+    (0, schema_1.type)("number"),
+    __metadata("design:type", Number)
+], Player.prototype, "classEndsAt", void 0);
 class WorldItem extends schema_1.Schema {
     constructor() {
         super(...arguments);

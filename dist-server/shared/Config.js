@@ -28,10 +28,11 @@ exports.CONFIG = {
     RECONCILIATION_SMOOTHING: 0.2,
     // Map
     SPAWN_POINT: { x: 256, y: 256 },
-    // Time System (Non-Linear 40-minute Cycle)
+    // Time System (Non-Linear 45-minute Cycle)
     // Day Phase: 30 mins real time -> 06:00 to 22:00 (16h game time)
-    // Night Phase: 10 mins real time -> 22:00 to 06:00 (8h game time)
-    CYCLE_DURATION_MS: 2400000, // 40 Minutes Real Time
+    // Night Phase: 15 mins real time -> 22:00 to 06:00 (8h game time)
+    SEASON_START_DATE: 1735689600000, // Jan 1st, 2026 00:00:00 UTC
+    CYCLE_DURATION_MS: 2700000, // 45 Minutes Real Time
     DAY_PHASE_DURATION_MS: 1800000, // 30 Minutes
     // Academic Schedule (Source of Truth for UI and AI) – Definición de Ventanas de Oportunidad
     ACADEMIC_SCHEDULE: [
@@ -51,10 +52,10 @@ exports.CONFIG = {
     // AI Navigation
     AI_DETECTION_RADIUS: 100,
     AI_PERSONAL_SPACE: 40,
-    // Academic Calendar (4 Solar Cycles = 1 Calendar Day)
-    CYCLES_PER_DAY: 4,
+    // Academic Calendar (Cyclic Week Logic)
+    CYCLES_PER_DAY: 1, // 1 Cycle = 1 Calendar Day
     DAYS_PER_WEEK: 7,
-    WEEKS_PER_COURSE: 4, // 1 Real Month (approx) = 1 Course
+    WEEKS_PER_COURSE: 8, // 8 Real Weeks = 1 Course
     // School Locations (Scaled for 100x100 Map)
     SCHOOL_LOCATIONS: {
         // Dormitories (Left Wing)
@@ -64,6 +65,7 @@ exports.CONFIG = {
         // Central Hub
         GREAT_HALL: { x: 1600, y: 560 },
         ACADEMIC_WING: { x: 1600, y: 1360 },
+        INFIRMARY: { x: 1600, y: 960 },
         // Right Wing
         TRAINING_GROUNDS: { x: 2640, y: 1520 },
         ALCHEMY_LAB: { x: 2592, y: 640 },
@@ -71,12 +73,31 @@ exports.CONFIG = {
         COURTYARD: { x: 1056, y: 1280 },
         FOREST: { x: 1600, y: 2880 }
     },
+    // Infirmary Logic
+    INFIRMARY_BEDS: [
+        { x: 1550, y: 960 },
+        { x: 1580, y: 960 },
+        { x: 1620, y: 960 },
+        { x: 1650, y: 960 },
+        { x: 1550, y: 1000 },
+        { x: 1650, y: 1000 }
+    ],
+    INFIRMARY_EXIT: { x: 1600, y: 1050 },
     // Duel / Combat
-    DUEL_ZONE: {
-        x: 2640, // Reusing Training Grounds location
-        y: 1520,
-        radius: 300 // Size of the 'Tatami' area
-    },
+    DUEL_ZONES: [
+        { x: 2200, y: 1200, radius: 300, id: 0 },
+        { x: 3000, y: 1200, radius: 300, id: 1 },
+        { x: 2200, y: 1800, radius: 300, id: 2 },
+        { x: 3000, y: 1800, radius: 300, id: 3 }
+    ],
+    DUEL_EXITS: [
+        { x: 2200, y: 1550 },
+        { x: 3000, y: 1550 },
+        { x: 2200, y: 2150 },
+        { x: 3000, y: 2150 }
+    ],
+    DUEL_TIMEOUT_MS: 60000, // 1 Minute Max Duel
+    DUEL_COOLDOWN_MS: 5000, // Time before loser can re-enter
     // Spell Configuration
     SPELL_CONFIG: {
         BASE_SPEED: 400,
@@ -95,8 +116,8 @@ exports.CONFIG = {
     },
     // Security & Validation
     VALIDATION: {
-        INTERACTION_RADIUS: 50, // px (Distance to pick up items)
-        INTERACTION_RADIUS_SQ: 2500 // 50^2
+        INTERACTION_RADIUS: 100, // px (Distance to pick up items)
+        INTERACTION_RADIUS_SQ: 10000 // 100^2
     },
     // Chat System
     CHAT: {
@@ -154,13 +175,17 @@ function getGameHour(worldStartTime) {
 }
 function getAcademicProgress(worldStartTime, currentTimestamp = Date.now()) {
     const elapsedMs = currentTimestamp - worldStartTime;
+    // 1. Cyclic Day (1 Cycle = 1 Day)
     const totalCycles = Math.floor(elapsedMs / exports.CONFIG.CYCLE_DURATION_MS);
-    // 4 Cycles = 1 Calendar Day
-    const totalDays = Math.floor(totalCycles / exports.CONFIG.CYCLES_PER_DAY);
-    const currentCourse = Math.floor(totalDays / (exports.CONFIG.DAYS_PER_WEEK * exports.CONFIG.WEEKS_PER_COURSE)) + 1;
-    const currentWeek = Math.floor((totalDays % (exports.CONFIG.DAYS_PER_WEEK * exports.CONFIG.WEEKS_PER_COURSE)) / exports.CONFIG.DAYS_PER_WEEK) + 1;
-    const currentDay = (totalDays % exports.CONFIG.DAYS_PER_WEEK) + 1; // 1 = Monday, 7 = Sunday
-    const months = ["September", "October", "November", "December"]; // Example progression
-    const currentMonth = months[currentCourse - 1] || "Graduated";
+    const currentDay = (totalCycles % 7) + 1; // 1=Mon, 7=Sun
+    // 2. Narrative Progress (Real Weeks)
+    const REAL_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+    const currentWeek = Math.floor(elapsedMs / REAL_WEEK_MS) + 1;
+    // 3. Map Real Week to "Month/Chapter"
+    const months = ["September", "October", "November", "December", "January", "February", "March", "April"];
+    const currentMonth = months[Math.min(currentWeek - 1, 7)] || "Graduated";
+    // "currentCourse" is technically the Real Week in this new logic, or we can map it.
+    // Let's keep currentCourse as the 'Week' index for logic compatibility.
+    const currentCourse = currentWeek;
     return { currentCourse, currentWeek, currentDay, currentMonth };
 }

@@ -18,7 +18,7 @@ export interface PlayerComponent {
 }
 
 export interface AIComponent {
-    state: 'patrol' | 'chase' | 'attack' | 'idle' | 'routine' | 'duel';
+    state: 'patrol' | 'chase' | 'attack' | 'idle' | 'routine' | 'duel' | 'attending_class';
     timer: number;
     home: { x: number, y: number };
     house?: 'ignis' | 'axiom' | 'vesper';

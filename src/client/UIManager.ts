@@ -689,4 +689,73 @@ PING: ${latency}ms`);
     public getChatInputActive(): boolean {
         return document.activeElement === this.chatInput;
     }
+
+    public showClassMinigame(duration: number) {
+        const container = document.createElement('div');
+        container.id = 'class-minigame-ui';
+        container.style.position = 'absolute';
+        container.style.top = '20%';
+        container.style.left = '50%';
+        container.style.transform = 'translate(-50%, -50%)';
+        container.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+        container.style.color = 'white';
+        container.style.padding = '20px';
+        container.style.borderRadius = '10px';
+        container.style.textAlign = 'center';
+        container.style.zIndex = '1000';
+        container.style.pointerEvents = 'none'; // Don't block input
+        
+        container.innerHTML = `
+            <h2>ATTENDING CLASS</h2>
+            <div id="class-timer" style="font-size: 24px; font-weight: bold;">Starting...</div>
+            <p>Study hard!</p>
+        `;
+        
+        document.body.appendChild(container);
+
+        const endTime = Date.now() + duration;
+        
+        const interval = setInterval(() => {
+            const remaining = Math.ceil((endTime - Date.now()) / 1000);
+            const timerEl = document.getElementById('class-timer');
+            if (timerEl) {
+                const mins = Math.floor(remaining / 60);
+                const secs = remaining % 60;
+                timerEl.innerText = `${mins}:${secs.toString().padStart(2, '0')}`;
+            }
+
+            if (remaining <= 0) {
+                clearInterval(interval);
+                container.remove();
+            }
+        }, 1000);
+
+        // Store interval to clear if needed manually
+        (window as any)._classInterval = interval;
+    }
+
+    public hideClassMinigame() {
+        const el = document.getElementById('class-minigame-ui');
+        if (el) el.remove();
+        if ((window as any)._classInterval) clearInterval((window as any)._classInterval);
+    }
+
+    public showNotification(message: string) {
+        const notif = document.createElement('div');
+        notif.style.position = 'absolute';
+        notif.style.top = '10%';
+        notif.style.left = '50%';
+        notif.style.transform = 'translate(-50%, 0)';
+        notif.style.backgroundColor = 'rgba(0, 100, 0, 0.8)';
+        notif.style.color = 'white';
+        notif.style.padding = '10px 20px';
+        notif.style.borderRadius = '5px';
+        notif.style.zIndex = '2000';
+        notif.innerText = message;
+        document.body.appendChild(notif);
+        
+        setTimeout(() => {
+            notif.remove();
+        }, 3000);
+    }
 }

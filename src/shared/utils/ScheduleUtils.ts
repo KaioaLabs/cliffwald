@@ -47,7 +47,14 @@ export function getStudentScheduleTarget(numericId: number, currentHour: number,
     
     // Switch between free locations based on the specific schedule item name
     if (scheduleItem.name === "Free Time") {
-        desiredPos = getSpread(CONFIG.SCHOOL_LOCATIONS.TRAINING_GROUNDS, 200);
+        // 50% go to Duel, 50% go to Courtyard
+        if (numericId % 2 === 0) {
+            desiredPos = getSpread(CONFIG.SCHOOL_LOCATIONS.TRAINING_GROUNDS, 200);
+            return { pos: desiredPos, facing: { x: 0, y: 1 }, activity: 'duel' };
+        } else {
+            desiredPos = getSpread(CONFIG.SCHOOL_LOCATIONS.COURTYARD, 150);
+            return { pos: desiredPos, facing: { x: 0, y: 1 }, activity: 'free' };
+        }
     } else if (scheduleItem.name === "Field Study") {
         desiredPos = getSpread(CONFIG.SCHOOL_LOCATIONS.FOREST, 400);
     } else {

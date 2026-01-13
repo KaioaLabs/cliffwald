@@ -63,6 +63,14 @@ export class PlayerController {
             align: 'center'
         }).setOrigin(0.5);
 
+        const classTimerText = this.scene.add.text(x, y - 40, '', {
+            fontSize: '12px',
+            color: '#FFFF00',
+            stroke: '#000000',
+            strokeThickness: 3,
+            align: 'center'
+        }).setOrigin(0.5).setVisible(false);
+
         console.log(`[CLIENT] Adding Player Sprite: ${displayName} (Local: ${isLocal})`);
 
         // 2. Create ECS Entity
@@ -76,6 +84,7 @@ export class PlayerController {
         // Store extra visual data on the entity (managed state)
         entity.shadow = shadow;
         entity.nameTag = nameTag;
+        entity.classTimerText = classTimerText;
         entity.isLocal = isLocal;
         entity.lastDir = 'down';
         entity.positionBuffer = [];
@@ -164,6 +173,29 @@ export class PlayerController {
         return null;
     }
 
+    updateClassStatus(sessionId: string, isAttending: boolean, endsAt: number) {
+        const entity = this.players.get(sessionId);
+        if (!entity || !entity.visual?.sprite) return;
+
+        if (isAttending) {
+            if (!entity.classTimerText) {
+                entity.classTimerText = this.scene.add.text(entity.visual.sprite.x, entity.visual.sprite.y - 60, "", {
+                    fontSize: '12px',
+                    color: '#FFFF00',
+                    stroke: '#000000',
+                    strokeThickness: 3,
+                    align: 'center'
+                }).setOrigin(0.5).setDepth(10000); // High depth to show over everything
+            }
+            entity.classTimerText.setVisible(true);
+            entity.classTimerText.setData('endsAt', endsAt);
+        } else {
+            if (entity.classTimerText) {
+                entity.classTimerText.setVisible(false);
+            }
+        }
+    }
+
     updateVisuals() {
         const now = Date.now();
         const renderTime = now - CONFIG.RENDER_DELAY;
@@ -223,6 +255,18 @@ export class PlayerController {
             }
 
             if (entity.nameTag) entity.nameTag.setPosition(sprite.x, sprite.y + CONFIG.NAME_TAG_Y_OFFSET).setDepth(sprite.y + 100);
+
+            // Update Class Timer
+            if (entity.classTimerText && entity.classTimerText.visible) {
+                entity.classTimerText.setPosition(sprite.x, sprite.y - 60);
+                const endsAt = entity.classTimerText.getData('endsAt');
+                if (endsAt) {
+                    const remaining = Math.max(0, Math.ceil((endsAt - now) / 1000));
+                    const mins = Math.floor(remaining / 60);
+                    const secs = remaining % 60;
+                    entity.classTimerText.setText(`IN CLASS\n${mins}:${secs.toString().padStart(2, '0')}`);
+                }
+            }
 
             // Handle Unconscious State
             if (entity.unconsciousUntil && entity.unconsciousUntil > now) {

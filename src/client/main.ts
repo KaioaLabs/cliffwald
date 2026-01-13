@@ -445,6 +445,16 @@ export class GameScene extends Phaser.Scene {
             this.network.onProjectileRemove = (proj: Projectile, id: string) => {
                 this.projectileManager.removeNetworkProjectile(id);
             };
+            
+            // CLASS MINIGAME LISTENERS
+            this.network.room?.onMessage("start_minigame", (data: { duration: number }) => {
+                this.uiManager.showClassMinigame(data.duration);
+            });
+            
+            this.network.room?.onMessage("class_completed", (data: { grade: string, points: number }) => {
+                this.uiManager.hideClassMinigame();
+                this.uiManager.showNotification(`Class Finished! Grade: ${data.grade} (+${data.points} PA)`);
+            });
 
             // Items (if NetworkManager supports it - we need to check/add if missing)
             // Checking NetworkManager.ts, it doesn't have onItemAdd yet. 
@@ -774,6 +784,17 @@ export class GameScene extends Phaser.Scene {
         if (!this.playerController.players.has(sessionId)) {
             const isLocal = sessionId === this.network.room?.sessionId;
             this.playerController.addPlayer(sessionId, data.x, data.y, isLocal, data.skin, data.username, data.house);
+            
+            // Initial Status Check
+            if (data.isAttendingClass) {
+                this.playerController.updateClassStatus(sessionId, true, data.classEndsAt);
+            }
+            
+            // Listen for future changes
+            data.onChange(() => {
+                this.playerController.updateClassStatus(sessionId, data.isAttendingClass, data.classEndsAt);
+            });
+
         } else {
             this.playerController.updatePlayerState(sessionId, data, data.unconsciousUntil);
         }

@@ -134,53 +134,9 @@ export class WorldRoom extends Room<GameState> {
 
             // --- ATTENDANCE CHECK (ECHO MAINTENANCE) ---
             this.attendanceTimer += deltaTime;
-            if (this.attendanceTimer > 5000) {
+            if (this.attendanceTimer > 1000) { // Check every 1 second
                 this.attendanceTimer = 0;
-                
-                // 1. Identify Schedule Window
-                const scheduleIndex = CONFIG.ACADEMIC_SCHEDULE.findIndex(item => {
-                    if (item.start < item.end) return currentHour >= item.start && currentHour < item.end;
-                    return currentHour >= item.start || currentHour < item.end;
-                });
-
-                if (scheduleIndex !== -1) {
-                    const item = CONFIG.ACADEMIC_SCHEDULE[scheduleIndex];
-                    
-                    // Only award for Classes (PA) - Maintenance for Echoes
-                    if (item.activity === 'class') {
-                        let targetLoc = CONFIG.SCHOOL_LOCATIONS.ACADEMIC_WING; // Default
-                        if (item.location === "Forest") targetLoc = CONFIG.SCHOOL_LOCATIONS.FOREST;
-                        
-                        this.entities.forEach((entity, sessionId) => {
-                            // Rule: Only Echoes (AI) get passive maintenance. Real players must play minigames (client-side trigger).
-                            if (entity.ai && entity.body) {
-                                const key = `${currentCourse}_${currentDay}_${scheduleIndex}_${sessionId}`;
-                                
-                                if (!this.attendanceLog.has(key)) {
-                                    const pos = entity.body.translation();
-                                    const dx = pos.x - targetLoc.x;
-                                    const dy = pos.y - targetLoc.y;
-                                    const distSq = dx*dx + dy*dy;
-                                    
-                                    // Check radius (300px = 90000 sq)
-                                    if (distSq < 90000) {
-                                        this.attendanceLog.add(key);
-                                        
-                                        // Update State & DB
-                                        const playerState = this.state.players.get(sessionId);
-                                        if (playerState) {
-                                            playerState.academicPoints += 1; // Base Maintenance Point
-                                            // Ensure we don't exceed 'B' grade thresholds simply by existing? 
-                                            // GDD says "Nota Máxima: B". 1 PA per class is fine, max 2 per day.
-                                            // Real players can get bonus PA for 'A'/'S'.
-                                            console.log(`[ATTENDANCE] Echo ${playerState.username} attended ${item.name}. PA: ${playerState.academicPoints}`);
-                                        }
-                                    }
-                                }
-                            }
-                        });
-                    }
-                }
+                this.checkClassAttendance(currentHour);
             }
 
             // Detect YEAR END / GRADUATION
@@ -305,6 +261,113 @@ export class WorldRoom extends Room<GameState> {
 
         // Start Auto-Save
         this.persistenceSystem.startAutoSave();
+    }
+
+    checkClassAttendance(currentHour: number) {
+        // 1. Identify Schedule Window
+        const scheduleIndex = CONFIG.ACADEMIC_SCHEDULE.findIndex(item => {
+            if (item.start < item.end) return currentHour >= item.start && currentHour < item.end;
+            return currentHour >= item.start || currentHour < item.end;
+        });
+
+        if (scheduleIndex === -1) return;
+        const item = CONFIG.ACADEMIC_SCHEDULE[scheduleIndex];
+        
+        // We only care about CLASS activity for now
+        if (item.activity !== 'class') return;
+
+        const now = Date.now();
+        const { currentCourse, currentDay } = getAcademicProgress(this.state.worldStartTime, now);
+
+        this.entities.forEach((entity, sessionId) => {
+            if (!entity.body) return;
+            const playerState = this.state.players.get(sessionId);
+            if (!playerState) return;
+
+            // --- REAL PLAYER LOGIC ---
+            if (!entity.ai) {
+                // If already attending class
+                if (playerState.isAttendingClass) {
+                    // Check completion
+                    if (now > playerState.classEndsAt) {
+                        playerState.isAttendingClass = false;
+                        playerState.classEndsAt = 0;
+                        // Reward!
+                        playerState.academicPoints += 5; // Good job!
+                        playerState.xp += 50;
+                        const client = this.clients.find(c => c.sessionId === sessionId);
+                        if (client) {
+                            client.send("class_completed", { grade: "A", points: 5 });
+                            this.chatManager.broadcastSystemMessage(`${playerState.username} finished class!`, "TEACHER");
+                        }
+                    }
+                    return; // Skip proximity check if already in class
+                }
+
+                // Check Proximity to Desks
+                // Optimization: Only check if velocity is low (not running through room)
+                const vel = entity.body.linvel();
+                if (Math.abs(vel.x) < 0.1 && Math.abs(vel.y) < 0.1) {
+                     const pos = entity.body.translation();
+                     let foundDesk = false;
+                     
+                     // Check against all class seats
+                     for (const [seatId, seatPos] of this.spawnManager.seats.class) {
+                         const dx = pos.x - seatPos.x;
+                         const dy = pos.y - seatPos.y;
+                         if (dx*dx + dy*dy < 900) { // 30px radius
+                             foundDesk = true;
+                             break;
+                         }
+                     }
+
+                     if (foundDesk) {
+                         console.log(`[CLASS] Player ${playerState.username} sat at desk. Starting Class...`);
+                         playerState.isAttendingClass = true;
+                         playerState.classEndsAt = now + 180000; // 3 Minutes
+                         
+                         const client = this.clients.find(c => c.sessionId === sessionId);
+                         if (client) {
+                             client.send("start_minigame", { duration: 180000 });
+                         }
+                     }
+                }
+            }
+            
+            // --- ECHO LOGIC (Maintenance) ---
+            else if (entity.ai) {
+                 // Check Echo Attendance (Passive)
+                 // Re-using the previous logic but inside this loop
+                 let targetLoc = CONFIG.SCHOOL_LOCATIONS.ACADEMIC_WING;
+                 if (item.location === "Forest") targetLoc = CONFIG.SCHOOL_LOCATIONS.FOREST;
+
+                 const key = `${currentCourse}_${currentDay}_${scheduleIndex}_${sessionId}`;
+                 if (!this.attendanceLog.has(key)) {
+                    const pos = entity.body.translation();
+                    const dx = pos.x - targetLoc.x;
+                    const dy = pos.y - targetLoc.y;
+                    
+                    // Check broad area (Academic Wing) OR specific seat state
+                    // If AI state is 'attending_class', we know they are there
+                    if ((entity.ai as any).state === 'attending_class') {
+                         this.attendanceLog.add(key);
+                         playerState.academicPoints += 1;
+                         
+                         // Visual Sync: Set Schema State so clients see countdown
+                         if (!playerState.isAttendingClass) {
+                             playerState.isAttendingClass = true;
+                             playerState.classEndsAt = now + 180000; // Fake timer for visuals
+                         }
+                    }
+                 }
+                 
+                 // Reset Schema State if AI is done
+                 if (playerState.isAttendingClass && (entity.ai as any).state !== 'attending_class') {
+                     playerState.isAttendingClass = false;
+                     playerState.classEndsAt = 0;
+                 }
+            }
+        });
     }
 
     async onDispose() {

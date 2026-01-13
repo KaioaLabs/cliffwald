@@ -41,7 +41,10 @@ Controla el bucle de juego inmediato, la iluminación y la visibilidad social. S
 ### 3.2. Horario de Actividades (Routine) – Sistema de Ventanas
 Para evitar el FOMO y la frustración por horarios rígidos, las actividades no ocurren en un minuto exacto, sino en **Ventanas de Oportunidad**.
 *   **Funcionamiento:** Un jugador (o su Echo) recibe el crédito académico/beneficio si se encuentra en la ubicación correspondiente en **cualquier momento** dentro de la ventana de tiempo.
-*   **Minijuego Académico:** Se activa automáticamente al entrar al aula durante la ventana si no se ha completado ese día.
+*   **Minijuego Académico:** Se activa automáticamente al entrar al aula y sentarse en un pupitre durante la ventana de horario.
+    *   **Duración:** 3 Minutos fijos.
+    *   **Jugadores:** UI dedicada con temporizador y feedback visual. Completar otorga 5 PA y 50 XP.
+    *   **Echoes:** Muestran un temporizador flotante sobre su cabeza ("IN CLASS"). Al finalizar, reciben 1 PA (Mantenimiento).
 
 | Ventana In-Game | Actividad | Ubicación | Impacto |
 | :--- | :--- | :--- | :--- |
@@ -92,6 +95,7 @@ Asignación inicial mediante test filosófico: **IGNIS** (Valor), **AXIOM** (Ló
 ### 4.5. Sistema "Body Claiming" (Posesión)
 La escuela siempre tiene una población fija. El jugador asume el control de su cuerpo (Echo) al entrar.
 *   **Estado Echo (Offline):** Cuando no es controlado por un jugador, el personaje sigue el horario académico simulando vida ("Ambient Life").
+    *   **Comportamiento en Tiempo Libre:** Durante las ventanas de "Free Time", el 50% de los Echoes se dirigen al Patio (Social) y el otro 50% a la Zona de Duelos (Entrenamiento) donde entran en estado de combate activo.
 *   **Regla de Oro del Echo (Mantenimiento vs. Crecimiento):**
     *   **Mantenimiento (SÍ):** El Echo asiste a clases y genera **Puntos Académicos (PA)** básicos para evitar la expulsión. Esto asegura que un jugador con vida real no pierda su plaza. *Nota Máxima posible: B (Aprobado).*
     *   **Crecimiento (NO):** Un Echo **NUNCA** gana Experiencia (XP), Prestigio, Items o Avance de Misión. No puede obtener notas A o S.

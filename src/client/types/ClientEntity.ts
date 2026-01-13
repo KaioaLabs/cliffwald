@@ -11,4 +11,6 @@ export type ClientEntity = Entity & {
     serverPos?: { x: number, y: number };
     collider?: RAPIER.Collider;
     unconsciousUntil?: number;
+    classTimerText?: Phaser.GameObjects.Text;
+    classEndsAt?: number;
 };

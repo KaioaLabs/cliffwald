@@ -27,6 +27,10 @@ export class Player extends Schema {
 
     // Universal Inventory (String IDs)
     @type([ InventoryItem ]) inventory = new ArraySchema<InventoryItem>();
+
+    // Class / Activity State
+    @type("boolean") isAttendingClass: boolean = false;
+    @type("number") classEndsAt: number = 0; // Timestamp when class finishes
 }
 
 export class WorldItem extends Schema {

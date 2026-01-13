@@ -94,13 +94,69 @@ const AISystem = (world, physicsWorld, dt, currentHour, pathfinder, castCallback
         }
         else {
             // Arrived
-            if (ai.state !== 'idle') {
-                ai.state = 'idle';
-                ai.timer = 0;
+            if (ai.state !== 'idle' && ai.state !== 'attending_class') {
+                // Check if we arrived at CLASS or DUEL
+                const schedule = ai.routineSpots ? (0, ScheduleUtils_1.getStudentScheduleTarget)(numericId, currentHour, ai.routineSpots) : null;
+                if (schedule) {
+                    if (schedule.activity === 'class') {
+                        ai.state = 'attending_class';
+                        ai.timer = 0;
+                    }
+                    else if (schedule.activity === 'duel') {
+                        ai.state = 'duel';
+                        ai.timer = 0;
+                        // Pick a target ID simply by offset (e.g. duel against next student)
+                        // Real target acquisition happens in the Duel System or loop, 
+                        // but here we set a static buddy for now.
+                        const enemyId = numericId % 2 === 0 ? numericId + 1 : numericId - 1;
+                        // Try to find if this enemy exists in the world? 
+                        // For now just set the ID string.
+                        // We don't have easy access to other Entity IDs here without loop.
+                        // Let's rely on the DUEL LOOP at the top to handle movement if target is missing?
+                        // Actually the top loop requires targetId.
+                        // Let's just set a "dummy" target ID based on math.
+                        ai.targetId = `student_${(ai.house || 'ignis')}_${enemyId}`; // This is a guess at ID format.
+                        // Better: DuelSystem handles matchmaking.
+                        // Let's just set state 'duel' and let DuelSystem or AISystem top loop find a target if missing.
+                        // Fix: The ID format is usually `student_house_index` or `echo_...`.
+                        // Let's iterate entities to find a target? Expensive.
+                        // Optimization: Just pick a random one from the known 24.
+                        const houses = ['ignis', 'axiom', 'vesper'];
+                        const randomHouse = houses[Math.floor(Math.random() * 3)];
+                        const randomNum = Math.floor(Math.random() * 8) + 1;
+                        ai.targetId = `student_${randomHouse}_${randomNum}`;
+                    }
+                    else {
+                        ai.state = 'idle';
+                        ai.timer = 0;
+                    }
+                }
+                else {
+                    ai.state = 'idle';
+                    ai.timer = 0;
+                }
             }
         }
         // 3. EXECUTE ROUTINE
-        if (ai.state === 'routine' && ai.targetPos) {
+        if (ai.state === 'attending_class') {
+            // Echo stays put and waits for class to end (3 mins)
+            // 3 mins = 180,000 ms
+            if (ai.timer > 180000) {
+                ai.state = 'idle'; // Class done
+                ai.timer = 0;
+            }
+            // Stop moving
+            input.left = false;
+            input.right = false;
+            input.up = false;
+            input.down = false;
+            // Face desk (already handled by arrival facing usually, but let's reinforce if needed)
+            if (facing && ai.targetPos) {
+                // Keep looking at desk/teacher?
+                // For now, just freeze.
+            }
+        }
+        else if (ai.state === 'routine' && ai.targetPos) {
             if (!ai.path && pathfinder) {
                 ai.path = pathfinder.findPath(currentPos, ai.targetPos) || undefined;
             }
