@@ -71,6 +71,19 @@ export class VisualProjectileManager {
         }
     }
 
+    public updateProjectile(id: string, x: number, y: number) {
+        const visual = this.projectiles.get(id);
+        if (visual) {
+            this.scene.tweens.add({
+                targets: visual,
+                x: x,
+                y: y,
+                duration: 50,
+                ease: 'Linear'
+            });
+        }
+    }
+
     public clear() {
         this.projectiles.forEach(p => p.destroy());
         this.projectiles.clear();

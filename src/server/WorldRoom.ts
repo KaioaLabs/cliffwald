@@ -1,6 +1,6 @@
 import { Room, Client } from "colyseus";
 import { GameState, Player, ChatMessage, Projectile, InventoryItem } from "../shared/SchemaDef";
-import { CONFIG, getGameHour, getAcademicProgress } from "../shared/Config";
+import { CONFIG, getGameHour, getAcademicProgress, getGameTime } from "../shared/Config";
 import { PlayerInput, JoinOptions } from "../shared/types/NetworkTypes";
 import RAPIER from "@dimforge/rapier2d-compat";
 import { buildPhysics, MapData, parseEntities } from "../shared/MapParser";
@@ -20,8 +20,11 @@ import path from "path";
 
 import { DuelSystem } from "./systems/DuelSystem";
 import { ItemSystem } from "./systems/ItemSystem";
+import { ShopSystem } from "./systems/ShopSystem";
 import { ChatManager } from "./managers/ChatManager";
 import { PersistenceSystem } from "./systems/PersistenceSystem";
+import { timeManager } from "../shared/managers/TimeManager";
+import { HealthSystem } from "./systems/HealthSystem";
 
 export class WorldRoom extends Room<GameState> {
     physicsWorld!: RAPIER.World;
@@ -33,10 +36,18 @@ export class WorldRoom extends Room<GameState> {
     prestigeSystem!: PrestigeSystem;
     duelSystem!: DuelSystem;
     itemSystem!: ItemSystem;
+    shopSystem!: ShopSystem;
     chatManager!: ChatManager;
     persistenceSystem!: PersistenceSystem;
+    healthSystem!: HealthSystem;
     entities = new Map<string, Entity>();
     playerDbIds = new Map<string, number>();
+    
+    // Hidden Server-Side State
+    alignmentMap = new Map<string, number>(); // <sessionId, alignmentScore> (-100 to +100)
+    attendanceLog = new Set<string>(); // Tracks awarded attendance: "Day_WindowIndex_SessionId"
+    attendanceTimer = 0;
+
     spawnPos = { x: 300, y: 300 };
     
     // Security: Cooldown Tracking
@@ -59,7 +70,7 @@ export class WorldRoom extends Room<GameState> {
         this.state.vesperPoints = 0;
         
         // Time is absolute now
-        this.state.worldStartTime = Date.now();
+        this.state.worldStartTime = CONFIG.SEASON_START_DATE;
 
         await RAPIER.init();
         const gravity = { x: 0.0, y: 0.0 };
@@ -72,8 +83,10 @@ export class WorldRoom extends Room<GameState> {
         this.prestigeSystem = new PrestigeSystem(this);
         this.duelSystem = new DuelSystem(this);
         this.itemSystem = new ItemSystem(this);
+        this.shopSystem = new ShopSystem(this);
         this.chatManager = new ChatManager(this);
         this.persistenceSystem = new PersistenceSystem(this.entities, this.state.players, this.playerDbIds);
+        this.healthSystem = new HealthSystem(this);
 
         try {
             const mapPath = path.join(process.cwd(), "assets/maps/world.json");
@@ -100,13 +113,74 @@ export class WorldRoom extends Room<GameState> {
         let lastRewardedHour = -1;
 
         this.setSimulationInterval((deltaTime) => {
-            const currentHour = getGameHour(this.state.worldStartTime);
-            const { currentCourse, currentMonth, currentWeek } = getAcademicProgress(this.state.worldStartTime);
+            const now = timeManager.getNow();
+            // Sync Time Offset to Clients
+            if (this.state.timeOffset !== timeManager.getOffset()) {
+                this.state.timeOffset = timeManager.getOffset();
+            }
+
+            // Use decoupled time for logic
+            const currentHour = getGameTime(now).hour;
+            const { currentCourse, currentMonth, currentWeek, currentDay } = getAcademicProgress(this.state.worldStartTime, now);
             
             // Sync Calendar State
             if (this.state.currentMonth !== currentMonth) {
-                console.log(`[CALENDAR] Welcome to ${currentMonth}`);
+                console.log(`[CALENDAR] New Month: ${currentMonth}`);
                 this.state.currentMonth = currentMonth;
+            }
+            
+            // Note: We can also track Day changes here if needed for events
+            // if (this.previousDay !== currentDay) { console.log(`[CALENDAR] Day ${currentDay} of Week ${currentWeek}`); }
+
+            // --- ATTENDANCE CHECK (ECHO MAINTENANCE) ---
+            this.attendanceTimer += deltaTime;
+            if (this.attendanceTimer > 5000) {
+                this.attendanceTimer = 0;
+                
+                // 1. Identify Schedule Window
+                const scheduleIndex = CONFIG.ACADEMIC_SCHEDULE.findIndex(item => {
+                    if (item.start < item.end) return currentHour >= item.start && currentHour < item.end;
+                    return currentHour >= item.start || currentHour < item.end;
+                });
+
+                if (scheduleIndex !== -1) {
+                    const item = CONFIG.ACADEMIC_SCHEDULE[scheduleIndex];
+                    
+                    // Only award for Classes (PA) - Maintenance for Echoes
+                    if (item.activity === 'class') {
+                        let targetLoc = CONFIG.SCHOOL_LOCATIONS.ACADEMIC_WING; // Default
+                        if (item.location === "Forest") targetLoc = CONFIG.SCHOOL_LOCATIONS.FOREST;
+                        
+                        this.entities.forEach((entity, sessionId) => {
+                            // Rule: Only Echoes (AI) get passive maintenance. Real players must play minigames (client-side trigger).
+                            if (entity.ai && entity.body) {
+                                const key = `${currentCourse}_${currentDay}_${scheduleIndex}_${sessionId}`;
+                                
+                                if (!this.attendanceLog.has(key)) {
+                                    const pos = entity.body.translation();
+                                    const dx = pos.x - targetLoc.x;
+                                    const dy = pos.y - targetLoc.y;
+                                    const distSq = dx*dx + dy*dy;
+                                    
+                                    // Check radius (300px = 90000 sq)
+                                    if (distSq < 90000) {
+                                        this.attendanceLog.add(key);
+                                        
+                                        // Update State & DB
+                                        const playerState = this.state.players.get(sessionId);
+                                        if (playerState) {
+                                            playerState.academicPoints += 1; // Base Maintenance Point
+                                            // Ensure we don't exceed 'B' grade thresholds simply by existing? 
+                                            // GDD says "Nota Máxima: B". 1 PA per class is fine, max 2 per day.
+                                            // Real players can get bonus PA for 'A'/'S'.
+                                            console.log(`[ATTENDANCE] Echo ${playerState.username} attended ${item.name}. PA: ${playerState.academicPoints}`);
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                }
             }
 
             // Detect YEAR END / GRADUATION
@@ -158,6 +232,7 @@ export class WorldRoom extends Room<GameState> {
             
             this.spellSystem.update(deltaTime);
             this.itemSystem.update(deltaTime);
+            this.healthSystem.update();
             this.physicsWorld.step(this.eventQueue);
 
             // SYNC PHYSICS TO STATE
@@ -183,6 +258,10 @@ export class WorldRoom extends Room<GameState> {
         }, 1000 / CONFIG.SERVER_FPS);
 
         this.onMessage("move", (client, input: PlayerInput) => {
+            // Check Unconscious State
+            const playerState = this.state.players.get(client.sessionId);
+            if (playerState && playerState.unconsciousUntil > 0) return; // INPUT BLOCKED
+
             const entity = this.entities.get(client.sessionId);
             if (entity && entity.input) {
                 entity.input.left = !!input.left;
@@ -212,6 +291,10 @@ export class WorldRoom extends Room<GameState> {
             this.itemSystem.tryCollectItem(client.sessionId, itemId);
         });
 
+        this.onMessage("buy", (client, itemId: string) => {
+            this.shopSystem.handleBuy(client.sessionId, itemId);
+        });
+
         this.onMessage("ping", (client, timestamp) => {
             client.send("pong", timestamp);
         });
@@ -231,6 +314,10 @@ export class WorldRoom extends Room<GameState> {
     }
 
     handleCast(sessionId: string, spellId: string, vx: number, vy: number) {
+        // Check Unconscious State
+        const playerState = this.state.players.get(sessionId);
+        if (playerState && playerState.unconsciousUntil > 0) return; // CAST BLOCKED
+
         const entity = this.entities.get(sessionId);
         if (!entity || !entity.body) {
             console.warn(`[SERVER] Cast failed: Entity ${sessionId} not found or has no body`);
@@ -329,12 +416,13 @@ export class WorldRoom extends Room<GameState> {
             playerState.x = pos.x;
             playerState.y = pos.y;
             playerState.skin = options.skin || "player_idle";
-            playerState.personalPrestige = carriedPrestige + (session.dbPlayer.prestige || 0); // Add stored prestige? 
-            // Warning: Double counting if echoed prestige is stored? 
-            // Echo prestige is transient session prestige. DB prestige is permanent.
-            // Let's assume DB prestige overwrites/is the source of truth for now.
             playerState.personalPrestige = session.dbPlayer.prestige || 0;
             playerState.house = house || 'ignis';
+            
+            // Fable System & Grades
+            playerState.xp = session.dbPlayer.xp || 0;
+            playerState.academicPoints = session.dbPlayer.academicPoints || 0;
+            this.alignmentMap.set(client.sessionId, session.dbPlayer.alignment || 0);
 
             // Hydrate Inventory (Universal + Legacy Cards)
             if (session.dbPlayer.inventory) {
@@ -372,6 +460,10 @@ export class WorldRoom extends Room<GameState> {
                 playerState.x = pos.x;
                 playerState.y = pos.y;
                 
+                // Inject Hidden Data for Persistence
+                const hiddenAlignment = this.alignmentMap.get(client.sessionId) || 0;
+                (playerState as any).alignment = hiddenAlignment;
+
                 await PlayerService.saveSession(dbId, playerState);
             }
 
@@ -408,5 +500,6 @@ export class WorldRoom extends Room<GameState> {
         
         this.state.players.delete(client.sessionId);
         this.playerDbIds.delete(client.sessionId);
+        this.alignmentMap.delete(client.sessionId);
     }
 }

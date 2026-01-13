@@ -56,11 +56,16 @@ const fs = __importStar(require("fs/promises"));
 const path_1 = __importDefault(require("path"));
 const DuelSystem_1 = require("./systems/DuelSystem");
 const ItemSystem_1 = require("./systems/ItemSystem");
+const ChatManager_1 = require("./managers/ChatManager");
+const PersistenceSystem_1 = require("./systems/PersistenceSystem");
+const TimeManager_1 = require("../shared/managers/TimeManager");
 class WorldRoom extends colyseus_1.Room {
     constructor() {
         super(...arguments);
         this.entities = new Map();
         this.playerDbIds = new Map();
+        // Hidden Server-Side State
+        this.alignmentMap = new Map(); // <sessionId, alignmentScore> (-100 to +100)
         this.spawnPos = { x: 300, y: 300 };
         // Security: Cooldown Tracking
         this.lastCastTimes = new Map();
@@ -92,6 +97,8 @@ class WorldRoom extends colyseus_1.Room {
         this.prestigeSystem = new PrestigeSystem_1.PrestigeSystem(this);
         this.duelSystem = new DuelSystem_1.DuelSystem(this);
         this.itemSystem = new ItemSystem_1.ItemSystem(this);
+        this.chatManager = new ChatManager_1.ChatManager(this);
+        this.persistenceSystem = new PersistenceSystem_1.PersistenceSystem(this.entities, this.state.players, this.playerDbIds);
         try {
             const mapPath = path_1.default.join(process.cwd(), "assets/maps/world.json");
             const mapFile = await fs.readFile(mapPath, "utf-8");
@@ -114,13 +121,21 @@ class WorldRoom extends colyseus_1.Room {
         let logTimer = 0;
         let lastRewardedHour = -1;
         this.setSimulationInterval((deltaTime) => {
-            const currentHour = (0, Config_1.getGameHour)(this.state.worldStartTime);
-            const { currentCourse, currentMonth, currentWeek } = (0, Config_1.getAcademicProgress)(this.state.worldStartTime);
+            const now = TimeManager_1.timeManager.getNow();
+            // Sync Time Offset to Clients
+            if (this.state.timeOffset !== TimeManager_1.timeManager.getOffset()) {
+                this.state.timeOffset = TimeManager_1.timeManager.getOffset();
+            }
+            // Use decoupled time for logic
+            const currentHour = (0, Config_1.getGameTime)(now).hour;
+            const { currentCourse, currentMonth, currentWeek, currentDay } = (0, Config_1.getAcademicProgress)(this.state.worldStartTime, now);
             // Sync Calendar State
             if (this.state.currentMonth !== currentMonth) {
-                console.log(`[CALENDAR] Welcome to ${currentMonth}`);
+                console.log(`[CALENDAR] New Month: ${currentMonth}`);
                 this.state.currentMonth = currentMonth;
             }
+            // Note: We can also track Day changes here if needed for events
+            // if (this.previousDay !== currentDay) { console.log(`[CALENDAR] Day ${currentDay} of Week ${currentWeek}`); }
             // Detect YEAR END / GRADUATION
             if (this.state.currentCourse < currentCourse) {
                 let winner = "Tie";
@@ -132,42 +147,20 @@ class WorldRoom extends colyseus_1.Room {
                 scores.sort((a, b) => b.score - a.score);
                 if (scores[0].score > scores[1].score)
                     winner = scores[0].name;
-                const msg = new SchemaDef_1.ChatMessage();
-                msg.sender = "HEADMASTER";
-                msg.text = `THE ACADEMIC YEAR ENDS! The winner of the Cup is: ${winner}!`;
-                msg.timestamp = Date.now();
-                this.state.messages.push(msg);
-                this.broadcast("chat", msg);
+                this.chatManager.broadcastSystemMessage(`THE ACADEMIC YEAR ENDS! The winner of the Cup is: ${winner}!`, "HEADMASTER");
                 this.state.ignisPoints = 0;
                 this.state.axiomPoints = 0;
                 this.state.vesperPoints = 0;
                 this.state.currentCourse = currentCourse;
                 console.log(`[GRADUATION] House ${winner} won! Resetting points.`);
             }
+            /* PRESTIGE SYSTEM PAUSED (Pending Official Design)
             // PRESTIGE REWARDS
             if (currentHour !== lastRewardedHour) {
                 lastRewardedHour = currentHour;
-                this.entities.forEach((entity, sessionId) => {
-                    const spots = entity.ai?.routineSpots || entity.tempSpots;
-                    if (spots) {
-                        const pos = entity.body?.translation();
-                        if (pos) {
-                            let target = spots.sleep;
-                            if (currentHour >= 7 && currentHour < 8)
-                                target = spots.eat;
-                            else if (currentHour >= 8 && currentHour < 10)
-                                target = spots.class;
-                            else if (currentHour >= 19 && currentHour < 21)
-                                target = spots.eat;
-                            else if (currentHour >= 17 && currentHour < 19)
-                                target = spots.class;
-                            if (Math.sqrt((target.x - pos.x) ** 2 + (target.y - pos.y) ** 2) < 50) {
-                                this.prestigeSystem.addPrestige(sessionId, 5);
-                            }
-                        }
-                    }
-                });
+                // ... (Logic removed)
             }
+            */
             (0, MovementSystem_1.MovementSystem)(this.world);
             this.duelSystem.update();
             (0, AISystem_1.AISystem)(this.world, this.physicsWorld, deltaTime, currentHour, this.pathfinder, (id, spell, vx, vy) => this.handleCast(id, spell, vx, vy), (id) => {
@@ -194,7 +187,7 @@ class WorldRoom extends colyseus_1.Room {
                 }
             });
             logTimer += deltaTime;
-        }, 1000 / 15);
+        }, 1000 / Config_1.CONFIG.SERVER_FPS);
         this.onMessage("move", (client, input) => {
             const entity = this.entities.get(client.sessionId);
             if (entity && entity.input) {
@@ -227,24 +220,15 @@ class WorldRoom extends colyseus_1.Room {
             client.send("pong", timestamp);
         });
         this.onMessage("chat", (client, text) => {
-            const player = this.state.players.get(client.sessionId);
-            console.log(`[SERVER] Chat request from ${client.sessionId}. Player found: ${!!player}. Text: "${text}"`);
-            if (player && text) {
-                const msg = new SchemaDef_1.ChatMessage();
-                msg.sender = player.username;
-                msg.text = text.slice(0, Config_1.CONFIG.CHAT_MAX_LENGTH);
-                msg.timestamp = Date.now();
-                this.state.messages.push(msg);
-                this.broadcast("chat", msg);
-                if (this.state.messages.length > Config_1.CONFIG.CHAT_HISTORY_SIZE) {
-                    this.state.messages.shift();
-                }
-                console.log(`[CHAT] ${msg.sender}: ${msg.text}`);
-            }
-            else {
-                console.warn(`[SERVER] Chat ignored. Player: ${player}, Text: ${text}`);
-            }
+            this.chatManager.handleChat(client.sessionId, text);
         });
+        // Start Auto-Save
+        this.persistenceSystem.startAutoSave();
+    }
+    async onDispose() {
+        console.log("[SERVER] Room disposing. Attempting final save for all players...");
+        this.persistenceSystem.stopAutoSave();
+        await this.persistenceSystem.saveAllPlayers();
     }
     handleCast(sessionId, spellId, vx, vy) {
         const entity = this.entities.get(sessionId);
@@ -277,7 +261,7 @@ class WorldRoom extends colyseus_1.Room {
         proj.vy = (mag > 0) ? (vy / mag) * spellConfig.speed : 0;
         proj.ownerId = sessionId;
         proj.creationTime = now;
-        proj.maxRange = 600;
+        proj.maxRange = Config_1.CONFIG.SPELL_CONFIG.BASE_RANGE;
         this.state.projectiles.set(id, proj);
         console.log(`[SERVER] Projectile created: ${id} at ${proj.x},${proj.y}`);
     }
@@ -328,12 +312,12 @@ class WorldRoom extends colyseus_1.Room {
             playerState.x = pos.x;
             playerState.y = pos.y;
             playerState.skin = options.skin || "player_idle";
-            playerState.personalPrestige = carriedPrestige + (session.dbPlayer.prestige || 0); // Add stored prestige? 
-            // Warning: Double counting if echoed prestige is stored? 
-            // Echo prestige is transient session prestige. DB prestige is permanent.
-            // Let's assume DB prestige overwrites/is the source of truth for now.
             playerState.personalPrestige = session.dbPlayer.prestige || 0;
             playerState.house = house || 'ignis';
+            // Fable System & Grades
+            playerState.xp = session.dbPlayer.xp || 0;
+            playerState.academicPoints = session.dbPlayer.academicPoints || 0;
+            this.alignmentMap.set(client.sessionId, session.dbPlayer.alignment || 0);
             // Hydrate Inventory (Universal + Legacy Cards)
             if (session.dbPlayer.inventory) {
                 session.dbPlayer.inventory.forEach((dbItem) => {
@@ -342,12 +326,6 @@ class WorldRoom extends colyseus_1.Room {
                     invItem.itemId = dbItem.itemId;
                     invItem.qty = dbItem.count;
                     playerState.inventory.push(invItem);
-                    // 2. Legacy Card Support (for Album UI)
-                    if (dbItem.itemId.startsWith("card_")) {
-                        const cardId = parseInt(dbItem.itemId.split("_")[1]);
-                        if (!isNaN(cardId))
-                            playerState.cardCollection.push(cardId);
-                    }
                 });
             }
             this.state.players.set(client.sessionId, playerState);
@@ -370,6 +348,9 @@ class WorldRoom extends colyseus_1.Room {
                 const pos = entity.body.translation();
                 playerState.x = pos.x;
                 playerState.y = pos.y;
+                // Inject Hidden Data for Persistence
+                const hiddenAlignment = this.alignmentMap.get(client.sessionId) || 0;
+                playerState.alignment = hiddenAlignment;
                 await PlayerService_1.PlayerService.saveSession(dbId, playerState);
             }
             // UNPOSSESS: Restore original slot ID
@@ -389,7 +370,8 @@ class WorldRoom extends colyseus_1.Room {
             const oldState = this.state.players.get(client.sessionId);
             const echoState = new SchemaDef_1.Player();
             echoState.id = slotId;
-            echoState.username = `${house.charAt(0).toUpperCase() + house.slice(1)} Student`;
+            // PERSISTENCE: The Echo keeps the Player's name while offline
+            echoState.username = oldState?.username || `${house.charAt(0).toUpperCase() + house.slice(1)} Student`;
             echoState.x = entity.body.translation().x;
             echoState.y = entity.body.translation().y;
             echoState.skin = oldState?.skin || "player_idle";
@@ -399,6 +381,7 @@ class WorldRoom extends colyseus_1.Room {
         }
         this.state.players.delete(client.sessionId);
         this.playerDbIds.delete(client.sessionId);
+        this.alignmentMap.delete(client.sessionId);
     }
 }
 exports.WorldRoom = WorldRoom;

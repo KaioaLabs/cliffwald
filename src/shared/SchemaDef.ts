@@ -16,12 +16,14 @@ export class Player extends Schema {
     @type("number") vx: number = 0;
     @type("number") vy: number = 0;
     
-    // Prestige Balance
     @type("number") personalPrestige: number = 0;
+    @type("number") xp: number = 0; // Global Experience (Classes + Alignment)
+    @type("number") academicPoints: number = 0; // PA (School Grades)
 
     // Duel Stats
     @type("number") duelScore: number = 0;
     @type("boolean") inDuel: boolean = false;
+    @type("number") unconsciousUntil: number = 0; // Timestamp for waking up
 
     // Universal Inventory (String IDs)
     @type([ InventoryItem ]) inventory = new ArraySchema<InventoryItem>();
@@ -50,7 +52,7 @@ export class Projectile extends Schema {
     @type("number") vx: number = 0;
     @type("number") vy: number = 0;
     @type("string") ownerId: string = "";
-    @type("string") type: string = "rock"; // rock, paper, scissors
+    @type("string") type: string = "circle"; // circle, square, triangle
     @type("number") creationTime: number = 0;
     @type("number") maxRange: number = 600;
 }
@@ -61,6 +63,7 @@ export class GameState extends Schema {
     @type({ map: WorldItem }) items = new MapSchema<WorldItem>();
     @type([ ChatMessage ]) messages = new ArraySchema<ChatMessage>();
     @type("number") worldStartTime: number = 0; 
+    @type("number") timeOffset: number = 0;
     
     // Authoritative House Points
     @type("number") ignisPoints: number = 0;

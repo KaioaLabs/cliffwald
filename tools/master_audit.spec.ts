@@ -66,9 +66,9 @@ test.describe('Master Visual & Mechanic Audit', () => {
     // We'll take a screenshot of the floor, which should have light pipeline enabled.
     
     // 7. UI ELEMENTS
-    await page.click('#btn-settings');
-    await expect(page.locator('#settings-modal')).toBeVisible();
+    await page.click('#settings-btn');
+    await expect(page.locator('#settings-menu')).toBeVisible();
     await page.screenshot({ path: 'screenshots/master_05_settings_ui.png' });
-    await page.click('#btn-close-settings');
+    await page.click('#btn-close');
   });
 });

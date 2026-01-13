@@ -1,9 +1,10 @@
 export class LoginManager {
-    private onSuccess: (token: string, skin: string) => void;
+    private onSuccess: (token: string, skin: string, username: string) => void;
     private authToken: string = "";
     private skin: string = "player_idle";
+    private username: string = "";
 
-    constructor(onSuccess: (token: string, skin: string) => void) {
+    constructor(onSuccess: (token: string, skin: string, username: string) => void) {
         this.onSuccess = onSuccess;
     }
 
@@ -37,6 +38,7 @@ export class LoginManager {
                 
                 this.authToken = data.token;
                 this.skin = skin || "player_idle";
+                this.username = devUser;
 
                 this.finalizeLogin();
             } catch (e) {
@@ -54,70 +56,138 @@ export class LoginManager {
         if (!screen) return;
         screen.classList.remove('hidden');
 
-        const btnCustom = document.getElementById('btn-login-custom');
+        // UI Elements
+        const formLogin = document.getElementById('form-login');
+        const formRegister = document.getElementById('form-register');
         const inputUser = document.getElementById('login-username') as HTMLInputElement;
         const inputPass = document.getElementById('login-password') as HTMLInputElement;
-        const selectHouse = document.getElementById('login-house') as HTMLSelectElement;
+        const btnLogin = document.getElementById('btn-login-action');
+        const btnRegister = document.getElementById('btn-register-action');
+        const btnBack = document.getElementById('btn-back-login');
+        const selectHouse = document.getElementById('reg-house') as HTMLSelectElement;
+        const status = document.getElementById('login-status');
+        const regUserDisplay = document.getElementById('reg-username-display');
 
-        // Clone to remove old listeners
-        const newBtn = btnCustom?.cloneNode(true);
-        if (btnCustom && newBtn) {
-            btnCustom.parentNode?.replaceChild(newBtn, btnCustom);
-            
-            newBtn.addEventListener('click', (e) => {
-                e.stopPropagation(); 
-                const user = inputUser.value.trim();
-                const pass = inputPass.value.trim();
-                if (!user || !pass) {
-                    const status = document.getElementById('login-status');
-                    if (status) status.innerText = "Username and Password required.";
-                    return;
-                }
-                
-                const house = selectHouse.value;
-                let skin = "player_idle";
-                if (house === 'ignis') skin = "player_red";
-                if (house === 'axiom') skin = "player_blue";
-                if (house === 'vesper') skin = "player_green";
+        // Cached Credentials
+        let cachedUser = "";
+        let cachedPass = "";
 
-                this.doLogin(user, pass, skin, house);
-            });
-        }
-    }
-    
-    private async doLogin(username: string, password: string, skin: string, house: string) {
-        try {
-            const apiUrl = this.getApiUrl("/api/auth"); 
-
-            const res = await fetch(apiUrl, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username, password, skin, house })
-            });
-            
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || res.statusText);
+        // --- LOGIN FLOW ---
+        const handleLogin = async () => {
+            cachedUser = inputUser.value.trim();
+            cachedPass = inputPass.value.trim();
+            if (!cachedUser || !cachedPass) {
+                if (status) status.innerText = "Username and Password required.";
+                return;
             }
 
-            const data = await res.json();
-            
-            this.authToken = data.token;
-            this.skin = skin;
-            
-            this.finalizeLogin();
-        } catch (e: any) { 
-            console.error("Login Failed:", e);
-            const status = document.getElementById('login-status');
-            if (status) status.innerText = `Login Failed: ${e.message}`;
-        }
+            if (status) status.innerText = "Authenticating...";
+
+            try {
+                const res = await fetch(this.getApiUrl("/api/login"), {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username: cachedUser, password: cachedPass })
+                });
+
+                if (res.status === 404) {
+                    // USER NOT FOUND -> GO TO REGISTER
+                    if (status) status.innerText = "";
+                    if (formLogin) formLogin.classList.add('hidden');
+                    if (formRegister) formRegister.classList.remove('hidden');
+                    if (regUserDisplay) regUserDisplay.innerText = cachedUser;
+                } else if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || "Login Failed");
+                } else {
+                    // SUCCESS
+                    const data = await res.json();
+                    this.authToken = data.token;
+                    this.skin = data.skin; // Server tells us the skin!
+                    this.username = cachedUser;
+                    this.finalizeLogin();
+                }
+            } catch (e: any) {
+                if (status) status.innerText = e.message;
+            }
+        };
+
+        // --- REGISTER FLOW ---
+        const handleRegister = async () => {
+            const house = selectHouse.value;
+            let skin = "player_idle";
+            if (house === 'ignis') skin = "player_red";
+            if (house === 'axiom') skin = "player_blue";
+            if (house === 'vesper') skin = "player_green";
+
+            if (status) status.innerText = "Enrolling...";
+
+            try {
+                const res = await fetch(this.getApiUrl("/api/register"), {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ 
+                        username: cachedUser, 
+                        password: cachedPass, 
+                        skin, 
+                        house 
+                    })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || "Registration Failed");
+                }
+
+                const data = await res.json();
+                this.authToken = data.token;
+                this.skin = skin;
+                this.username = cachedUser;
+                this.finalizeLogin();
+
+            } catch (e: any) {
+                if (status) status.innerText = e.message;
+            }
+        };
+
+        // Bind Events
+        const replaceListener = (el: HTMLElement | null, fn: () => void) => {
+            if (!el) return;
+            const newEl = el.cloneNode(true);
+            el.parentNode?.replaceChild(newEl, el);
+            newEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                fn();
+            });
+        };
+
+        replaceListener(btnLogin, handleLogin);
+        replaceListener(btnRegister, handleRegister);
+        replaceListener(btnBack, () => {
+            if (formRegister) formRegister.classList.add('hidden');
+            if (formLogin) formLogin.classList.remove('hidden');
+            if (status) status.innerText = "";
+        });
+
+        // Input Safety
+        [inputUser, inputPass].forEach(input => {
+            if (!input) return;
+            const stopProp = (e: Event) => e.stopPropagation();
+            input.addEventListener('keydown', (e) => {
+                e.stopPropagation();
+                if (e.key === 'Enter') handleLogin();
+            });
+            input.addEventListener('keyup', stopProp);
+            input.addEventListener('keypress', stopProp);
+        });
     }
+
 
     private finalizeLogin() {
         // Hide login screen
         const screen = document.getElementById('login-screen');
         if (screen) screen.classList.add('hidden');
 
-        this.onSuccess(this.authToken, this.skin);
+        this.onSuccess(this.authToken, this.skin, this.username);
     }
 }

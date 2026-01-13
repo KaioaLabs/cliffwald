@@ -48,7 +48,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.QueryMode = exports.SortOrder = exports.InventoryItemScalarFieldEnum = exports.PlayerScalarFieldEnum = exports.UserScalarFieldEnum = exports.TransactionIsolationLevel = exports.ModelName = exports.AnyNull = exports.JsonNull = exports.DbNull = exports.NullTypes = exports.Decimal = void 0;
+exports.SortOrder = exports.InventoryItemScalarFieldEnum = exports.PlayerScalarFieldEnum = exports.UserScalarFieldEnum = exports.TransactionIsolationLevel = exports.ModelName = exports.AnyNull = exports.JsonNull = exports.DbNull = exports.NullTypes = exports.Decimal = void 0;
 const runtime = __importStar(require("@prisma/client/runtime/index-browser"));
 exports.Decimal = runtime.Decimal;
 exports.NullTypes = {
@@ -83,9 +83,6 @@ exports.ModelName = {
  * Enums
  */
 exports.TransactionIsolationLevel = runtime.makeStrictEnum({
-    ReadUncommitted: 'ReadUncommitted',
-    ReadCommitted: 'ReadCommitted',
-    RepeatableRead: 'RepeatableRead',
     Serializable: 'Serializable'
 });
 exports.UserScalarFieldEnum = {
@@ -102,6 +99,9 @@ exports.PlayerScalarFieldEnum = {
     skin: 'skin',
     house: 'house',
     prestige: 'prestige',
+    xp: 'xp',
+    alignment: 'alignment',
+    academicPoints: 'academicPoints',
     health: 'health',
     maxHealth: 'maxHealth'
 };
@@ -115,8 +115,4 @@ exports.InventoryItemScalarFieldEnum = {
 exports.SortOrder = {
     asc: 'asc',
     desc: 'desc'
-};
-exports.QueryMode = {
-    default: 'default',
-    insensitive: 'insensitive'
 };

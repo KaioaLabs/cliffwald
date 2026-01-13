@@ -130,24 +130,48 @@ export class GameScene extends Phaser.Scene {
                     if (CONFIG.USE_LIGHTS) furnitureLayer.setPipeline('Light2D');
                     furnitureLayer.setDepth(-99);
 
-                    // Create one shadow per table tile
+                    // Create one shadow per table tile, respecting the tile's texture
                     furnitureLayer.forEachTile((tile) => {
                         if (tile.index !== -1) {
-                            // Each 64x32 tile is a full table. 
-                            // Anchor shadow to the center-bottom of the table.
-                            const tx = tile.getCenterX();
-                            const ty = tile.getBottom();
-                            
-                            const shadow = this.add.image(tx, ty, 'table');
-                            shadow.setTint(0x000000);
-                            shadow.setAlpha(0.3);
-                            shadow.setDepth(-99.5);
-                            shadow.setOrigin(0.5, 0.5); // Rotation pivot will be set by ShadowUtils
-                            
-                            shadow.setData('baseX', tx);
-                            shadow.setData('baseY', ty);
+                            // Find the tileset for this tile
+                            const tileset = tile.tileset;
+                            if (tileset) {
+                                const tileTexKey = tileset.image?.key; // Key of the texture (e.g., 'table')
+                                if (tileTexKey) {
+                                    const tx = tile.getCenterX();
+                                    const ty = tile.getBottom();
+                                    
+                                    // Create shadow using the ACTUAL tileset texture
+                                    const shadow = this.add.image(tx, ty, tileTexKey);
+                                    
+                                    // Calculate crop for the specific tile
+                                    // tile.index is global, subtract firstgid to get local index
+                                    const localId = tile.index - tileset.firstgid;
+                                    const row = Math.floor(localId / tileset.columns);
+                                    const col = localId % tileset.columns;
+                                    const cx = tileset.tileMargin + (col * (tileset.tileWidth + tileset.tileSpacing));
+                                    const cy = tileset.tileMargin + (row * (tileset.tileHeight + tileset.tileSpacing));
+                                    
+                                    shadow.setCrop(cx, cy, tileset.tileWidth, tileset.tileHeight);
+                                    
+                                    // We must set the frame size to match crop, otherwise origin calc is wrong
+                                    shadow.setSize(tileset.tileWidth, tileset.tileHeight);
+                                    // Update the display origin to match the new size (Feet anchor)
+                                    shadow.setOrigin(0.5, 1.0); 
+                                    
+                                    shadow.setTint(0x000000);
+                                    shadow.setAlpha(0.3);
+                                    shadow.setDepth(-99.5);
+                                    
+                                    shadow.setData('baseX', tx);
+                                    shadow.setData('baseY', ty);
+                                    shadow.setData('sourceScaleX', 1.0);
+                                    shadow.setData('sourceScaleY', 1.0);
+                                    shadow.setData('height', tileset.tileHeight); // Store height for shadow length calc
 
-                            this.tableShadows.push(shadow);
+                                    this.tableShadows.push(shadow);
+                                }
+                            }
                         }
                     });
                 }
@@ -185,12 +209,26 @@ export class GameScene extends Phaser.Scene {
 
                 container.setDepth(y - 10); // Dynamic depth based on Y
                 
-                // Add shadow
-                const shadow = this.add.image(x, y + h/2, 'table');
-                shadow.setDisplaySize(w, h/2);
+                // Add shadow using generic base, but SCALED to be the object's shape
+                // We anchor at the bottom of the object
+                const bottomY = y + h/2;
+                
+                const shadow = this.add.image(x, bottomY, 'shadow_base');
+                shadow.setTint(0x000000);
+                shadow.setOrigin(0.5, 1.0); // Feet anchor
+                shadow.setDepth(-99.5); // Below furniture
+                
+                // Store scaling factors so ShadowUtils can skew the rectangle correctly
+                // shadow_base is 32x32
+                const scaleX = w / 32;
+                const scaleY = h / 32;
+                
                 shadow.setData('baseX', x);
-                shadow.setData('baseY', y + h/2);
-                shadow.setData('height', h/2);
+                shadow.setData('baseY', bottomY);
+                shadow.setData('sourceScaleX', scaleX);
+                shadow.setData('sourceScaleY', scaleY);
+                shadow.setData('height', h);
+                
                 this.tableShadows.push(shadow);
                 
                 return container;
@@ -218,6 +256,11 @@ export class GameScene extends Phaser.Scene {
                 }
             });
 
+            // Spawn Infirmary Beds
+            CONFIG.INFIRMARY_BEDS.forEach((pos) => {
+                createProp(pos.x, pos.y, 34, 54, 0xffffff, "Hospital Bed", true);
+            });
+
             this.playerController = new PlayerController(this, this.physicsWorld);
             AssetManager.createAnimations(this);
             this.wasd = this.input.keyboard?.addKeys('W,A,S,D') as any;
@@ -234,8 +277,13 @@ export class GameScene extends Phaser.Scene {
                 if (playerPos && centroid) {
                     const worldPoint = this.cameras.main.getWorldPoint(centroid.x, centroid.y);
                     
-                    this.showCastEffect(id, worldPoint.x, worldPoint.y);
+                    if (id === 'unknown') {
+                        this.showFizzleEffect(worldPoint.x, worldPoint.y);
+                        return; // Stop here, no server message
+                    }
 
+                    this.showCastEffect(id, worldPoint.x, worldPoint.y);
+                    
                     const aimVector = new Phaser.Math.Vector2(worldPoint.x - playerPos.x, worldPoint.y - playerPos.y).normalize();
 
                     this.network.sendCast(id, aimVector.x * CONFIG.SPELL_CONFIG.BASE_SPEED, aimVector.y * CONFIG.SPELL_CONFIG.BASE_SPEED);
@@ -294,6 +342,21 @@ export class GameScene extends Phaser.Scene {
         } catch (e: any) {
             console.error("Create Crash:", e);
         }
+    }
+
+    showFizzleEffect(x: number, y: number) {
+        // Gray/White Smoke Particles
+        const smoke = this.add.particles(x, y, 'star', {
+            speed: { min: 20, max: 100 },
+            scale: { start: 0.8, end: 0 },
+            alpha: { start: 0.6, end: 0 },
+            lifespan: 600,
+            tint: 0x888888,
+            maxParticles: 15
+        });
+        
+        // Auto-cleanup after short duration
+        this.time.delayedCall(1000, () => smoke.destroy());
     }
 
     showCastEffect(id: string, x: number, y: number) {
@@ -432,21 +495,69 @@ export class GameScene extends Phaser.Scene {
                 attach(this.room.state.items, 'onAdd', (item: any, id: string) => {
                     if (this.itemVisuals.has(id)) return;
                     
-                    const sprite = this.add.rectangle(item.x, item.y, 14, 14, 0xFFD700);
-                    sprite.setStrokeStyle(2, 0xFFFFFF);
-                    sprite.setDepth(-80); 
+                    // Improved Visuals: Use Card Frame if available, else Diamond
+                    let sprite: Phaser.GameObjects.Image | Phaser.GameObjects.Shape;
                     
+                    if (this.textures.exists('frame_bronze')) {
+                        sprite = this.add.image(item.x, item.y, 'frame_bronze');
+                        (sprite as Phaser.GameObjects.Image).setDisplaySize(20, 28);
+                    } else {
+                        sprite = this.add.rectangle(item.x, item.y, 20, 20, 0x00FFFF);
+                        (sprite as Phaser.GameObjects.Shape).setStrokeStyle(2, 0xFFFFFF);
+                        sprite.rotation = 0.785; // 45 deg
+                    }
+                    
+                    sprite.setDepth(-5); // Higher than floor (-100), lower than players (0)
+                    
+                    // Floating Animation
                     this.tweens.add({
                         targets: sprite,
-                        y: item.y - 5,
+                        y: item.y - 8,
                         duration: 1500,
                         yoyo: true,
-                        repeat: -1
+                        repeat: -1,
+                        ease: 'Sine.easeInOut'
                     });
 
                     sprite.setInteractive({ cursor: 'pointer' });
+                    
                     sprite.on('pointerdown', () => {
-                        this.network.room?.send("collect", id);
+                        // 1. Visual Feedback (Pop)
+                        this.tweens.add({
+                            targets: sprite,
+                            scaleX: sprite.scaleX * 0.8,
+                            scaleY: sprite.scaleY * 0.8,
+                            duration: 100,
+                            yoyo: true
+                        });
+
+                        // 2. Distance Check (Client Side Prediction/Feedback)
+                        const localPlayer = this.playerController.players.get(this.network.room.sessionId);
+                        if (localPlayer && localPlayer.visual?.sprite) {
+                            const p = localPlayer.visual.sprite;
+                            const dist = Phaser.Math.Distance.Between(p.x, p.y, item.x, item.y);
+                            
+                            if (dist > 120) { // Slight buffer over server 100
+                                // Show Floating Text Feedback
+                                const txt = this.add.text(item.x, item.y - 20, "Too far!", {
+                                    fontSize: '12px',
+                                    color: '#ff0000',
+                                    stroke: '#000000',
+                                    strokeThickness: 2
+                                }).setOrigin(0.5);
+                                txt.setDepth(100);
+                                
+                                this.tweens.add({
+                                    targets: txt,
+                                    y: item.y - 40,
+                                    alpha: 0,
+                                    duration: 1000,
+                                    onComplete: () => txt.destroy()
+                                });
+                            } else {
+                                this.network.room?.send("collect", id);
+                            }
+                        }
                     });
                     
                     this.itemVisuals.set(id, sprite);
@@ -454,7 +565,16 @@ export class GameScene extends Phaser.Scene {
 
                 attach(this.room.state.items, 'onRemove', (_: any, id: string) => {
                     const v = this.itemVisuals.get(id);
-                    if (v) v.destroy();
+                    if (v) {
+                        // Disappear animation
+                        this.tweens.add({
+                            targets: v,
+                            alpha: 0,
+                            scale: 0,
+                            duration: 300,
+                            onComplete: () => v.destroy()
+                        });
+                    }
                     this.itemVisuals.delete(id);
                 });
             }
@@ -518,15 +638,18 @@ export class GameScene extends Phaser.Scene {
             try {
                 const baseX = shadow.getData('baseX');
                 const baseY = shadow.getData('baseY');
+                const sX = shadow.getData('sourceScaleX') || 1.0;
+                const sY = shadow.getData('sourceScaleY') || 1.0;
+                const h = shadow.getData('height') || 32;
                 
                 ShadowUtils.updateShadow(
                     shadow,
                     baseX,
                     baseY,
-                    1.0,  // Scale X
-                    1.0,  // Scale Y
+                    sX,  // Source Scale X (for rects this creates the shape)
+                    sY,  // Source Scale Y
                     -99,  // Depth
-                    32,   // Height of the object for shadow offset
+                    h,   // Height of the object for shadow offset
                     worldPoint.x,
                     worldPoint.y
                 );
@@ -628,7 +751,7 @@ export class GameScene extends Phaser.Scene {
             const isLocal = sessionId === this.network.room?.sessionId;
             this.playerController.addPlayer(sessionId, data.x, data.y, isLocal, data.skin, data.username, data.house);
         } else {
-            this.playerController.updatePlayerState(sessionId, data);
+            this.playerController.updatePlayerState(sessionId, data, data.unconsciousUntil);
         }
     }
 

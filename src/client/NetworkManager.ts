@@ -18,6 +18,9 @@ export class NetworkManager {
     public onChatMessage?: (msg: { sender: string, text: string }) => void;
     public onHit?: (targetId: string) => void;
 
+    // Debug
+    public simulatedLatency: number = 0;
+
     constructor(scene?: Phaser.Scene) {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = window.location.hostname;
@@ -44,38 +47,55 @@ export class NetworkManager {
         }
     }
 
+    private handleLatency(callback: () => void) {
+        if (this.simulatedLatency > 0) {
+            setTimeout(callback, this.simulatedLatency);
+        } else {
+            callback();
+        }
+    }
+
     private setupListeners() {
         if (!this.room) return;
 
         // 1. Messages
         this.room.onMessage("hit", (data: { targetId: string }) => {
-            if (this.onHit) this.onHit(data.targetId);
+            this.handleLatency(() => { if (this.onHit) this.onHit(data.targetId); });
         });
 
         this.room.onMessage("pong", (timestamp: number) => {
-            const latency = Date.now() - timestamp;
-            if (this.onPong) this.onPong(latency);
+            this.handleLatency(() => {
+                const latency = Date.now() - timestamp;
+                if (this.onPong) this.onPong(latency);
+            });
         });
 
         this.room.onMessage("chat", (msg: { sender: string, text: string }) => {
-            console.log("[NET] Chat Received:", msg);
-            if (this.onChatMessage) this.onChatMessage(msg);
+            this.handleLatency(() => {
+                console.log("[NET] Chat Received:", msg);
+                if (this.onChatMessage) this.onChatMessage(msg);
+            });
         });
 
         // Helper for Colyseus Version Compatibility
         const attach = <T>(collection: any | undefined, event: 'onAdd' | 'onRemove', cb: (item: T, key: string) => void) => {
             if (!collection) return;
             try {
-                const col = collection as any; // Cast only for the runtime check
+                const col = collection as any; 
+                // We wrap the callback 'cb' to handle latency
+                const wrappedCb = (item: T, key: string) => {
+                    this.handleLatency(() => cb(item, key));
+                };
+
                 if (typeof col[event] === 'function') {
-                    col[event](cb);
+                    col[event](wrappedCb);
                 } else {
-                    col[event] = cb;
+                    col[event] = wrappedCb;
                 }
 
                 // TRIGGER FOR EXISTING ITEMS (Fix for race condition)
                 if (event === 'onAdd' && col.forEach) {
-                    col.forEach((item: T, key: string) => cb(item, key));
+                    col.forEach((item: T, key: string) => wrappedCb(item, key));
                 }
             } catch (e) {
                 console.error(`[NET] Failed to attach ${event}:`, e);
@@ -92,38 +112,29 @@ export class NetworkManager {
                     if (this.onPlayerAdd) this.onPlayerAdd(player, id);
                 });
                 attach(this.room.state.players, 'onRemove', (player: Player, id: string) => {
-                    console.log("Player Removed:", id);
                     if (this.onPlayerRemove) this.onPlayerRemove(player, id);
                 });
             }
 
             if (this.room.state.projectiles) {
-                console.log("[NET] Attaching Projectile Listeners");
                 attach(this.room.state.projectiles, 'onAdd', (proj: Projectile, id: string) => {
-                    console.log(`[NET] Projectile Added: ${id}`);
-                    if (this.onProjectileAdd) {
-                        this.onProjectileAdd(proj, id);
-                    } else {
-                        console.warn("[NET] onProjectileAdd callback NOT set!");
-                    }
+                    if (this.onProjectileAdd) this.onProjectileAdd(proj, id);
                     
-                    // Listen for updates on this specific projectile instance
                     proj.onChange(() => {
-                        if (this.onProjectileChange) this.onProjectileChange(proj, id);
+                        this.handleLatency(() => {
+                             if (this.onProjectileChange) this.onProjectileChange(proj, id);
+                        });
                     });
                 });
                 attach(this.room.state.projectiles, 'onRemove', (proj: Projectile, id: string) => {
                     if (this.onProjectileRemove) this.onProjectileRemove(proj, id);
                 });            
-            } else {
-                console.warn("[NET] Room state has no projectiles collection!");
             }
         };
 
         if (this.room.state && this.room.state.players && this.room.state.projectiles) {
             attachSync();
         } else {
-             console.log("[NET] State not ready, waiting for first patch...");
              this.room.onStateChange.once(() => attachSync());
         }
     }

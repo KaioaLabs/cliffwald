@@ -8,6 +8,7 @@ export class GestureManager {
     private points: Point[];
     private graphics?: Phaser.GameObjects.Graphics;
     private emitter: Phaser.GameObjects.Particles.ParticleEmitter;
+    private cursorLight: Phaser.GameObjects.Light; // Light for the cursor
     public isDrawing: boolean = false;
     private templates: Map<string, Point[]> = new Map();
 
@@ -21,6 +22,9 @@ export class GestureManager {
         // Setup Line Graphics
         this.graphics = this.uiScene.add.graphics();
         this.graphics.setDepth(100); // Ensure it's on top
+
+        // Setup Cursor Light
+        this.cursorLight = this.scene.lights.addLight(0, 0, 120, 0xffaa00, 0);
 
         // Setup Magic Particle Trail
         this.emitter = this.uiScene.add.particles(0, 0, 'star', {
@@ -68,6 +72,11 @@ export class GestureManager {
                 this.emitter.setPosition(pointer.x, pointer.y);
                 this.emitter.start();
 
+                // Turn on cursor light
+                const worldPoint = this.scene.cameras.main.getWorldPoint(pointer.x, pointer.y);
+                this.cursorLight.setPosition(worldPoint.x, worldPoint.y);
+                this.cursorLight.setIntensity(2.0);
+
                 if (this.graphics) {
                     this.graphics.clear();
                     this.graphics.lineStyle(4, 0x00ffff, 0.8);
@@ -83,6 +92,10 @@ export class GestureManager {
                 this.points.push({ x: pointer.x, y: pointer.y });
                 this.emitter.setPosition(pointer.x, pointer.y);
                 
+                // Update cursor light position
+                const worldPoint = this.scene.cameras.main.getWorldPoint(pointer.x, pointer.y);
+                this.cursorLight.setPosition(worldPoint.x, worldPoint.y);
+
                 if (this.graphics) {
                     this.graphics.lineTo(pointer.x, pointer.y);
                     this.graphics.strokePath();
@@ -96,6 +109,9 @@ export class GestureManager {
                 this.drawingPointerId = null;
                 this.emitter.stop();
                 
+                // Turn off cursor light
+                this.cursorLight.setIntensity(0);
+
                 if (this.graphics) {
                     this.graphics.clear();
                 }
@@ -112,11 +128,14 @@ export class GestureManager {
         if (this.points.length < 10) return;
         const candidate = this.normalizePipeline(this.points);
         const result = this.recognize(candidate);
+        const rawCentroid = this.getCentroid(this.points);
 
-        if (result.score > 0.7) {
-            const rawCentroid = this.getCentroid(this.points);
-            if (this.onGestureRecognized) {
+        if (this.onGestureRecognized) {
+            if (result.score > 0.7) {
                 this.onGestureRecognized(result.id, result.score, rawCentroid);
+            } else {
+                // Emit 'unknown' for low scores to trigger visual "fizzle"
+                this.onGestureRecognized('unknown', result.score, rawCentroid);
             }
         }
     }

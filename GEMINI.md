@@ -1,13 +1,19 @@
 # Reglas del Proyecto
 
-## Hitos Técnicos Recientes (v0.1.1)
-- **Seguridad (v0.1.2)**: Implementado sistema de Cuentas Reales (Seamless Auth) con contraseñas encriptadas y protección anti-cheat básica (Server Authority estricto).
-- **Replicación de Hechizos**: Implementado sistema `onChange` en `NetworkManager`. Los proyectiles remotos ahora son autoritativos (posición del servidor) en lugar de predictivos (interpolación local insegura).
-- **Rendimiento**:
-    - **Servidor**: Aumentado Tick Rate de 15 a **30 FPS** para suavidad en red.
-    - **Cliente**: Desactivada actualización por frame de sombras estáticas (pupitres), ahorrando ciclos de CPU masivos.
-- **Limpieza**: Eliminado `postbuild.js` y scripts de entorno legacy. `Tiled/` se mantiene por decisión de usuario.
-- **Configuración**: Centralizados valores mágicos de hechizos en `Config.ts` (`SPELL_CONFIG`).
+## Hitos Técnicos Recientes (v0.1.3 - Refactorización)
+- **Modularización del Servidor**:
+    - Extraído `ChatManager` de `WorldRoom` para gestión aislada de mensajes y comandos.
+    - Implementado `PersistenceSystem` para auto-guardado y commits atómicos, eliminando lógica dispersa.
+    - Limpieza de `WorldRoom.ts` (reducción de complejidad ciclomática).
+- **Refactorización del Cliente**:
+    - Extraída lógica de autenticación a `LoginManager.ts` (SRP).
+    - `main.ts` ahora actúa como orquestador limpio.
+- **Configuración Centralizada**:
+    - Creado `COLLISION_CONFIG` y `DB_CONFIG` en `Config.ts`.
+    - Eliminados números mágicos en `SpellSystem` y `WorldRoom`.
+- **Higiene del Repositorio**:
+    - Eliminados ~60MB de binarios generados basura (`.node`, `.dll`).
+    - Actualizado `.gitignore` y corregidos tests unitarios (`vitest`).
 
 ## Arquitectura Modular & Build Pipeline (Actualizado Enero 2026)
 - **Servidor Autoritativo**: Node.js + Colyseus + Express 5.
@@ -45,7 +51,7 @@
     - Servidor (Colyseus) valida toda lógica.
 - **Credenciales de Desarrollo (Admin)**:
     - Usuario: `admin`
-    - Contraseña: `Miaularizador42`
+    - Contraseña: `2580`
     - *Nota: Esta cuenta se autogenera si no existe al arrancar el servidor.*
 
 ## Código y Estilo

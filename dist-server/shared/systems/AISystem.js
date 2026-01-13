@@ -4,8 +4,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AISystem = void 0;
-const Config_1 = require("../Config");
 const rapier2d_compat_1 = __importDefault(require("@dimforge/rapier2d-compat"));
+const ScheduleUtils_1 = require("../utils/ScheduleUtils");
 // Shared reuseable objects to reduce GC
 const SHARED_SEARCH_SHAPE = new rapier2d_compat_1.default.Ball(24);
 let frameCount = 0;
@@ -63,43 +63,13 @@ const AISystem = (world, physicsWorld, dt, currentHour, pathfinder, castCallback
             }
             continue; // Skip routine logic
         }
-        // 1. DETERMINE DESIRED DESTINATION (Routine logic remains same)
+        // 1. DETERMINE DESIRED DESTINATION (Refactored)
         let desiredPos = ai.home;
         let forceFacing = { x: 0, y: 1 };
         if (ai.routineSpots) {
-            const isEating = (currentHour >= 7 && currentHour < 8) || (currentHour >= 19 && currentHour < 21);
-            const isClass = (currentHour >= 8 && currentHour < 10) || (currentHour >= 17 && currentHour < 19);
-            const isSleeping = (currentHour >= 21 || currentHour < 7);
-            if (isEating) {
-                desiredPos = ai.routineSpots.eat;
-                forceFacing = { x: 0, y: -1 };
-            }
-            else if (isClass) {
-                desiredPos = ai.routineSpots.class;
-                forceFacing = { x: 0, y: -1 };
-            }
-            else if (isSleeping) {
-                desiredPos = ai.routineSpots.sleep;
-                forceFacing = { x: 0, y: 1 };
-            }
-            else {
-                // Deterministic Dispersion: Golden Angle spread
-                const getSpread = (center, radius) => {
-                    const angle = numericId * 2.399; // Golden Angle in radians (~137.5 deg)
-                    const r = Math.sqrt(numericId + 1) * (radius / 5); // Spread outwards
-                    // Clamp to max radius
-                    const finalR = Math.min(r, radius);
-                    return { x: center.x + Math.cos(angle) * finalR, y: center.y + Math.sin(angle) * finalR };
-                };
-                if (currentHour >= 10 && currentHour < 12)
-                    desiredPos = getSpread(Config_1.CONFIG.SCHOOL_LOCATIONS.TRAINING_GROUNDS, 200);
-                else if (currentHour >= 12 && currentHour < 14)
-                    desiredPos = getSpread(Config_1.CONFIG.SCHOOL_LOCATIONS.COURTYARD, 150);
-                else if (currentHour >= 14 && currentHour < 17)
-                    desiredPos = getSpread(Config_1.CONFIG.SCHOOL_LOCATIONS.FOREST, 400);
-                else
-                    desiredPos = ai.routineSpots.sleep;
-            }
+            const schedule = (0, ScheduleUtils_1.getStudentScheduleTarget)(numericId, currentHour, ai.routineSpots);
+            desiredPos = schedule.pos;
+            forceFacing = schedule.facing;
         }
         // 2. STATE MACHINE & STAGGERED START
         const distToTarget = Math.sqrt(Math.pow(desiredPos.x - currentPos.x, 2) + Math.pow(desiredPos.y - currentPos.y, 2));

@@ -143,12 +143,36 @@ export class SpawnManager {
         const studentIndex = (numericId !== undefined) ? ((numericId - 1) % 8) : 0;
         const seatId = (numericId !== undefined) ? (numericId - 1) : 0;
 
-        // 1. GET POSITIONS FROM REGISTRY OR FALLBACK
-        const sleepPos = this.seats.bed.get(seatId) || { x, y };
+        // 1. SLEEP POSITIONS (Dorms: 2 Rows of 4 Beds)
+        // Base Dorm Pos from Config
+        let dormBase = CONFIG.SCHOOL_LOCATIONS.DORM_IGNIS;
+        if (house === 'axiom') dormBase = CONFIG.SCHOOL_LOCATIONS.DORM_AXIOM;
+        if (house === 'vesper') dormBase = CONFIG.SCHOOL_LOCATIONS.DORM_VESPER;
+
+        const bedRow = Math.floor(studentIndex / 4); // 0 or 1
+        const bedCol = studentIndex % 4; // 0 to 3
+        const sleepPos = {
+            x: dormBase.x + (bedCol * TILE_SIZE * 2),
+            y: dormBase.y + (bedRow * TILE_SIZE * 3) // Spacing between rows
+        };
         
-        const eatPos = this.seats.food.get(seatId) || {
-            x: CONFIG.SCHOOL_LOCATIONS.GREAT_HALL.x + (studentIndex - 3.5) * TILE_SIZE,
-            y: CONFIG.SCHOOL_LOCATIONS.GREAT_HALL.y + (house === 'ignis' ? -64 : (house === 'vesper' ? 64 : 0))
+        // 2. EAT POSITIONS (Great Hall: 3 Parallel Tables)
+        // Ignis (Top), Axiom (Mid), Vesper (Bottom)
+        let tableOffsetY = 0;
+        if (house === 'ignis') tableOffsetY = -80;
+        if (house === 'vesper') tableOffsetY = 80;
+
+        // Students sit on both sides of the long table? Or just one side facing table?
+        // Prompt says "orientado hacia donde este la mesa".
+        // Let's assume table is horizontal. 
+        // 8 students. 4 top, 4 bottom? Or 8 in a row?
+        // Let's do 4 top (facing down), 4 bottom (facing up).
+        const tableRow = Math.floor(studentIndex / 4); // 0 (Top side), 1 (Bottom side)
+        const tableCol = studentIndex % 4; // 0-3
+        
+        const eatPos = {
+            x: CONFIG.SCHOOL_LOCATIONS.GREAT_HALL.x + (tableCol * 64) - 96, // Centered horizontally
+            y: CONFIG.SCHOOL_LOCATIONS.GREAT_HALL.y + tableOffsetY + (tableRow === 0 ? -40 : 40) // Above or below table
         };
 
         const classPos = this.seats.class.get(seatId) || (() => {

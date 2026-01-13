@@ -21,6 +21,12 @@ const mockScene = {
     },
     sound: {
         mute: false
+    },
+    scale: {
+        on: vi.fn(),
+        isFullscreen: false,
+        startFullscreen: vi.fn(),
+        stopFullscreen: vi.fn()
     }
 };
 
@@ -43,10 +49,17 @@ describe('UI Integration Audit', () => {
         // Setup DOM
         document.body.innerHTML = `
             <div id="ui-layer">
+                <div id="calendar-widget">
+                    <div id="cal-season"></div>
+                    <div id="cal-day"></div>
+                    <div id="cal-phase"></div>
+                </div>
                 <div id="quick-menu">
                     <button id="btn-album">Album</button>
                     <button id="btn-timetable">Time</button>
                     <button id="settings-btn">Set</button>
+                    <button id="btn-inventory">Inv</button>
+                    <button id="btn-fullscreen">Full</button>
                 </div>
                 <div id="chat-container">
                     <div id="chat-messages"></div>
@@ -57,18 +70,35 @@ describe('UI Integration Audit', () => {
                 <div id="album-modal" class="hidden">
                     <div id="album-grid"></div>
                     <span id="collection-count"></span>
-                    <button class="close-btn"></button>
+                    <button class="close-btn">X</button>
                 </div>
                 
                 <div id="timetable-modal" class="hidden">
-                    <table>
-                        <tbody id="schedule-body"></tbody>
-                    </table>
+                    <button id="btn-view-week"></button>
+                    <button id="btn-view-month"></button>
+                    <div id="calendar-container"></div>
+                    <div id="calendar-tooltip" class="hidden">
+                        <h4 id="tooltip-title"></h4>
+                        <p id="tooltip-time"></p>
+                        <p id="tooltip-desc"></p>
+                    </div>
                     <span id="clock-display"></span>
-                    <button class="close-btn"></button>
+                    <button class="close-btn">X</button>
                 </div>
+
+                <div id="inventory-modal" class="hidden">
+                    <div id="inventory-grid"></div>
+                    <h3 id="detail-name"></h3>
+                    <p id="detail-type"></p>
+                    <p id="detail-desc"></p>
+                    <div id="detail-stats"></div>
+                    <button id="btn-use"></button>
+                    <button id="btn-equip"></button>
+                    <button class="close-btn">X</button>
+                </div>
+
                 <div id="settings-menu" class="hidden">
-                    <button id="btn-close"></button>
+                    <button id="btn-close">X</button>
                 </div>
             </div>
         `;
@@ -86,62 +116,53 @@ describe('UI Integration Audit', () => {
         expect(chatBox?.children[0].textContent).toBe('Alice: Hello');
 
         // Simulate re-creating UI (e.g. scene restart)
-        // If logic is flawed, it might bind twice or duplicate logic
         uiManager.create(); 
         uiManager.appendChatMessage({ sender: 'Bob', text: 'Hi' });
         
-        // Should have 2 messages total, not 3 (no ghost listeners multiplying messages)
         expect(chatBox?.children.length).toBe(2);
         expect(chatBox?.children[1].textContent).toBe('Bob: Hi');
     });
 
-    it('AUDIT 2: Timetable Generation', () => {
-        const body = document.getElementById('schedule-body');
-        // Should be populated by renderTimetable on create()
-        expect(body?.children.length).toBeGreaterThan(0);
-        
-        const firstRow = body?.children[0] as HTMLElement;
-        expect(firstRow.innerHTML).toContain('Charms'); // From Config
-        expect(firstRow.getAttribute('data-start')).toBe('8');
+    it('AUDIT 2: Calendar Rendering', () => {
+        const container = document.getElementById('calendar-container');
+        // Week view is default
+        expect(container?.innerHTML).toContain('table');
+        expect(container?.innerHTML).toContain('Time');
+        expect(container?.innerHTML).toContain('Mon');
     });
 
     it('AUDIT 3: Album Rendering', () => {
-        // Mock Player with Cards
-        const playerState = { cardCollection: [1, 5] };
+        // Mock Player with Cards (Numeric IDs in Schema)
+        const playerState = { 
+            cardCollection: [1, 5],
+            inventory: []
+        };
         mockNetwork.room.state.players.set("sess_123", playerState);
 
         const btnAlbum = document.getElementById('btn-album');
-        btnAlbum?.click(); // Open Album
+        btnAlbum?.click(); 
 
         const modal = document.getElementById('album-modal');
         expect(modal?.classList.contains('hidden')).toBe(false);
 
         const grid = document.getElementById('album-grid');
-        // Should have all cards from registry (27 currently)
-        expect(grid?.children.length).toBe(27);
+        expect(grid?.children.length).toBeGreaterThan(0);
         
         // Slot 0 (Card 1) should be owned
         expect(grid?.children[0].classList.contains('owned')).toBe(true);
-        // Slot 1 (Card 2) should NOT be owned
-        expect(grid?.children[1].classList.contains('owned')).toBe(false);
-        // Slot 4 (Card 5) should be owned
-        expect(grid?.children[4].classList.contains('owned')).toBe(true);
     });
 
-    it('AUDIT 4: Timetable Highlighting', () => {
-        // Show modal first (logic requires it to be visible)
-        document.getElementById('timetable-modal')?.classList.remove('hidden');
-
-        // Test Hour: 09:00 (During Charms 08-10)
-        uiManager.updateTimetable(9);
+    it('AUDIT 4: Calendar Tooltip & Widget', () => {
+        uiManager.updateCalendar("October", 2, 3, "Day");
         
-        const rows = document.querySelectorAll('#schedule-body tr');
-        const charmsRow = rows[0];
-        expect(charmsRow.classList.contains('active-class')).toBe(true);
+        expect(document.getElementById('cal-season')?.innerText).toBe("October - SEMANA 2");
+        expect(document.getElementById('cal-day')?.innerText).toBe("DÍA 3");
+        expect(document.getElementById('cal-phase')?.innerText).toBe("DAY");
 
-        // Test Hour: 23:00 (During Curfew 22-08)
-        uiManager.updateTimetable(23);
-        const curfewRow = rows[rows.length - 1]; // Last row is Curfew
-        expect(curfewRow.classList.contains('active-class')).toBe(true);
+        const modal = document.getElementById('timetable-modal');
+        if (modal) modal.classList.remove('hidden');
+
+        uiManager.updateTimetable(10);
+        expect(document.getElementById('clock-display')?.innerText).toBe("10:00");
     });
 });

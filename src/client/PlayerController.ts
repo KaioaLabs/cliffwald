@@ -6,17 +6,7 @@ import RAPIER from '@dimforge/rapier2d-compat';
 import { createWorld, ECSWorld } from '../shared/ecs/world';
 import { Entity } from '../shared/ecs/components';
 import { ShadowUtils } from './ShadowUtils';
-
-// Extended Entity type for Client-side only properties
-type ClientEntity = Entity & {
-    shadow?: Phaser.GameObjects.Image;
-    nameTag?: Phaser.GameObjects.Text;
-    isLocal?: boolean;
-    lastDir?: string;
-    positionBuffer?: { x: number, y: number, timestamp: number }[];
-    lastMoveTime?: number;
-    serverPos?: { x: number, y: number };
-};
+import { ClientEntity } from './types/ClientEntity';
 
 export class PlayerController {
     scene: Phaser.Scene;
@@ -100,22 +90,30 @@ export class PlayerController {
         return sprite;
     }
 
-    private setupLocalPhysics(entity: Entity, x: number, y: number) {
+    private setupLocalPhysics(entity: ClientEntity, x: number, y: number) {
         const bodyDesc = RAPIER.RigidBodyDesc.dynamic()
             .setTranslation(x, y)
             .setLinearDamping(10.0)
             .lockRotations();
         entity.body = this.physicsWorld!.createRigidBody(bodyDesc);
         const colliderDesc = RAPIER.ColliderDesc.ball(CONFIG.PLAYER_RADIUS);
-        this.physicsWorld!.createCollider(colliderDesc, entity.body);
+        entity.collider = this.physicsWorld!.createCollider(colliderDesc, entity.body);
+    }
+
+    public setNoclip(sessionId: string, enabled: boolean) {
+        const entity = this.players.get(sessionId);
+        if (entity && entity.collider) {
+            entity.collider.setSensor(enabled);
+            console.log(`[PHYSICS] Noclip ${enabled ? 'ENABLED' : 'DISABLED'} for ${sessionId}`);
+        }
     }
 
     removePlayer(sessionId: string) {
         const entity = this.players.get(sessionId);
         if (entity) {
             if (entity.visual?.sprite) entity.visual.sprite.destroy();
-            if ((entity as any).shadow) (entity as any).shadow.destroy();
-            if ((entity as any).nameTag) (entity as any).nameTag.destroy();
+            if (entity.shadow) entity.shadow.destroy();
+            if (entity.nameTag) entity.nameTag.destroy();
             
             if (entity.body && this.physicsWorld) {
                 this.physicsWorld.removeRigidBody(entity.body);
@@ -133,18 +131,20 @@ export class PlayerController {
         }
     }
 
-    updatePlayerState(sessionId: string, data: PositionUpdate) {
+    updatePlayerState(sessionId: string, data: PositionUpdate, unconsciousUntil: number = 0) {
         const entity = this.players.get(sessionId);
         if (entity) {
-            (entity as any).serverPos = { x: data.x, y: data.y };
-            const buffer = (entity as any).positionBuffer;
+            entity.serverPos = { x: data.x, y: data.y };
+            entity.unconsciousUntil = unconsciousUntil;
+            
+            const buffer = entity.positionBuffer;
             if (buffer) {
                 buffer.push({ x: data.x, y: data.y, timestamp: Date.now() });
                 if (buffer.length > 10) buffer.shift();
             }
             
             // Server Reconciliation for Local
-            if ((entity as any).isLocal && entity.body) {
+            if (entity.isLocal && entity.body) {
                 const localPos = entity.body.translation();
                 const dist = Phaser.Math.Distance.Between(localPos.x, localPos.y, data.x, data.y);
                 if (dist > 20) entity.body.setTranslation({ x: data.x, y: data.y }, true);
@@ -223,6 +223,15 @@ export class PlayerController {
             }
 
             if (entity.nameTag) entity.nameTag.setPosition(sprite.x, sprite.y + CONFIG.NAME_TAG_Y_OFFSET).setDepth(sprite.y + 100);
+
+            // Handle Unconscious State
+            if (entity.unconsciousUntil && entity.unconsciousUntil > now) {
+                sprite.setRotation(Math.PI / 2); // 90 degrees
+                sprite.setOrigin(0.5, 0.5); // Center pivot for rotation
+            } else {
+                sprite.setRotation(0);
+                sprite.setOrigin(0.5, 0.75); // Restore original pivot
+            }
 
             this.handleAnimation(entity, dx, dy);
         }

@@ -2,6 +2,7 @@ import { WorldRoom } from "../WorldRoom";
 import { Projectile } from "../../shared/SchemaDef";
 import { CONFIG } from "../../shared/Config";
 import RAPIER from "@dimforge/rapier2d-compat";
+import { PhysicsUserData } from "../types/PhysicsTypes";
 
 export class SpellSystem {
     private room: WorldRoom;
@@ -45,7 +46,7 @@ export class SpellSystem {
                     const collider = hit.collider;
                     const parentBody = collider.parent();
                     if (parentBody) {
-                        const userData = parentBody.userData as any;
+                        const userData = parentBody.userData as PhysicsUserData;
                         if (userData && userData.sessionId && userData.sessionId !== proj.ownerId) {
                             // Valid Hit
                             this.handlePlayerHit(proj.ownerId, userData.sessionId);
@@ -100,8 +101,8 @@ export class SpellSystem {
             return 'circle';
         };
 
-        const typeA = CONFIG.RPS_MAP[getBase(a.spellId)];
-        const typeB = CONFIG.RPS_MAP[getBase(b.spellId)];
+        const typeA = getBase(a.spellId);
+        const typeB = getBase(b.spellId);
 
         if (typeA === typeB) {
             toRemove.add(idA);
@@ -129,8 +130,9 @@ export class SpellSystem {
                  console.log(`[DUEL] ${attacker.username} WINS MATCH against ${victim.username}!`);
                  
                  attacker.duelScore = 0;
-                 victim.duelScore = 0;
-                 
+                 // KNOCKOUT: Trigger Health System
+                 this.room.healthSystem.knockOut(victim, victimId);
+
                  // Stop fighting logic for AI
                  const stopAI = (id: string) => {
                      const ent = this.room.entities.get(id);

@@ -28,20 +28,23 @@ export const CONFIG = {
     // Map
     SPAWN_POINT: { x: 256, y: 256 },
     
-    // Time System (Non-Linear 60-minute Cycle)
-    // Day Phase: 45 mins real time -> 06:00 to 22:00 (16h game time)
+    // Time System (Non-Linear 45-minute Cycle)
+    // Day Phase: 30 mins real time -> 06:00 to 22:00 (16h game time)
     // Night Phase: 15 mins real time -> 22:00 to 06:00 (8h game time)
-    CYCLE_DURATION_MS: 3600000, // 1 Hour Real Time
-    DAY_PHASE_DURATION_MS: 2700000, // 45 Minutes
+    SEASON_START_DATE: 1735689600000, // Jan 1st, 2026 00:00:00 UTC
+    CYCLE_DURATION_MS: 2700000, // 45 Minutes Real Time
+    DAY_PHASE_DURATION_MS: 1800000, // 30 Minutes
 
-    // Academic Schedule (Source of Truth for UI and AI)
+    // Academic Schedule (Source of Truth for UI and AI) – Definición de Ventanas de Oportunidad
     ACADEMIC_SCHEDULE: [
-        { start: 8, end: 10, name: "Charms Class", location: "Classroom", activity: "class" },
-        { start: 10, end: 12, name: "Free Time", location: "Courtyard", activity: "free" },
-        { start: 12, end: 14, name: "Lunch", location: "Great Hall", activity: "eat" },
-        { start: 15, end: 17, name: "Potions Class", location: "Dungeons", activity: "class" },
-        { start: 17, end: 22, name: "Extra-Curricular", location: "Forest/Tatami", activity: "free" },
-        { start: 22, end: 8, name: "Curfew", location: "Dormitories", activity: "sleep" }
+        { start: 7, end: 8.5, name: "Breakfast", location: "Great Hall", activity: "eat" },
+        { start: 8.5, end: 10.5, name: "Morning Class", location: "Classroom", activity: "class" },
+        { start: 10.5, end: 12.5, name: "Free Time", location: "Courtyard", activity: "free" },
+        { start: 12.5, end: 14, name: "Lunch", location: "Great Hall", activity: "eat" },
+        { start: 14, end: 17, name: "Field Study", location: "Forest", activity: "free" },
+        { start: 17, end: 19, name: "Afternoon Class", location: "Classroom", activity: "class" },
+        { start: 19, end: 21, name: "Dinner", location: "Great Hall", activity: "eat" },
+        { start: 21, end: 7, name: "Curfew", location: "Dormitories", activity: "sleep" }
     ],
 
     // Debug
@@ -53,9 +56,10 @@ export const CONFIG = {
     AI_DETECTION_RADIUS: 100,
     AI_PERSONAL_SPACE: 40,
 
-    // Academic Calendar
-    WEEKS_PER_COURSE: 8, 
-    MS_PER_WEEK: 7 * 24 * 60 * 60 * 1000, 
+    // Academic Calendar (Cyclic Week Logic)
+    CYCLES_PER_DAY: 1, // 1 Cycle = 1 Calendar Day
+    DAYS_PER_WEEK: 7,
+    WEEKS_PER_COURSE: 8, // 8 Real Weeks = 1 Course
 
     // School Locations (Scaled for 100x100 Map)
     SCHOOL_LOCATIONS: {
@@ -67,6 +71,7 @@ export const CONFIG = {
         // Central Hub
         GREAT_HALL: { x: 1600, y: 560 },       
         ACADEMIC_WING: { x: 1600, y: 1360 },    
+        INFIRMARY: { x: 1600, y: 960 },
         
         // Right Wing
         TRAINING_GROUNDS: { x: 2640, y: 1520 }, 
@@ -76,6 +81,17 @@ export const CONFIG = {
         COURTYARD: { x: 1056, y: 1280 },        
         FOREST: { x: 1600, y: 2880 }           
     },
+
+    // Infirmary Logic
+    INFIRMARY_BEDS: [
+        { x: 1550, y: 960 },
+        { x: 1580, y: 960 },
+        { x: 1620, y: 960 },
+        { x: 1650, y: 960 },
+        { x: 1550, y: 1000 },
+        { x: 1650, y: 1000 }
+    ],
+    INFIRMARY_EXIT: { x: 1600, y: 1050 },
 
     // Duel / Combat
     DUEL_ZONE: {
@@ -105,8 +121,8 @@ export const CONFIG = {
 
     // Security & Validation
     VALIDATION: {
-        INTERACTION_RADIUS: 50, // px (Distance to pick up items)
-        INTERACTION_RADIUS_SQ: 2500 // 50^2
+        INTERACTION_RADIUS: 100, // px (Distance to pick up items)
+        INTERACTION_RADIUS_SQ: 10000 // 100^2
     },
 
     // Chat System
@@ -117,18 +133,20 @@ export const CONFIG = {
         LOCAL_RADIUS_SQ: 160000 // 400^2
     },
     
-    // Rock Paper Scissors Logic
-    // Circle = Rock, Square = Paper, Triangle = Scissors
+    // Rock Paper Scissors Logic (The Triad)
+    // Circle beats Triangle (Shield > Spike)
+    // Triangle beats Square (Spike > Area)
+    // Square beats Circle (Area > Shield)
     RPS_MAP: {
-        'circle': 'rock',
-        'square': 'paper',
-        'triangle': 'scissors'
-    } as Record<string, 'rock' | 'paper' | 'scissors'>,
+        'circle': 'circle',
+        'square': 'square',
+        'triangle': 'triangle'
+    } as Record<string, 'circle' | 'square' | 'triangle'>,
 
     RPS_WINNER: {
-        'rock': 'scissors',   // Rock beats Scissors
-        'scissors': 'paper',  // Scissors beats Paper
-        'paper': 'rock'       // Paper beats Rock
+        'circle': 'triangle',   // Circle beats Triangle
+        'triangle': 'square',   // Triangle beats Square
+        'square': 'circle'      // Square beats Circle
     } as Record<string, string>
 };
 
@@ -164,19 +182,30 @@ export function getGameTime(timestamp: number) {
 }
 
 export function getGameHour(worldStartTime: number): number {
-    // We ignore worldStartTime now because time is absolute system time
+    // Legacy wrapper, but prefers explicit timestamp if we were refactoring fully.
+    // For now, let's just delegate to getGameTime with Date.now() default to maintain compatibility
+    // unless called with specific time.
     return getGameTime(Date.now()).hour;
 }
 
-export function getAcademicProgress(worldStartTime: number) {
-    const elapsedMs = Date.now() - worldStartTime;
-    const totalWeeks = Math.floor(elapsedMs / CONFIG.MS_PER_WEEK);
+export function getAcademicProgress(worldStartTime: number, currentTimestamp: number = Date.now()) {
+    const elapsedMs = currentTimestamp - worldStartTime;
     
-    const currentCourse = Math.floor(totalWeeks / CONFIG.WEEKS_PER_COURSE) + 1;
-    const currentWeek = (totalWeeks % CONFIG.WEEKS_PER_COURSE) + 1;
-    
-    const months = ["November", "December", "January", "February", "March", "April", "May", "June"];
-    const currentMonth = months[currentWeek - 1] || "June";
+    // 1. Cyclic Day (1 Cycle = 1 Day)
+    const totalCycles = Math.floor(elapsedMs / CONFIG.CYCLE_DURATION_MS);
+    const currentDay = (totalCycles % 7) + 1; // 1=Mon, 7=Sun
 
-    return { currentCourse, currentWeek, currentMonth };
+    // 2. Narrative Progress (Real Weeks)
+    const REAL_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+    const currentWeek = Math.floor(elapsedMs / REAL_WEEK_MS) + 1;
+    
+    // 3. Map Real Week to "Month/Chapter"
+    const months = ["September", "October", "November", "December", "January", "February", "March", "April"];
+    const currentMonth = months[Math.min(currentWeek - 1, 7)] || "Graduated";
+
+    // "currentCourse" is technically the Real Week in this new logic, or we can map it.
+    // Let's keep currentCourse as the 'Week' index for logic compatibility.
+    const currentCourse = currentWeek;
+
+    return { currentCourse, currentWeek, currentDay, currentMonth };
 }

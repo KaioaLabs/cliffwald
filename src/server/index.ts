@@ -46,16 +46,53 @@ app.get("/debug-paths", (req, res) => {
 
 // --- AUTH API ROUTES ---
 
-app.post("/api/auth", async (req, res) => {
+app.post("/api/check-user", async (req, res) => {
     try {
-        const { username, password, skin, house } = req.body;
+        const { username } = req.body;
+        if (!username) return res.status(400).json({ error: "Missing username" });
+        const exists = await AuthService.checkUser(username);
+        res.json({ exists });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post("/api/login", async (req, res) => {
+    try {
+        const { username, password } = req.body;
         if (!username || !password) return res.status(400).json({ error: "Missing fields" });
         
-        const token = await AuthService.seamlessAuth(username, password, skin, house);
+        const result = await AuthService.login(username, password);
+        res.json(result); // { token, skin, house }
+    } catch (e: any) {
+        console.error("[AUTH] Login Error:", e.message);
+        const status = e.message === "User not found" ? 404 : 401;
+        res.status(status).json({ error: e.message });
+    }
+});
+
+app.post("/api/register", async (req, res) => {
+    try {
+        const { username, password, skin, house } = req.body;
+        if (!username || !password || !skin || !house) return res.status(400).json({ error: "Missing fields" });
+        
+        const token = await AuthService.register(username, password, skin, house);
         res.json({ token });
     } catch (e: any) {
-        console.error("[AUTH] Error:", e.message);
-        res.status(401).json({ error: e.message });
+        console.error("[AUTH] Register Error:", e.message);
+        res.status(400).json({ error: e.message });
+    }
+});
+
+app.post("/api/dev-login", async (req, res) => {
+    try {
+        const { username } = req.body;
+        if (!username) return res.status(400).json({ error: "Missing username" });
+        const token = await AuthService.devLogin(username);
+        res.json({ token });
+    } catch (e: any) {
+        console.error("[AUTH] Dev-Login Error:", e.message);
+        res.status(500).json({ error: e.message });
     }
 });
 

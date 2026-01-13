@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#000000">
     <title>Cliffwald 2D - MMO Lite</title>
     <link rel="stylesheet" href="./style.css">
     <link rel="stylesheet" href="./ui.css">
@@ -10,25 +13,45 @@
 <body>
     <div id="app" style="width: 100%; height: 100%;"></div>
     <div id="ui-layer">
+        <!-- Calendar Widget (Top Center) -->
+        <div id="calendar-widget" class="pointer-events-auto" style="position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); padding: 5px 15px; border: 1px solid #444; border-radius: 4px; text-align: center; color: #ddd; font-family: 'Cinzel', serif;">
+            <div id="cal-season" style="font-size: 10px; color: #aaa; text-transform: uppercase;">SEMANA 1</div>
+            <div id="cal-day" style="font-size: 14px; font-weight: bold; color: #f0c040;">DÍA 1</div>
+            <div id="cal-phase" style="font-size: 10px; color: #88f;">MAÑANA</div>
+        </div>
+
         <!-- Login Screen -->
         <div id="login-screen" class="pointer-events-auto">
             <h1 style="color:#f0c040; margin-bottom: 20px;">CLIFFWALD 2D</h1>
             
             <div id="login-forms">
-                <!-- Unified Login -->
-                <div>
+                <!-- 1. LOGIN FORM -->
+                <div id="form-login">
                     <h3 style="margin-top:0; color:#aaa;">Enter World</h3>
                     <input type="text" id="login-username" placeholder="Username" autocomplete="username" />
                     <input type="password" id="login-password" placeholder="Password" autocomplete="current-password" />
                     
-                    <select id="login-house" style="margin-top: 10px;">
-                        <option value="ignis">Ignis (Red)</option>
-                        <option value="axiom">Axiom (Blue)</option>
-                        <option value="vesper">Vesper (Green)</option>
-                    </select>
+                    <button id="btn-login-action" style="background:#444; margin-top: 10px; width: 100%;">LOGIN</button>
+                    <p id="login-msg" style="font-size: 10px; color: #666; margin-top: 5px;">
+                        New here? Enter credentials to start registration.
+                    </p>
+                </div>
+
+                <!-- 2. CHARACTER CREATION FORM (Hidden) -->
+                <div id="form-register" class="hidden">
+                    <h3 style="margin-top:0; color:#f0c040;">Student Registration</h3>
+                    <p style="color:#aaa; font-size: 12px;">Welcome, <span id="reg-username-display" style="color:#fff;">Student</span>.</p>
                     
-                    <button id="btn-login-custom" style="background:#444; margin-top: 10px;">PLAY</button>
-                    <p style="font-size: 10px; color: #666; margin-top: 5px;">If account exists, logs in. If not, registers new.</p>
+                    <label style="display:block; text-align:left; color:#888; font-size:10px; margin-top:10px;">SELECT HOUSE</label>
+                    <select id="reg-house" style="margin-top: 5px; width: 100%;">
+                        <option value="ignis">Ignis (Red) - Brave & Bold</option>
+                        <option value="axiom">Axiom (Blue) - Wise & Logical</option>
+                        <option value="vesper">Vesper (Green) - Ambitious & Cunning</option>
+                    </select>
+
+                    <button id="btn-register-action" style="background:#f0c040; color:#000; margin-top: 15px; width: 100%; font-weight:bold;">ENROLL</button>
+                    
+                    <a id="btn-back-login" href="#" style="display:block; margin-top:10px; color:#666; font-size:12px; text-decoration:none;">&larr; Back to Login</a>
                 </div>
             </div>
             
@@ -37,9 +60,11 @@
 
         <!-- Quick Access Menu (Top Right) -->
         <div id="quick-menu" class="pointer-events-auto">
+            <button id="btn-shop" title="School Shop">🛒</button>
             <button id="btn-inventory" title="Inventory">🎒</button>
             <button id="btn-album" title="Card Album">📖</button>
             <button id="btn-timetable" title="Class Schedule">📅</button>
+            <button id="btn-fullscreen" title="Fullscreen">⛶</button>
             <button id="settings-btn" title="Settings">⚙️</button>
         </div>
 
@@ -48,6 +73,23 @@
             <div id="chat-container">
                 <div id="chat-messages"></div>
                 <input type="text" id="chat-input" placeholder="Press ENTER to chat..." maxlength="100">
+            </div>
+        </div>
+
+        <!-- Shop Modal -->
+        <div id="shop-modal" class="modal hidden pointer-events-auto">
+            <div class="modal-header">
+                <h2>School Shop</h2>
+                <div style="font-size: 14px; margin-left: 20px;">
+                    Prestige: <span id="shop-prestige" style="color: #f0c040;">0</span>
+                </div>
+                <button class="close-btn">×</button>
+            </div>
+            <div class="modal-content">
+                <div id="shop-grid" class="inv-grid">
+                    <!-- Items injected by JS -->
+                </div>
+                <p style="color: #aaa; font-size: 12px; margin-top: 10px; text-align: center;">Click an item to purchase.</p>
             </div>
         </div>
 
@@ -93,25 +135,33 @@
         <div id="timetable-modal" class="modal hidden pointer-events-auto">
             <div class="modal-header">
                 <h2>Academic Schedule</h2>
+                <div class="calendar-controls">
+                    <button id="btn-view-week" class="active">Week</button>
+                    <button id="btn-view-month">Month</button>
+                </div>
                 <button class="close-btn">×</button>
             </div>
-            <div class="modal-content">
-                <table id="schedule-table">
-                    <thead>
-                        <tr>
-                            <th>Time</th>
-                            <th>Subject</th>
-                            <th>Location</th>
-                        </tr>
-                    </thead>
-                    <tbody id="schedule-body">
-                        <!-- Injected by UIManager.ts -->
-                    </tbody>
-                </table>
+            <div class="modal-content" style="position: relative;">
+                <div id="calendar-container">
+                    <!-- Injected by JS -->
+                </div>
                 <div class="current-time-display">
                     Current Time: <span id="clock-display">12:00</span>
                 </div>
+                <!-- Tooltip -->
+                <div id="calendar-tooltip" class="hidden" style="position: absolute; background: rgba(0,0,0,0.9); border: 1px solid #f0c040; padding: 10px; z-index: 100; pointer-events: none; min-width: 150px;">
+                    <h4 id="tooltip-title" style="margin: 0; color: #f0c040;">Event</h4>
+                    <p id="tooltip-time" style="margin: 5px 0; color: #aaa; font-size: 11px;">00:00 - 00:00</p>
+                    <p id="tooltip-desc" style="margin: 0; color: #fff; font-size: 12px;">Description</p>
+                </div>
             </div>
+        </div>
+
+        <!-- Settings Menu -->
+        <div id="settings-menu" class="hidden">
+            <h2>System Settings</h2>
+            <button id="btn-audio" class="settings-option">🔊 Audio: ON</button>
+            <button id="btn-close" class="settings-option close">Close</button>
         </div>
     </div>
     <script type="module" src="./main.ts"></script>

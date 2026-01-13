@@ -8,9 +8,11 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider  = "sqlite"
+  url       = "file:./dev.db"
+  // provider  = "postgresql"
+  // url       = env("DATABASE_URL")
+  // directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -33,6 +35,11 @@ model Player {
   skin      String   @default("player_idle") // e.g. "player_red", "player_blue"
   house     String   @default("ignis") // "ignis", "axiom", "vesper"
   prestige  Int      @default(0)
+
+  // Progression & Alignment (Fable System)
+  xp             Int @default(0) // Personal Level
+  alignment      Int @default(0) // -100 (Dark) to +100 (Light)
+  academicPoints Int @default(0) // PA (School Grades)
 
   // Future proofing for Phase 2
   health    Int      @default(100)

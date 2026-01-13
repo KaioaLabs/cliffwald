@@ -26,7 +26,10 @@ export class PlayerService {
                     y: 300,
                     skin: options.skin || "player_idle",
                     house: options.house || "ignis",
-                    prestige: 0
+                    prestige: 0,
+                    xp: 0,
+                    alignment: 0,
+                    academicPoints: 0
                 },
                 include: { inventory: true }
             });
@@ -48,7 +51,7 @@ export class PlayerService {
         if (!dbId || !playerState) return;
 
         try {
-            console.log(`[DB] Saving session for player DB_ID: ${dbId}...`);
+            // console.log(`[DB] Saving session for player DB_ID: ${dbId}...`);
             
             await db.$transaction(async (tx) => {
                 // 1. Update Base Stats
@@ -59,32 +62,77 @@ export class PlayerService {
                         y: playerState.y,
                         prestige: playerState.personalPrestige,
                         skin: playerState.skin,
-                        house: playerState.house
+                        house: playerState.house,
+                        xp: playerState.xp,
+                        // Note: alignment and academicPoints must be passed in playerState or handled separately
+                        // Assuming playerState has them attached, or we need to pass them explicitly.
+                        // For now, let's assume they are on the playerState object (we will ensure this in WorldRoom)
+                        alignment: (playerState as any).alignment || 0,
+                        academicPoints: (playerState as any).academicPoints || 0
                     }
                 });
 
-                // 2. Sync Inventory (Delete All + Re-insert Strategy for consistency)
-                // This prevents sync drifts and handles item removals automatically.
-                await tx.inventoryItem.deleteMany({
-                    where: { playerId: dbId }
-                });
+                // 2. Efficient Inventory Sync (Diffing Strategy)
+                if (playerState.inventory) {
+                    // Fetch existing items to compare
+                    const existingItems = await tx.inventoryItem.findMany({
+                        where: { playerId: dbId }
+                    });
 
-                if (playerState.inventory && playerState.inventory.length > 0) {
-                    // Map Colyseus Schema to Prisma Data
-                    const itemsToSave = playerState.inventory.map((item: any) => ({
+                    const currentMap = new Map<string, any>();
+                    // Map schema items for O(1) lookup
+                    playerState.inventory.forEach((item: any) => {
+                        currentMap.set(item.itemId, item);
+                    });
+
+                    const toDelete: number[] = [];
+                    const toUpdate: Promise<any>[] = [];
+
+                    // Identify Deletions and Updates
+                    for (const dbItem of existingItems) {
+                        const schemaItem = currentMap.get(dbItem.itemId);
+                        if (!schemaItem) {
+                            // Item no longer in inventory -> Delete
+                            toDelete.push(dbItem.id);
+                        } else {
+                            // Item exists -> Check if update needed
+                            if (dbItem.count !== schemaItem.qty) {
+                                toUpdate.push(tx.inventoryItem.update({
+                                    where: { id: dbItem.id },
+                                    data: { count: schemaItem.qty }
+                                }));
+                            }
+                            // Remove from map to identify NEW items later
+                            currentMap.delete(dbItem.itemId);
+                        }
+                    }
+
+                    // Identify Creations (remaining in map)
+                    const toCreate = Array.from(currentMap.values()).map((item: any) => ({
                         playerId: dbId,
                         itemId: item.itemId,
-                        count: item.qty, // Map qty -> count
-                        equipped: false  // Default for now, extend later
+                        count: item.qty,
+                        equipped: false
                     }));
 
-                    await tx.inventoryItem.createMany({
-                        data: itemsToSave
-                    });
+                    // Execute Bulk Operations
+                    if (toDelete.length > 0) {
+                        await tx.inventoryItem.deleteMany({
+                            where: { id: { in: toDelete } }
+                        });
+                    }
+                    if (toCreate.length > 0) {
+                        await tx.inventoryItem.createMany({
+                            data: toCreate
+                        });
+                    }
+                    if (toUpdate.length > 0) {
+                        await Promise.all(toUpdate);
+                    }
                 }
             });
 
-            console.log(`[DB] Session saved successfully for DB_ID: ${dbId}`);
+            // console.log(`[DB] Session saved successfully for DB_ID: ${dbId}`);
         } catch (e) {
             console.error(`[DB] CRITICAL ERROR saving session for ${dbId}:`, e);
         }

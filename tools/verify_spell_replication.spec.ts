@@ -1,56 +1,49 @@
 import { test, expect, chromium } from '@playwright/test';
 
-test('Verify Spell Replication', async () => {
-  const browser = await chromium.launch({ headless: true }); // Headless true for speed, set to false if debugging visual
-  
-  // User A (Caster)
-  const contextA = await browser.newContext({ viewport: { width: 640, height: 360 } });
-  const pageA = await contextA.newPage();
-  pageA.on('console', msg => console.log(`A: ${msg.text()}`));
-  
-  // User B (Observer)
-  const contextB = await browser.newContext({ viewport: { width: 640, height: 360 } });
-  const pageB = await contextB.newPage();
-  pageB.on('console', msg => console.log(`B: ${msg.text()}`));
+test.describe('Spell Replication System', () => {
+    test('Client B should see projectile from Client A', async () => {
+        const browser = await chromium.launch();
+        const context = await browser.newContext();
 
-  console.log('Navigating User A...');
-  await pageA.goto('http://localhost:3000/?dev_user=CasterA&skin=player_idle');
-  
-  console.log('Navigating User B...');
-  await pageB.goto('http://localhost:3000/?dev_user=ObserverB&skin=player_blue');
+        // 1. Launch Witness (Player B)
+        const pageB = await context.newPage();
+        await pageB.goto('http://localhost:3000/?dev_user=Witness&skin=player_blue');
+        console.log('[TEST] Witness joined.');
+        await pageB.waitForTimeout(4000); // Wait for connection
 
-  // Wait for login and sync
-  await Promise.all([
-    pageA.waitForTimeout(4000),
-    pageB.waitForTimeout(4000)
-  ]);
+        // 2. Launch Attacker (Player A)
+        const pageA = await context.newPage();
+        await pageA.goto('http://localhost:3000/?dev_user=Attacker&skin=player_red');
+        console.log('[TEST] Attacker joined.');
+        await pageA.waitForTimeout(2000);
 
-  // Ensure they are close (Spawn point is usually 300,300 or similar, let's assume they are visible to each other)
-  // We can force move them to be sure, but default spawn logic usually places them nearby.
-  
-  console.log('User A Casting Triangle...');
-  const center = { x: 320, y: 180 }; // Screen center
-  const size = 60;
+        // Position Check: Ensure they are close (Spawn is 300,300)
+        // We assume they spawn near each other.
+        
+        // 3. Attacker casts a LINE spell (Simple Gesture)
+        // Line Gesture: Left to Right
+        const startX = 640 / 2;
+        const startY = 360 / 2;
+        
+        await pageA.bringToFront();
+        await pageA.mouse.move(startX, startY);
+        await pageA.mouse.down({ button: 'right' });
+        await pageA.mouse.move(startX + 100, startY, { steps: 10 }); // Horizontal Line
+        await pageA.mouse.up({ button: 'right' });
+        
+        console.log('[TEST] Attacker cast Line gesture.');
 
-  // Perform Triangle Gesture on Page A
-  await pageA.mouse.move(center.x, center.y);
-  await pageA.mouse.down({ button: 'right' });
-  await pageA.mouse.move(center.x + size/2, center.y - size, { steps: 10 });
-  await pageA.mouse.move(center.x + size, center.y, { steps: 10 });
-  await pageA.mouse.move(center.x, center.y, { steps: 10 });
-  await pageA.mouse.up({ button: 'right' });
+        // 4. Capture Witness View
+        await pageB.bringToFront();
+        // Wait a bit for projectile to travel
+        await pageB.waitForTimeout(500); 
+        
+        await pageB.screenshot({ path: 'screenshots/verify_replication_witness.png' });
+        console.log('[TEST] Screenshot captured: screenshots/verify_replication_witness.png');
 
-  // Wait for network propagation
-  console.log('Waiting for replication...');
-  await pageA.waitForTimeout(500); // Wait for cast to register locally
-  await pageB.waitForTimeout(1000); // Wait for projectile to travel a bit
+        // 5. Automated Check (Optional: Check for logs or DOM elements if we had them)
+        // For now, visual verification via screenshot is the primary goal per GDD Protocol.
 
-  // Capture Observer's View
-  console.log('Capturing Observer View...');
-  await pageB.screenshot({ path: 'screenshots/replication_observer.png' });
-  
-  // Also capture Caster View for comparison
-  await pageA.screenshot({ path: 'screenshots/replication_caster.png' });
-
-  await browser.close();
+        await browser.close();
+    });
 });

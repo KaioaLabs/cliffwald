@@ -136,5 +136,18 @@ export class AssetManager {
                 }
             }
         }
+
+        // Generic Shadow Base (White Rectangle, to be tinted Black)
+        if (!scene.textures.exists('shadow_base')) {
+            const sCanvas = scene.textures.createCanvas('shadow_base', 32, 32);
+            if (sCanvas) {
+                const ctx = sCanvas.getContext();
+                if (ctx) {
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, 32, 32);
+                    sCanvas.refresh();
+                }
+            }
+        }
     }
 }

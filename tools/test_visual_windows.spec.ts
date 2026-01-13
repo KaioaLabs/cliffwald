@@ -14,12 +14,12 @@ test.describe('Window Light System & Day/Night Cycle', () => {
 
         // 1. Navigate to Game
         console.log("Navigating to game...");
-        await page.goto('http://localhost:2568'); 
+        await page.goto('http://localhost:3000'); 
 
         // 2. Login as Admin
         console.log("Logging in as admin...");
         await page.fill('#login-username', 'admin');
-        await page.fill('#login-password', 'Miaularizador42');
+        await page.fill('#login-password', '2580');
         await page.click('#btn-login-action');
 
         // 3. Wait for Game Connection

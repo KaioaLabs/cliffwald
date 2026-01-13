@@ -10,13 +10,13 @@ const db_1 = require("../db");
 const Config_1 = require("../../shared/Config");
 class AuthService {
     static { this.SALT_ROUNDS = 10; }
-    static async register(username, passwordRaw) {
+    static async register(username, passwordRaw, skin, house) {
         const existingUser = await db_1.db.user.findUnique({ where: { username } });
         if (existingUser) {
             throw new Error("Username already taken");
         }
         const hashedPassword = await bcryptjs_1.default.hash(passwordRaw, this.SALT_ROUNDS);
-        const user = await db_1.db.user.create({
+        const newUser = await db_1.db.user.create({
             data: {
                 username,
                 password: hashedPassword,
@@ -24,24 +24,39 @@ class AuthService {
                     create: {
                         x: Config_1.CONFIG.SPAWN_POINT.x,
                         y: Config_1.CONFIG.SPAWN_POINT.y,
-                        skin: "player_idle" // Default skin
+                        skin: skin || "player_idle",
+                        house: house || "ignis",
+                        prestige: 0
                     }
                 }
             },
             include: { player: true }
         });
-        return this.generateToken(user.id, user.username);
+        console.log(`[AUTH] New User Registered: ${username} (${house})`);
+        return this.generateToken(newUser.id, newUser.username);
     }
     static async login(username, passwordRaw) {
-        const user = await db_1.db.user.findUnique({ where: { username } });
+        const user = await db_1.db.user.findUnique({
+            where: { username },
+            include: { player: true }
+        });
         if (!user) {
-            throw new Error("Invalid credentials");
+            throw new Error("User not found");
         }
         const isValid = await bcryptjs_1.default.compare(passwordRaw, user.password);
         if (!isValid) {
             throw new Error("Invalid credentials");
         }
-        return this.generateToken(user.id, user.username);
+        // Return token AND persistent identity data
+        return {
+            token: this.generateToken(user.id, user.username),
+            skin: user.player?.skin || "player_idle",
+            house: user.player?.house || "ignis"
+        };
+    }
+    static async checkUser(username) {
+        const user = await db_1.db.user.findUnique({ where: { username } });
+        return !!user;
     }
     /**
      * For Development ONLY: Automatically creates a user if not exists,

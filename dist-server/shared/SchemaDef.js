@@ -38,13 +38,12 @@ class Player extends schema_1.Schema {
         this.y = 0;
         this.vx = 0;
         this.vy = 0;
-        // Prestige Balance
         this.personalPrestige = 0;
+        this.xp = 0; // Global Experience (Classes + Alignment)
+        this.academicPoints = 0; // PA (School Grades)
         // Duel Stats
         this.duelScore = 0;
         this.inDuel = false;
-        // Legacy: Numeric Card IDs (Deprecated)
-        this.cardCollection = new schema_1.ArraySchema();
         // Universal Inventory (String IDs)
         this.inventory = new schema_1.ArraySchema();
     }
@@ -89,15 +88,19 @@ __decorate([
 __decorate([
     (0, schema_1.type)("number"),
     __metadata("design:type", Number)
+], Player.prototype, "xp", void 0);
+__decorate([
+    (0, schema_1.type)("number"),
+    __metadata("design:type", Number)
+], Player.prototype, "academicPoints", void 0);
+__decorate([
+    (0, schema_1.type)("number"),
+    __metadata("design:type", Number)
 ], Player.prototype, "duelScore", void 0);
 __decorate([
     (0, schema_1.type)("boolean"),
     __metadata("design:type", Boolean)
 ], Player.prototype, "inDuel", void 0);
-__decorate([
-    (0, schema_1.type)(["number"]),
-    __metadata("design:type", Object)
-], Player.prototype, "cardCollection", void 0);
 __decorate([
     (0, schema_1.type)([InventoryItem]),
     __metadata("design:type", Object)
@@ -110,7 +113,6 @@ class WorldItem extends schema_1.Schema {
         this.y = 0;
         this.type = "card"; // 'card', 'resource', etc.
         this.itemId = ""; // New String ID (e.g. "potion_small")
-        this.dataId = 0; // Legacy Numeric ID (Deprecated)
     }
 }
 exports.WorldItem = WorldItem;
@@ -134,10 +136,6 @@ __decorate([
     (0, schema_1.type)("string"),
     __metadata("design:type", String)
 ], WorldItem.prototype, "itemId", void 0);
-__decorate([
-    (0, schema_1.type)("number"),
-    __metadata("design:type", Number)
-], WorldItem.prototype, "dataId", void 0);
 class ChatMessage extends schema_1.Schema {
     constructor() {
         super(...arguments);
@@ -170,7 +168,7 @@ class Projectile extends schema_1.Schema {
         this.vx = 0;
         this.vy = 0;
         this.ownerId = "";
-        this.type = "rock"; // rock, paper, scissors
+        this.type = "circle"; // circle, square, triangle
         this.creationTime = 0;
         this.maxRange = 600;
     }
@@ -224,6 +222,7 @@ class GameState extends schema_1.Schema {
         this.items = new schema_1.MapSchema();
         this.messages = new schema_1.ArraySchema();
         this.worldStartTime = 0;
+        this.timeOffset = 0;
         // Authoritative House Points
         this.ignisPoints = 0;
         this.axiomPoints = 0;
@@ -254,6 +253,10 @@ __decorate([
     (0, schema_1.type)("number"),
     __metadata("design:type", Number)
 ], GameState.prototype, "worldStartTime", void 0);
+__decorate([
+    (0, schema_1.type)("number"),
+    __metadata("design:type", Number)
+], GameState.prototype, "timeOffset", void 0);
 __decorate([
     (0, schema_1.type)("number"),
     __metadata("design:type", Number)

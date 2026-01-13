@@ -31,5 +31,14 @@ export const THEME = {
         TRIANGLE: 0xff0000,
         SQUARE: 0xff00ff,
         CIRCLE: 0x0000ff
+    },
+
+    // Calendar / Timetable
+    CALENDAR: {
+        CLASS: '#404080',
+        EAT: '#804040',
+        SLEEP: '#202020',
+        FREE: '#305030',
+        DEFAULT: '#333333'
     }
 };

@@ -32,6 +32,9 @@ export type PlayerAvgAggregateOutputType = {
   x: number | null
   y: number | null
   prestige: number | null
+  xp: number | null
+  alignment: number | null
+  academicPoints: number | null
   health: number | null
   maxHealth: number | null
 }
@@ -42,6 +45,9 @@ export type PlayerSumAggregateOutputType = {
   x: number | null
   y: number | null
   prestige: number | null
+  xp: number | null
+  alignment: number | null
+  academicPoints: number | null
   health: number | null
   maxHealth: number | null
 }
@@ -54,6 +60,9 @@ export type PlayerMinAggregateOutputType = {
   skin: string | null
   house: string | null
   prestige: number | null
+  xp: number | null
+  alignment: number | null
+  academicPoints: number | null
   health: number | null
   maxHealth: number | null
 }
@@ -66,6 +75,9 @@ export type PlayerMaxAggregateOutputType = {
   skin: string | null
   house: string | null
   prestige: number | null
+  xp: number | null
+  alignment: number | null
+  academicPoints: number | null
   health: number | null
   maxHealth: number | null
 }
@@ -78,6 +90,9 @@ export type PlayerCountAggregateOutputType = {
   skin: number
   house: number
   prestige: number
+  xp: number
+  alignment: number
+  academicPoints: number
   health: number
   maxHealth: number
   _all: number
@@ -90,6 +105,9 @@ export type PlayerAvgAggregateInputType = {
   x?: true
   y?: true
   prestige?: true
+  xp?: true
+  alignment?: true
+  academicPoints?: true
   health?: true
   maxHealth?: true
 }
@@ -100,6 +118,9 @@ export type PlayerSumAggregateInputType = {
   x?: true
   y?: true
   prestige?: true
+  xp?: true
+  alignment?: true
+  academicPoints?: true
   health?: true
   maxHealth?: true
 }
@@ -112,6 +133,9 @@ export type PlayerMinAggregateInputType = {
   skin?: true
   house?: true
   prestige?: true
+  xp?: true
+  alignment?: true
+  academicPoints?: true
   health?: true
   maxHealth?: true
 }
@@ -124,6 +148,9 @@ export type PlayerMaxAggregateInputType = {
   skin?: true
   house?: true
   prestige?: true
+  xp?: true
+  alignment?: true
+  academicPoints?: true
   health?: true
   maxHealth?: true
 }
@@ -136,6 +163,9 @@ export type PlayerCountAggregateInputType = {
   skin?: true
   house?: true
   prestige?: true
+  xp?: true
+  alignment?: true
+  academicPoints?: true
   health?: true
   maxHealth?: true
   _all?: true
@@ -235,6 +265,9 @@ export type PlayerGroupByOutputType = {
   skin: string
   house: string
   prestige: number
+  xp: number
+  alignment: number
+  academicPoints: number
   health: number
   maxHealth: number
   _count: PlayerCountAggregateOutputType | null
@@ -270,6 +303,9 @@ export type PlayerWhereInput = {
   skin?: Prisma.StringFilter<"Player"> | string
   house?: Prisma.StringFilter<"Player"> | string
   prestige?: Prisma.IntFilter<"Player"> | number
+  xp?: Prisma.IntFilter<"Player"> | number
+  alignment?: Prisma.IntFilter<"Player"> | number
+  academicPoints?: Prisma.IntFilter<"Player"> | number
   health?: Prisma.IntFilter<"Player"> | number
   maxHealth?: Prisma.IntFilter<"Player"> | number
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -284,6 +320,9 @@ export type PlayerOrderByWithRelationInput = {
   skin?: Prisma.SortOrder
   house?: Prisma.SortOrder
   prestige?: Prisma.SortOrder
+  xp?: Prisma.SortOrder
+  alignment?: Prisma.SortOrder
+  academicPoints?: Prisma.SortOrder
   health?: Prisma.SortOrder
   maxHealth?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
@@ -301,6 +340,9 @@ export type PlayerWhereUniqueInput = Prisma.AtLeast<{
   skin?: Prisma.StringFilter<"Player"> | string
   house?: Prisma.StringFilter<"Player"> | string
   prestige?: Prisma.IntFilter<"Player"> | number
+  xp?: Prisma.IntFilter<"Player"> | number
+  alignment?: Prisma.IntFilter<"Player"> | number
+  academicPoints?: Prisma.IntFilter<"Player"> | number
   health?: Prisma.IntFilter<"Player"> | number
   maxHealth?: Prisma.IntFilter<"Player"> | number
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -315,6 +357,9 @@ export type PlayerOrderByWithAggregationInput = {
   skin?: Prisma.SortOrder
   house?: Prisma.SortOrder
   prestige?: Prisma.SortOrder
+  xp?: Prisma.SortOrder
+  alignment?: Prisma.SortOrder
+  academicPoints?: Prisma.SortOrder
   health?: Prisma.SortOrder
   maxHealth?: Prisma.SortOrder
   _count?: Prisma.PlayerCountOrderByAggregateInput
@@ -335,6 +380,9 @@ export type PlayerScalarWhereWithAggregatesInput = {
   skin?: Prisma.StringWithAggregatesFilter<"Player"> | string
   house?: Prisma.StringWithAggregatesFilter<"Player"> | string
   prestige?: Prisma.IntWithAggregatesFilter<"Player"> | number
+  xp?: Prisma.IntWithAggregatesFilter<"Player"> | number
+  alignment?: Prisma.IntWithAggregatesFilter<"Player"> | number
+  academicPoints?: Prisma.IntWithAggregatesFilter<"Player"> | number
   health?: Prisma.IntWithAggregatesFilter<"Player"> | number
   maxHealth?: Prisma.IntWithAggregatesFilter<"Player"> | number
 }
@@ -345,6 +393,9 @@ export type PlayerCreateInput = {
   skin?: string
   house?: string
   prestige?: number
+  xp?: number
+  alignment?: number
+  academicPoints?: number
   health?: number
   maxHealth?: number
   user: Prisma.UserCreateNestedOneWithoutPlayerInput
@@ -359,6 +410,9 @@ export type PlayerUncheckedCreateInput = {
   skin?: string
   house?: string
   prestige?: number
+  xp?: number
+  alignment?: number
+  academicPoints?: number
   health?: number
   maxHealth?: number
   inventory?: Prisma.InventoryItemUncheckedCreateNestedManyWithoutPlayerInput
@@ -370,6 +424,9 @@ export type PlayerUpdateInput = {
   skin?: Prisma.StringFieldUpdateOperationsInput | string
   house?: Prisma.StringFieldUpdateOperationsInput | string
   prestige?: Prisma.IntFieldUpdateOperationsInput | number
+  xp?: Prisma.IntFieldUpdateOperationsInput | number
+  alignment?: Prisma.IntFieldUpdateOperationsInput | number
+  academicPoints?: Prisma.IntFieldUpdateOperationsInput | number
   health?: Prisma.IntFieldUpdateOperationsInput | number
   maxHealth?: Prisma.IntFieldUpdateOperationsInput | number
   user?: Prisma.UserUpdateOneRequiredWithoutPlayerNestedInput
@@ -384,6 +441,9 @@ export type PlayerUncheckedUpdateInput = {
   skin?: Prisma.StringFieldUpdateOperationsInput | string
   house?: Prisma.StringFieldUpdateOperationsInput | string
   prestige?: Prisma.IntFieldUpdateOperationsInput | number
+  xp?: Prisma.IntFieldUpdateOperationsInput | number
+  alignment?: Prisma.IntFieldUpdateOperationsInput | number
+  academicPoints?: Prisma.IntFieldUpdateOperationsInput | number
   health?: Prisma.IntFieldUpdateOperationsInput | number
   maxHealth?: Prisma.IntFieldUpdateOperationsInput | number
   inventory?: Prisma.InventoryItemUncheckedUpdateManyWithoutPlayerNestedInput
@@ -397,6 +457,9 @@ export type PlayerCreateManyInput = {
   skin?: string
   house?: string
   prestige?: number
+  xp?: number
+  alignment?: number
+  academicPoints?: number
   health?: number
   maxHealth?: number
 }
@@ -407,6 +470,9 @@ export type PlayerUpdateManyMutationInput = {
   skin?: Prisma.StringFieldUpdateOperationsInput | string
   house?: Prisma.StringFieldUpdateOperationsInput | string
   prestige?: Prisma.IntFieldUpdateOperationsInput | number
+  xp?: Prisma.IntFieldUpdateOperationsInput | number
+  alignment?: Prisma.IntFieldUpdateOperationsInput | number
+  academicPoints?: Prisma.IntFieldUpdateOperationsInput | number
   health?: Prisma.IntFieldUpdateOperationsInput | number
   maxHealth?: Prisma.IntFieldUpdateOperationsInput | number
 }
@@ -419,6 +485,9 @@ export type PlayerUncheckedUpdateManyInput = {
   skin?: Prisma.StringFieldUpdateOperationsInput | string
   house?: Prisma.StringFieldUpdateOperationsInput | string
   prestige?: Prisma.IntFieldUpdateOperationsInput | number
+  xp?: Prisma.IntFieldUpdateOperationsInput | number
+  alignment?: Prisma.IntFieldUpdateOperationsInput | number
+  academicPoints?: Prisma.IntFieldUpdateOperationsInput | number
   health?: Prisma.IntFieldUpdateOperationsInput | number
   maxHealth?: Prisma.IntFieldUpdateOperationsInput | number
 }
@@ -436,6 +505,9 @@ export type PlayerCountOrderByAggregateInput = {
   skin?: Prisma.SortOrder
   house?: Prisma.SortOrder
   prestige?: Prisma.SortOrder
+  xp?: Prisma.SortOrder
+  alignment?: Prisma.SortOrder
+  academicPoints?: Prisma.SortOrder
   health?: Prisma.SortOrder
   maxHealth?: Prisma.SortOrder
 }
@@ -446,6 +518,9 @@ export type PlayerAvgOrderByAggregateInput = {
   x?: Prisma.SortOrder
   y?: Prisma.SortOrder
   prestige?: Prisma.SortOrder
+  xp?: Prisma.SortOrder
+  alignment?: Prisma.SortOrder
+  academicPoints?: Prisma.SortOrder
   health?: Prisma.SortOrder
   maxHealth?: Prisma.SortOrder
 }
@@ -458,6 +533,9 @@ export type PlayerMaxOrderByAggregateInput = {
   skin?: Prisma.SortOrder
   house?: Prisma.SortOrder
   prestige?: Prisma.SortOrder
+  xp?: Prisma.SortOrder
+  alignment?: Prisma.SortOrder
+  academicPoints?: Prisma.SortOrder
   health?: Prisma.SortOrder
   maxHealth?: Prisma.SortOrder
 }
@@ -470,6 +548,9 @@ export type PlayerMinOrderByAggregateInput = {
   skin?: Prisma.SortOrder
   house?: Prisma.SortOrder
   prestige?: Prisma.SortOrder
+  xp?: Prisma.SortOrder
+  alignment?: Prisma.SortOrder
+  academicPoints?: Prisma.SortOrder
   health?: Prisma.SortOrder
   maxHealth?: Prisma.SortOrder
 }
@@ -480,6 +561,9 @@ export type PlayerSumOrderByAggregateInput = {
   x?: Prisma.SortOrder
   y?: Prisma.SortOrder
   prestige?: Prisma.SortOrder
+  xp?: Prisma.SortOrder
+  alignment?: Prisma.SortOrder
+  academicPoints?: Prisma.SortOrder
   health?: Prisma.SortOrder
   maxHealth?: Prisma.SortOrder
 }
@@ -549,6 +633,9 @@ export type PlayerCreateWithoutUserInput = {
   skin?: string
   house?: string
   prestige?: number
+  xp?: number
+  alignment?: number
+  academicPoints?: number
   health?: number
   maxHealth?: number
   inventory?: Prisma.InventoryItemCreateNestedManyWithoutPlayerInput
@@ -561,6 +648,9 @@ export type PlayerUncheckedCreateWithoutUserInput = {
   skin?: string
   house?: string
   prestige?: number
+  xp?: number
+  alignment?: number
+  academicPoints?: number
   health?: number
   maxHealth?: number
   inventory?: Prisma.InventoryItemUncheckedCreateNestedManyWithoutPlayerInput
@@ -588,6 +678,9 @@ export type PlayerUpdateWithoutUserInput = {
   skin?: Prisma.StringFieldUpdateOperationsInput | string
   house?: Prisma.StringFieldUpdateOperationsInput | string
   prestige?: Prisma.IntFieldUpdateOperationsInput | number
+  xp?: Prisma.IntFieldUpdateOperationsInput | number
+  alignment?: Prisma.IntFieldUpdateOperationsInput | number
+  academicPoints?: Prisma.IntFieldUpdateOperationsInput | number
   health?: Prisma.IntFieldUpdateOperationsInput | number
   maxHealth?: Prisma.IntFieldUpdateOperationsInput | number
   inventory?: Prisma.InventoryItemUpdateManyWithoutPlayerNestedInput
@@ -600,6 +693,9 @@ export type PlayerUncheckedUpdateWithoutUserInput = {
   skin?: Prisma.StringFieldUpdateOperationsInput | string
   house?: Prisma.StringFieldUpdateOperationsInput | string
   prestige?: Prisma.IntFieldUpdateOperationsInput | number
+  xp?: Prisma.IntFieldUpdateOperationsInput | number
+  alignment?: Prisma.IntFieldUpdateOperationsInput | number
+  academicPoints?: Prisma.IntFieldUpdateOperationsInput | number
   health?: Prisma.IntFieldUpdateOperationsInput | number
   maxHealth?: Prisma.IntFieldUpdateOperationsInput | number
   inventory?: Prisma.InventoryItemUncheckedUpdateManyWithoutPlayerNestedInput
@@ -611,6 +707,9 @@ export type PlayerCreateWithoutInventoryInput = {
   skin?: string
   house?: string
   prestige?: number
+  xp?: number
+  alignment?: number
+  academicPoints?: number
   health?: number
   maxHealth?: number
   user: Prisma.UserCreateNestedOneWithoutPlayerInput
@@ -624,6 +723,9 @@ export type PlayerUncheckedCreateWithoutInventoryInput = {
   skin?: string
   house?: string
   prestige?: number
+  xp?: number
+  alignment?: number
+  academicPoints?: number
   health?: number
   maxHealth?: number
 }
@@ -650,6 +752,9 @@ export type PlayerUpdateWithoutInventoryInput = {
   skin?: Prisma.StringFieldUpdateOperationsInput | string
   house?: Prisma.StringFieldUpdateOperationsInput | string
   prestige?: Prisma.IntFieldUpdateOperationsInput | number
+  xp?: Prisma.IntFieldUpdateOperationsInput | number
+  alignment?: Prisma.IntFieldUpdateOperationsInput | number
+  academicPoints?: Prisma.IntFieldUpdateOperationsInput | number
   health?: Prisma.IntFieldUpdateOperationsInput | number
   maxHealth?: Prisma.IntFieldUpdateOperationsInput | number
   user?: Prisma.UserUpdateOneRequiredWithoutPlayerNestedInput
@@ -663,6 +768,9 @@ export type PlayerUncheckedUpdateWithoutInventoryInput = {
   skin?: Prisma.StringFieldUpdateOperationsInput | string
   house?: Prisma.StringFieldUpdateOperationsInput | string
   prestige?: Prisma.IntFieldUpdateOperationsInput | number
+  xp?: Prisma.IntFieldUpdateOperationsInput | number
+  alignment?: Prisma.IntFieldUpdateOperationsInput | number
+  academicPoints?: Prisma.IntFieldUpdateOperationsInput | number
   health?: Prisma.IntFieldUpdateOperationsInput | number
   maxHealth?: Prisma.IntFieldUpdateOperationsInput | number
 }
@@ -706,6 +814,9 @@ export type PlayerSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   skin?: boolean
   house?: boolean
   prestige?: boolean
+  xp?: boolean
+  alignment?: boolean
+  academicPoints?: boolean
   health?: boolean
   maxHealth?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -721,6 +832,9 @@ export type PlayerSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extens
   skin?: boolean
   house?: boolean
   prestige?: boolean
+  xp?: boolean
+  alignment?: boolean
+  academicPoints?: boolean
   health?: boolean
   maxHealth?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -734,6 +848,9 @@ export type PlayerSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extens
   skin?: boolean
   house?: boolean
   prestige?: boolean
+  xp?: boolean
+  alignment?: boolean
+  academicPoints?: boolean
   health?: boolean
   maxHealth?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -747,11 +864,14 @@ export type PlayerSelectScalar = {
   skin?: boolean
   house?: boolean
   prestige?: boolean
+  xp?: boolean
+  alignment?: boolean
+  academicPoints?: boolean
   health?: boolean
   maxHealth?: boolean
 }
 
-export type PlayerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "x" | "y" | "skin" | "house" | "prestige" | "health" | "maxHealth", ExtArgs["result"]["player"]>
+export type PlayerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "x" | "y" | "skin" | "house" | "prestige" | "xp" | "alignment" | "academicPoints" | "health" | "maxHealth", ExtArgs["result"]["player"]>
 export type PlayerInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   inventory?: boolean | Prisma.Player$inventoryArgs<ExtArgs>
@@ -778,6 +898,9 @@ export type $PlayerPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs
     skin: string
     house: string
     prestige: number
+    xp: number
+    alignment: number
+    academicPoints: number
     health: number
     maxHealth: number
   }, ExtArgs["result"]["player"]>
@@ -1212,6 +1335,9 @@ export interface PlayerFieldRefs {
   readonly skin: Prisma.FieldRef<"Player", 'String'>
   readonly house: Prisma.FieldRef<"Player", 'String'>
   readonly prestige: Prisma.FieldRef<"Player", 'Int'>
+  readonly xp: Prisma.FieldRef<"Player", 'Int'>
+  readonly alignment: Prisma.FieldRef<"Player", 'Int'>
+  readonly academicPoints: Prisma.FieldRef<"Player", 'Int'>
   readonly health: Prisma.FieldRef<"Player", 'Int'>
   readonly maxHealth: Prisma.FieldRef<"Player", 'Int'>
 }

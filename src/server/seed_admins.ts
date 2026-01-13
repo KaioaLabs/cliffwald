@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import { CONFIG } from "../shared/Config";
 
 const ADMIN_USER = "admin";
-const ADMIN_PASS = "Miaularizador42";
+const ADMIN_PASS = "2580";
 
 export async function seedAdmins() {
     try {
@@ -30,7 +30,14 @@ export async function seedAdmins() {
             });
             console.log(`[SEED] Admin User created successfully.`);
         } else {
-            console.log(`[SEED] Admin User already exists.`);
+            // Update password if it exists to ensure the new one is applied
+            console.log(`[SEED] Admin User already exists. Updating password...`);
+            const hashedPassword = await bcrypt.hash(ADMIN_PASS, 10);
+            await db.user.update({
+                where: { username: ADMIN_USER },
+                data: { password: hashedPassword }
+            });
+            console.log(`[SEED] Admin User password updated.`);
         }
     } catch (e) {
         console.error("[SEED] Failed to seed admins:", e);

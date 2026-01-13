@@ -1,6 +1,8 @@
 import { Room, Client } from "colyseus";
 import { GameState, ChatMessage } from "../../shared/SchemaDef";
-import { CONFIG } from "../../shared/Config";
+import { CONFIG, getGameTime } from "../../shared/Config";
+import { timeManager } from "../../shared/managers/TimeManager";
+import { getStudentScheduleTarget } from "../../shared/utils/ScheduleUtils";
 
 export class ChatManager {
     private room: Room<GameState>;
@@ -18,6 +20,81 @@ export class ChatManager {
         if (!player || !text) return;
 
         let cleanText = text.slice(0, CONFIG.CHAT.MAX_LENGTH);
+
+        // --- ADMIN COMMANDS ---
+        if (cleanText.startsWith('/time ')) {
+            const parts = cleanText.split(' ');
+            const cmd = parts[1];
+            const arg = parts[2];
+
+            if (cmd === 'set' && arg) {
+                const hour = parseInt(arg);
+                if (!isNaN(hour)) {
+                    timeManager.setGameHour(hour);
+                    this.broadcastSystemMessage(`Time Travel: Jumped to ${hour}:00 (Triggered by ${player.username})`);
+                    
+                    // FORCE TELEPORT LOGIC (Fix Zombie March)
+                    let teleportCount = 0;
+                    // We need access to ECS entities. Cast room to any to access 'entities' map
+                    // or better, inject WorldRoom instance. But JS allows this access if we are careful.
+                    // The safer way is to assume this.room is WorldRoom.
+                    const worldRoom = this.room as any; 
+                    if (worldRoom.entities) {
+                        for (const [id, entity] of worldRoom.entities) {
+                            if (entity.ai && entity.body && entity.ai.routineSpots) {
+                                // Only teleport if it's an NPC (Echo)
+                                // If it is possessed by a player (starts with sess_), we typically don't force move them
+                                // UNLESS we want to force students to class? No, let's leave players alone.
+                                const isPlayer = entity.player?.sessionId?.startsWith('sess_');
+                                if (!isPlayer) {
+                                     const numericId = typeof entity.id === 'number' ? entity.id : (parseInt(entity.id || "0") || 0);
+                                     const schedule = getStudentScheduleTarget(numericId, hour, entity.ai.routineSpots);
+                                     
+                                     // Hard Teleport
+                                     entity.body.setTranslation(schedule.pos, true);
+                                     entity.ai.state = 'idle'; // Reset logic
+                                     entity.ai.timer = 0;
+                                     teleportCount++;
+                                }
+                            }
+                        }
+                    }
+                    console.log(`[TIME] Teleported ${teleportCount} NPCs to their scheduled locations.`);
+                    return; 
+                }
+            }
+            
+            if (cmd === 'add' && arg) {
+                 const mins = parseInt(arg);
+                 if (!isNaN(mins)) {
+                     timeManager.addTime(mins);
+                     this.broadcastSystemMessage(`Time Warp: Shifted +${mins}m (Triggered by ${player.username})`);
+                     return;
+                 }
+            }
+
+            if (cmd === 'reset') {
+                timeManager.reset();
+                this.broadcastSystemMessage(`Time Sync: Clock synchronized to reality by ${player.username}`);
+                return;
+            }
+            
+            if (cmd === 'check') {
+                 const now = timeManager.getNow();
+                 const gt = getGameTime(now);
+                 const senderClient = this.room.clients.getById(clientSessionId);
+                 if (senderClient) {
+                     const msg = new ChatMessage();
+                     msg.sender = "CHRONOS";
+                     msg.text = `Current Game Time: ${gt.hour}:${gt.minute.toString().padStart(2, '0')} (Night: ${gt.isNight})`;
+                     msg.timestamp = Date.now();
+                     senderClient.send("chat", msg);
+                 }
+                 return;
+            }
+        }
+        // ----------------------
+
         const msg = new ChatMessage();
         msg.sender = player.username;
         msg.timestamp = Date.now();

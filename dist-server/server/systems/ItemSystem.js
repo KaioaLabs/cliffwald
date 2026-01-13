@@ -40,12 +40,6 @@ class ItemSystem {
         item.y = y;
         item.type = itemDef.Type.toLowerCase(); // 'card', 'potion', etc.
         item.itemId = randomKey;
-        // Legacy support for numeric card IDs if needed (parse from card_X)
-        if (randomKey.startsWith('card_')) {
-            const numId = parseInt(randomKey.split('_')[1]);
-            if (!isNaN(numId))
-                item.dataId = numId;
-        }
         this.room.state.items.set(id, item);
         console.log(`[ITEM] Spawned ${itemDef.Name} (${randomKey}) at ${Math.floor(x)},${Math.floor(y)}`);
     }
@@ -56,8 +50,8 @@ class ItemSystem {
         if (!worldItem || !player || !entity || !entity.body)
             return;
         const pos = entity.body.translation();
-        const dist = Math.sqrt((pos.x - worldItem.x) ** 2 + (pos.y - worldItem.y) ** 2);
-        if (dist < 60) {
+        const distSq = (pos.x - worldItem.x) ** 2 + (pos.y - worldItem.y) ** 2;
+        if (distSq < Config_1.CONFIG.VALIDATION.INTERACTION_RADIUS_SQ) {
             const itemDef = ItemRegistry_1.ITEM_REGISTRY[worldItem.itemId];
             if (!itemDef) {
                 this.room.state.items.delete(worldItemId);
@@ -79,15 +73,13 @@ class ItemSystem {
                 invItem.qty = 1;
                 player.inventory.push(invItem);
             }
-            // 2. Legacy Card Collection (for Album UI)
-            if (worldItem.type === 'card' && worldItem.dataId > 0) {
-                if (!player.cardCollection.includes(worldItem.dataId)) {
-                    player.cardCollection.push(worldItem.dataId);
-                }
-                else {
-                    // Duplicate card bonus
+            else {
+                // Bonus for Duplicate Cards (DISABLED)
+                /*
+                if (worldItem.type === 'card') {
                     this.room.prestigeSystem.addPrestige(sessionId, 5);
                 }
+                */
             }
             // Notify
             this.room.send(this.room.clients.getById(sessionId), "notification", `Found: ${itemDef.Name}`);

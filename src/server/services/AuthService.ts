@@ -6,7 +6,7 @@ import { CONFIG } from '../../shared/Config';
 export class AuthService {
     private static SALT_ROUNDS = 10;
 
-    static async register(username: string, passwordRaw: string) {
+    static async register(username: string, passwordRaw: string, skin: string, house: string) {
         const existingUser = await db.user.findUnique({ where: { username } });
         if (existingUser) {
             throw new Error("Username already taken");
@@ -14,7 +14,7 @@ export class AuthService {
 
         const hashedPassword = await bcrypt.hash(passwordRaw, this.SALT_ROUNDS);
         
-        const user = await db.user.create({
+        const newUser = await db.user.create({
             data: {
                 username,
                 password: hashedPassword,
@@ -22,20 +22,26 @@ export class AuthService {
                     create: {
                         x: CONFIG.SPAWN_POINT.x,
                         y: CONFIG.SPAWN_POINT.y,
-                        skin: "player_idle" // Default skin
+                        skin: skin || "player_idle",
+                        house: house || "ignis",
+                        prestige: 0
                     }
                 }
             },
             include: { player: true }
         });
-
-        return this.generateToken(user.id, user.username);
+        console.log(`[AUTH] New User Registered: ${username} (${house})`);
+        return this.generateToken(newUser.id, newUser.username);
     }
 
     static async login(username: string, passwordRaw: string) {
-        const user = await db.user.findUnique({ where: { username } });
+        const user = await db.user.findUnique({ 
+            where: { username },
+            include: { player: true } 
+        });
+        
         if (!user) {
-            throw new Error("Invalid credentials");
+            throw new Error("User not found");
         }
 
         const isValid = await bcrypt.compare(passwordRaw, user.password);
@@ -43,44 +49,17 @@ export class AuthService {
             throw new Error("Invalid credentials");
         }
 
-        return this.generateToken(user.id, user.username);
+        // Return token AND persistent identity data
+        return {
+            token: this.generateToken(user.id, user.username),
+            skin: user.player?.skin || "player_idle",
+            house: user.player?.house || "ignis"
+        };
     }
 
-    /**
-     * Seamless Auth: Tries to login, or registers if user doesn't exist.
-     */
-    static async seamlessAuth(username: string, passwordRaw: string, skin: string, house: string) {
-        const existingUser = await db.user.findUnique({ where: { username } });
-        
-        if (existingUser) {
-            // LOGIN PATH
-            const isValid = await bcrypt.compare(passwordRaw, existingUser.password);
-            if (!isValid) {
-                throw new Error("Incorrect Password");
-            }
-            return this.generateToken(existingUser.id, existingUser.username);
-        } else {
-            // REGISTER PATH
-            const hashedPassword = await bcrypt.hash(passwordRaw, this.SALT_ROUNDS);
-            const newUser = await db.user.create({
-                data: {
-                    username,
-                    password: hashedPassword,
-                    player: {
-                        create: {
-                            x: CONFIG.SPAWN_POINT.x,
-                            y: CONFIG.SPAWN_POINT.y,
-                            skin: skin || "player_idle",
-                            house: house || "ignis",
-                            prestige: 0
-                        }
-                    }
-                },
-                include: { player: true }
-            });
-            console.log(`[AUTH] New User Registered: ${username} (${house})`);
-            return this.generateToken(newUser.id, newUser.username);
-        }
+    static async checkUser(username: string): Promise<boolean> {
+        const user = await db.user.findUnique({ where: { username } });
+        return !!user;
     }
 
     /**
