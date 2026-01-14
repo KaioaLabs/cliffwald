@@ -924,72 +924,13 @@ export class GameScene extends Phaser.Scene {
         // Strict Login Gate: No input processing until authenticated
         if (!this.authToken || !this.room) return { left: false, right: false, up: false, down: false };
 
-        const climb = this.climbingState;
-        const ladder = this.ladderObj;
-        const bounds = this.ladderBounds;
         const localId = this.network.room.sessionId;
         const player = this.playerController.players.get(localId);
 
-        // --- LADDER MOUNT / DISMOUNT LOGIC ---
-        if (ladder && player && player.visual?.sprite) {
-            // Check Mount
-            if (!climb?.active) {
-                const sprite = player.visual.sprite;
-                // Distance to Ladder Base
-                const dist = Phaser.Math.Distance.Between(sprite.x, sprite.y, ladder.x, ladder.y);
-                
-                // If pressing UP and near ladder (< 40px)
-                if (dist < 40 && (this.cursors?.up.isDown || this.wasd?.W.isDown)) {
-                    console.log("[LADDER] Mounting Ladder!");
-                    this.climbingState = {
-                        active: true,
-                        ladderX: ladder.x,
-                        climbHeight: 0
-                    };
-                    return { left: false, right: false, up: false, down: false }; // Consume input
-                }
-            }
+        // --- LADDER INTERACTION ---
+        if (this.handleLadderInteraction(player)) {
+            return { left: false, right: false, up: false, down: false }; // Consume input
         }
-
-        if (climb?.active && ladder && bounds && this.cursors && this.wasd) {
-            // console.log("[LADDER] Climbing... Height:", climb.climbHeight);
-            // --- LADDER MOVEMENT ---
-            const speed = 2.0; // Ladder slide speed
-            const climbSpeed = 2.0;
-
-            // Horizontal (Slide Ladder)
-            if (this.cursors.left.isDown || this.wasd.A.isDown) {
-                ladder.x = Math.max(bounds.min, ladder.x - speed);
-            } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
-                ladder.x = Math.min(bounds.max, ladder.x + speed);
-            }
-
-            // Vertical (Climb Player)
-            if (this.cursors.up.isDown || this.wasd.W.isDown) {
-                climb.climbHeight = Math.min(250, climb.climbHeight + climbSpeed);
-            } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
-                // Check Dismount
-                if (climb.climbHeight <= 0) {
-                    this.climbingState = { active: false, ladderX: 0, climbHeight: 0 };
-                    if (player) player.climbOffset = 0;
-                    return { left: false, right: false, up: false, down: false };
-                }
-                climb.climbHeight = Math.max(0, climb.climbHeight - climbSpeed);
-            }
-
-            // Sync Player Visuals
-            if (player && player.visual?.sprite) {
-                // Force X to ladder X, Y to ladder Base Y
-                // Direct override:
-                player.visual.sprite.x = ladder.x;
-                player.visual.sprite.y = ladder.y; // Base
-                player.climbOffset = -climb.climbHeight; // Negative to go UP
-                player.visual.sprite.setDepth(ladder.y + 100);
-            }
-
-            return { left: false, right: false, up: false, down: false }; // Suppress standard movement
-        }
-
 
         if (!this.cursors || !this.wasd) return { left: false, right: false, up: false, down: false };
         if (this.uiManager && this.uiManager.getChatInputActive()) {
@@ -1027,6 +968,73 @@ export class GameScene extends Phaser.Scene {
         }
         return input;
     }
+
+    handleLadderInteraction(player: any): boolean {
+        const climb = this.climbingState;
+        const ladder = this.ladderObj;
+        const bounds = this.ladderBounds;
+
+        if (ladder && player && player.visual?.sprite) {
+            // Check Mount
+            if (!climb?.active) {
+                const sprite = player.visual.sprite;
+                // Distance to Ladder Base
+                const dist = Phaser.Math.Distance.Between(sprite.x, sprite.y, ladder.x, ladder.y);
+                
+                // If pressing UP and near ladder (< 40px)
+                if (dist < 40 && (this.cursors?.up.isDown || this.wasd?.W.isDown)) {
+                    console.log("[LADDER] Mounting Ladder!");
+                    this.climbingState = {
+                        active: true,
+                        ladderX: ladder.x,
+                        climbHeight: 0
+                    };
+                    return true;
+                }
+            }
+        }
+
+        if (climb?.active && ladder && bounds && this.cursors && this.wasd) {
+            // console.log("[LADDER] Climbing... Height:", climb.climbHeight);
+            // --- LADDER MOVEMENT ---
+            const speed = 2.0; // Ladder slide speed
+            const climbSpeed = 2.0;
+
+            // Horizontal (Slide Ladder)
+            if (this.cursors.left.isDown || this.wasd.A.isDown) {
+                ladder.x = Math.max(bounds.min, ladder.x - speed);
+            } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
+                ladder.x = Math.min(bounds.max, ladder.x + speed);
+            }
+
+            // Vertical (Climb Player)
+            if (this.cursors.up.isDown || this.wasd.W.isDown) {
+                climb.climbHeight = Math.min(250, climb.climbHeight + climbSpeed);
+            } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
+                // Check Dismount
+                if (climb.climbHeight <= 0) {
+                    this.climbingState = { active: false, ladderX: 0, climbHeight: 0 };
+                    if (player) player.climbOffset = 0;
+                    return true;
+                }
+                climb.climbHeight = Math.max(0, climb.climbHeight - climbSpeed);
+            }
+
+            // Sync Player Visuals
+            if (player && player.visual?.sprite) {
+                // Force X to ladder X, Y to ladder Base Y
+                // Direct override:
+                player.visual.sprite.x = ladder.x;
+                player.visual.sprite.y = ladder.y; // Base
+                player.climbOffset = -climb.climbHeight; // Negative to go UP
+                player.visual.sprite.setDepth(ladder.y + 100);
+            }
+
+            return true;
+        }
+
+        return false;
+    }
 }
 
 const config: Phaser.Types.Core.GameConfig = {
@@ -1043,7 +1051,7 @@ const config: Phaser.Types.Core.GameConfig = {
     render: { maxLights: 50 },
     backgroundColor: '#000000',
     scene: [GameScene, UIScene, CardAlbumScene],
-    physics: { default: 'arcade', arcade: { debug: false } },
+    // physics: { default: 'arcade', arcade: { debug: false } }, // Removed: Using Rapier
     lights: { enable: true, ambientColor: 0x808080 }
 };
 
