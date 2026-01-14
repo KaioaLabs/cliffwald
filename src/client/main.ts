@@ -358,25 +358,37 @@ export class GameScene extends Phaser.Scene {
             this.cameras.main.startFollow(this.cameraTarget, true, 0.2, 0.2);
             this.cameras.main.centerOn(1600, 1000);
 
-            // --- VISUALS: DUEL ZONE ---
+            // --- VISUALS: DUEL ZONE (TATAMI) ---
             getZones("duel_zone").forEach(zone => {
-                const radius = zone.width / 2;
-                const cx = zone.x + radius;
-                const cy = zone.y + radius;
-                const zoneId = (zone as any).properties?.find((p: any) => p.name === 'zone_id')?.value ?? 0;
-
-                const duelVisual = this.add.circle(cx, cy, radius, 0xaa0000, 0.2);
-                duelVisual.setStrokeStyle(4, 0xff0000, 0.5);
-                duelVisual.setDepth(-90);
+                // Convert world bounds to tile coordinates
+                // Assuming 32x32 tiles
+                const tileX = Math.floor(zone.x / 32);
+                const tileY = Math.floor(zone.y / 32);
+                const tileW = Math.floor(zone.width / 32);
+                const tileH = Math.floor(zone.height / 32);
                 
-                // Tatami inner ring (decor)
-                this.add.circle(cx, cy, radius * 0.3, 0xaa0000, 0.1).setDepth(-90);
+                // Paint Floor Tiles Red
+                if (floorLayer) {
+                    for (let y = 0; y < tileH; y++) {
+                        for (let x = 0; x < tileW; x++) {
+                            const tile = floorLayer.getTileAt(tileX + x, tileY + y);
+                            if (tile) {
+                                tile.tint = 0xff8888; // Reddish tint
+                            }
+                        }
+                    }
+                }
+
+                const cx = zone.x + (zone.width / 2);
+                const cy = zone.y + (zone.height / 2);
+                const zoneId = (zone as any).properties?.find((p: any) => p.name === 'zone_id')?.value ?? 0;
                 
                 // Ring Number
                 this.add.text(cx, cy, (zoneId + 1).toString(), {
                     fontSize: '64px',
                     color: '#ffffff',
-                    alpha: 0.2
+                    alpha: 0.15,
+                    fontStyle: 'bold'
                 }).setOrigin(0.5).setDepth(-90);
             });
 
