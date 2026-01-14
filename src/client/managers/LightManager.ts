@@ -12,8 +12,8 @@ interface WindowObject {
 
 export class LightManager {
     private scene: Phaser.Scene;
-    private lights: Map<string, Phaser.GameObjects.Light> = new Map();
     private windows: WindowObject[] = [];
+    private sunPosition: { x: number, y: number } = { x: 0, y: 0 };
     
     // Cycle Colors
     private readonly COLORS = {
@@ -73,6 +73,10 @@ export class LightManager {
         this.windows.push({ frame, light, ray, baseX: x, baseY: y }); 
     }
 
+    public getSunPosition() {
+        return this.sunPosition;
+    }
+
     public update(gameHour: number) {
         const hour = gameHour;
         
@@ -80,7 +84,30 @@ export class LightManager {
         const { color: ambientColor } = this.calculateCycleState(hour);
         this.scene.lights.setAmbientColor(ambientColor);
 
-        // 2. Global Light Logic
+        // 2. Calculate Global Light Source (Sun/Moon Orbit)
+        // Assume center of map is around 1600, 1600
+        const centerX = 1600;
+        const centerY = 1600;
+        const orbitRadius = 2000;
+        
+        // Dawn (5am) to Dusk (19pm) = 14 hours
+        // Angle: 0 at Noon (Top), -90 Dawn (Right?), 90 Dusk (Left?)
+        // Let's make Sun rise East (Right) and set West (Left) standard 2D
+        // 0 degrees is Right in Phaser. -90 is Top.
+        // Noon (12:00) -> Top (-90 deg)
+        // 6:00 -> Right (0 deg) ?? No, conventionally East is Right.
+        
+        // Simplified Orbit:
+        // Hour 6 -> 0 rad (Right)
+        // Hour 12 -> -PI/2 (Top)
+        // Hour 18 -> -PI (Left)
+        // Hour 24 -> -3PI/2 (Bottom)
+        
+        const angle = ((hour - 6) / 24) * (Math.PI * 2); 
+        this.sunPosition.x = centerX + Math.cos(angle) * orbitRadius;
+        this.sunPosition.y = centerY + Math.sin(angle) * orbitRadius;
+
+        // 3. Global Light Logic for Windows
         let rotation = 0;
         let rayAlpha = 0;
         let lightColor = 0xffffff;
@@ -103,16 +130,31 @@ export class LightManager {
             lightColor = this.colorToInt(this.COLORS.NIGHT);
         }
 
-        // 3. Apply to all windows
-        this.windows.forEach(w => {
-            w.ray.setRotation(rotation);
-            w.ray.setAlpha(rayAlpha);
-            w.ray.setTint(lightColor);
+        // 4. Update Windows with CULLING
+        const camera = this.scene.cameras.main;
+        const viewRect = camera.worldView;
+        // Expand cull rect slightly to avoid pop-in
+        const cullRect = new Phaser.Geom.Rectangle(viewRect.x - 200, viewRect.y - 200, viewRect.width + 400, viewRect.height + 400);
 
-            // Update Light2D (Real source)
+        this.windows.forEach(w => {
+            // Culling Check
+            const inView = cullRect.contains(w.baseX, w.baseY);
+            
             if (w.light) {
-                w.light.setColor(lightColor);
-                w.light.setIntensity(rayAlpha * 2.5); // Boost intensity for better normal map highlighting
+                w.light.setVisible(inView);
+                if (inView) {
+                    w.light.setColor(lightColor);
+                    w.light.setIntensity(rayAlpha * 2.5);
+                }
+            }
+            
+            w.ray.setVisible(inView);
+            w.frame.setVisible(inView);
+
+            if (inView) {
+                w.ray.setRotation(rotation);
+                w.ray.setAlpha(rayAlpha);
+                w.ray.setTint(lightColor);
             }
         });
     }

@@ -786,30 +786,34 @@ export class GameScene extends Phaser.Scene {
         }
 
         const pointer = this.input.activePointer;
-        const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+        // const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
 
-        // Update Static Object Shadows (Tables)
-        this.tableShadows.forEach(shadow => {
-            try {
-                const baseX = shadow.getData('baseX');
-                const baseY = shadow.getData('baseY');
-                const sX = shadow.getData('sourceScaleX') || 1.0;
-                const sY = shadow.getData('sourceScaleY') || 1.0;
-                const h = shadow.getData('height') || 32;
-                
-                ShadowUtils.updateShadow(
-                    shadow,
-                    baseX,
-                    baseY,
-                    sX,  // Source Scale X (for rects this creates the shape)
-                    sY,  // Source Scale Y
-                    -99,  // Depth
-                    h,   // Height of the object for shadow offset
-                    worldPoint.x,
-                    worldPoint.y
-                );
-            } catch (e) { }
-        });
+        // Update Static Object Shadows (Tables) - THROTTLED & SUN-BASED
+        if (this.game.loop.frame % 10 === 0 && this.lightManager) {
+            const sunPos = this.lightManager.getSunPosition();
+            
+            this.tableShadows.forEach(shadow => {
+                try {
+                    const baseX = shadow.getData('baseX');
+                    const baseY = shadow.getData('baseY');
+                    const sX = shadow.getData('sourceScaleX') || 1.0;
+                    const sY = shadow.getData('sourceScaleY') || 1.0;
+                    const h = shadow.getData('height') || 32;
+                    
+                    ShadowUtils.updateShadow(
+                        shadow,
+                        baseX,
+                        baseY,
+                        sX,  
+                        sY,  
+                        -99,  
+                        h,   
+                        sunPos.x,
+                        sunPos.y
+                    );
+                } catch (e) { }
+            });
+        }
         
         if (this.debugManager) this.debugManager.update();
 

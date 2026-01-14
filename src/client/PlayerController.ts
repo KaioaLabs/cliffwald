@@ -331,7 +331,9 @@ export class PlayerController {
             // Shadow Logic
             const shadow = entity.shadow;
             if (shadow) {
-                const worldPoint = this.scene.cameras.main.getWorldPoint(this.scene.input.activePointer.x, this.scene.input.activePointer.y);
+                // Use Global Sun Position
+                const gameScene = this.scene as any;
+                const sunPos = gameScene.lightManager?.getSunPosition() || { x: 0, y: 0 };
                 
                 shadow.setTexture(sprite.texture.key, sprite.frame.name);
                 shadow.setVisible(sprite.visible);
@@ -341,18 +343,24 @@ export class PlayerController {
                     shadowY -= (sprite.displayHeight || 64) * 0.15;
                 }
 
-                // Scale shadow for Jump (visualOffset) but NOT for Climb (Ladder usually keeps you 'grounded' visually or shadow fades?)
-                // For a ladder, the shadow should probably stay at the bottom of the ladder.
-                // Since smoothedY IS the bottom (base pos), this works.
-                // However, scaling logic for jump might act weird if we combine them.
-                // Let's use only visualOffset.y for jump scaling.
+                // Scale shadow for Jump (visualOffset) but NOT for Climb
                 const jumpY = entity.visualOffset?.y || 0;
                 
                 const jumpScale = 1.0 + (jumpY / 30); 
                 const baseScaleX = sprite.scaleX * Math.max(0.5, jumpScale);
                 const baseScaleY = sprite.scaleY * Math.max(0.5, jumpScale);
 
-                ShadowUtils.updateShadow(shadow, smoothedX, shadowY, baseScaleX, baseScaleY, sprite.depth, sprite.displayHeight || 40, worldPoint.x, worldPoint.y);
+                ShadowUtils.updateShadow(
+                    shadow, 
+                    smoothedX, 
+                    shadowY, 
+                    baseScaleX, 
+                    baseScaleY, 
+                    sprite.depth, 
+                    sprite.displayHeight || 40, 
+                    sunPos.x, 
+                    sunPos.y
+                );
             }
 
             if (entity.nameTag) entity.nameTag.setPosition(sprite.x, sprite.y + CONFIG.NAME_TAG_Y_OFFSET).setDepth(sprite.y + 100);
