@@ -4,7 +4,6 @@ import { THEME } from '../../shared/Theme';
 import { VirtualJoystick } from '../VirtualJoystick';
 
 export class UIScene extends Phaser.Scene {
-    clockText?: Phaser.GameObjects.Text;
     pvpStatusText?: Phaser.GameObjects.Text;
     joystick?: VirtualJoystick;
 
@@ -23,15 +22,6 @@ export class UIScene extends Phaser.Scene {
         console.log("UIScene Created");
         this.cameras.main.setScroll(0, 0);
         this.cameras.main.setZoom(1);
-
-        // Clock Text (Top Right)
-        this.clockText = this.add.text(this.scale.width - 20, 20, '00:00', {
-            fontFamily: 'monospace',
-            fontSize: '18px',
-            color: THEME.UI.TEXT_WHITE,
-            backgroundColor: THEME.UI.BACKGROUND_DIM,
-            padding: { x: 10, y: 5 }
-        }).setOrigin(1, 0); 
 
         // Prestige Pillars Container (Left of Clock)
         this.createPrestigeUI();
@@ -53,7 +43,6 @@ export class UIScene extends Phaser.Scene {
 
         this.scale.on('resize', (gameSize: any) => {
             this.cameras.main.setViewport(0, 0, gameSize.width, gameSize.height);
-            if (this.clockText) this.clockText.setPosition(gameSize.width - 20, 20);
             if (this.pvpStatusText) this.pvpStatusText.setPosition(gameSize.width - 20, 55);
             this.repositionPrestigeUI(gameSize.width);
         });
@@ -182,16 +171,5 @@ export class UIScene extends Phaser.Scene {
         if (this.tooltipContainer?.visible) {
             this.updateTooltipText();
         }
-    }
-
-    updateTime(totalSeconds: number, course: number, month: string) {
-        if (!this.clockText) return; 
-        
-        const hours = Math.floor(totalSeconds / 3600);
-        const minutes = Math.floor((totalSeconds % 3600) / 60);
-        const hStr = hours.toString().padStart(2, '0');
-        const mStr = minutes.toString().padStart(2, '0');
-        
-        this.clockText.setText(`${hStr}:${mStr}\nCourse ${course}\n${month}`);
     }
 }

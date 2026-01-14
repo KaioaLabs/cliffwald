@@ -829,17 +829,19 @@ export class GameScene extends Phaser.Scene {
         gameTime = getGameTime(now);
         decimalHour = gameTime.hour + (gameTime.minute / 60);
 
-        // Update Calendar UI
-        if (this.network.room) {
-            const worldStart = this.network.room.state.worldStartTime;
-            const progress = getAcademicProgress(worldStart, now);
-            const phase = gameTime.isNight ? 'Night' : 'Day';
-            
-            if (this.uiManager) {
-                this.uiManager.updateCalendar(progress.currentMonth, progress.currentWeek, progress.currentDay, phase);
+            // Update Calendar UI
+            if (this.network.room) {
+                const worldStart = this.network.room.state.worldStartTime;
+                const progress = getAcademicProgress(worldStart, now);
+                // const phase = gameTime.isNight ? 'Night' : 'Day'; // Removed phase
+                
+                if (this.uiManager) {
+                    this.uiManager.updateHUDTime(gameTime.hour, gameTime.minute, progress.currentDay, progress.currentMonth);
+                }
             }
         }
 
+        /* Legacy UIScene Time Update - REMOVED
         const uiScene = this.scene.get('UIScene') as UIScene;
         if (uiScene) {
             const displaySeconds = gameTime.hour * 3600 + gameTime.minute * 60;
@@ -847,6 +849,7 @@ export class GameScene extends Phaser.Scene {
                  uiScene.updateTime(displaySeconds, this.network.room.state.currentCourse, this.network.room.state.currentMonth);
             }
         }
+        */
 
         if (this.lightManager) {
             try {

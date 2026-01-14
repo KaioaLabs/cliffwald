@@ -583,16 +583,18 @@ export class UIManager {
         this.loreModal.classList.remove('hidden');
     }
 
-    public updateCalendar(month: string, week: number, day: number, phase: string) {
-        const seasonEl = document.getElementById('cal-season');
-        const dayEl = document.getElementById('cal-day');
-        const phaseEl = document.getElementById('cal-phase');
+    public updateHUDTime(hour: number, minute: number, day: number, month: string) {
+        const timeEl = document.getElementById('hud-time');
+        const dateEl = document.getElementById('hud-date');
 
-        if (seasonEl) seasonEl.innerText = `${month} - SEMANA ${week}`;
-        if (dayEl) dayEl.innerText = `DÍA ${day}`;
-        if (phaseEl) {
-            phaseEl.innerText = phase.toUpperCase();
-            phaseEl.style.color = phase === 'Night' ? '#88a' : '#fa8';
+        if (timeEl) {
+            const hStr = Math.floor(hour).toString().padStart(2, '0');
+            const mStr = Math.floor(minute).toString().padStart(2, '0');
+            timeEl.innerText = `${hStr}:${mStr}`;
+        }
+        
+        if (dateEl) {
+            dateEl.innerText = `DAY ${day} - ${month}`;
         }
     }
 
