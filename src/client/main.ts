@@ -1047,7 +1047,8 @@ const config: Phaser.Types.Core.GameConfig = {
     render: { maxLights: 50 },
     backgroundColor: '#000000',
     scene: [GameScene, UIScene, CardAlbumScene],
-    physics: { default: 'arcade', arcade: { debug: false } }
+    physics: { default: 'arcade', arcade: { debug: false } },
+    lights: { enable: true, ambientColor: 0x808080 }
 };
 
 (window as any).game = new Phaser.Game(config);

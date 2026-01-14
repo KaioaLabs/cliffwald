@@ -92,14 +92,14 @@ describe("NPC Behavior & Seating Verification", () => {
         const entity = entities.get("student_ignis_1");
         expect(entity).toBeDefined();
         
-        // 3. Verify AI Routine Spots match the Calculated Seat (Ignis Dorm Base)
-        // DORM_IGNIS is at 500,500. Index 0 -> Row 0, Col 0 -> Offset 0,0.
-        expect(entity.ai.routineSpots.sleep).toEqual({ x: 500, y: 500 });
+        // 3. Verify AI Routine Spots match the Calculated Seat (Ignis Dorm Base + Offset)
+        // DORM_IGNIS is at 500,500. Index 0 -> Row 0, Col 0 -> Offset 0,0. + 20 Y Offset.
+        expect(entity.ai.routineSpots.sleep).toEqual({ x: 500, y: 520 });
         
         // 4. Verify Physical Spawn Position
         const pos = entity.body.translation();
         expect(pos.x).toBe(500);
-        expect(pos.y).toBe(500);
+        expect(pos.y).toBe(520);
     });
 
     it('should fallback to math if seat is missing', () => {
@@ -107,8 +107,8 @@ describe("NPC Behavior & Seating Verification", () => {
         spawnManager.createEchoEntity("student_fallback", 999, 999, "skin", "Fallback", "ignis", 1);
         
         const entity = entities.get("student_fallback");
-        // Should use Calculated Position based on DORM_IGNIS (500,500)
-        expect(entity.ai.routineSpots.sleep).toEqual({ x: 500, y: 500 });
+        // Should use Calculated Position based on DORM_IGNIS (500,500) + Offset
+        expect(entity.ai.routineSpots.sleep).toEqual({ x: 500, y: 520 });
     });
 
     it('should find diagonal paths (8-way pathfinding)', () => {

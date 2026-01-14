@@ -688,6 +688,7 @@ export const PlayerScalarFieldEnum = {
   skin: 'skin',
   house: 'house',
   prestige: 'prestige',
+  gold: 'gold',
   xp: 'xp',
   alignment: 'alignment',
   academicPoints: 'academicPoints',

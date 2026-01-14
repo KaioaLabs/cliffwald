@@ -21,7 +21,6 @@ export class UIManager {
     private timetableModal?: HTMLElement;
     private loreModal?: HTMLElement;
     private inventoryModal?: HTMLElement;
-    private shopModal?: HTMLElement; // New
     private quickMenu?: HTMLElement;
 
     // Cleanup Tracker
@@ -77,7 +76,6 @@ export class UIManager {
         this.timetableModal = document.getElementById('timetable-modal') as HTMLElement;
         this.loreModal = document.getElementById('card-lore-modal') as HTMLElement;
         this.inventoryModal = document.getElementById('inventory-modal') as HTMLElement;
-        this.shopModal = document.getElementById('shop-modal') as HTMLElement; // New
         this.quickMenu = document.getElementById('quick-menu') as HTMLElement;
 
         this.setupCalendarControls();
@@ -178,16 +176,6 @@ export class UIManager {
             }
         });
 
-        // --- Shop ---
-        const btnShop = document.getElementById('btn-shop');
-        this.addListener(btnShop, 'click', (e: any) => { 
-            e.stopPropagation(); 
-            toggle(this.shopModal || null); 
-            if (!this.shopModal?.classList.contains('hidden')) {
-                this.renderShop(); 
-            }
-        });
-
         // Close Buttons
         document.querySelectorAll('.close-btn').forEach(btn => {
             this.addListener(btn, 'click', (e: any) => {
@@ -207,7 +195,7 @@ export class UIManager {
 
         this.scene.input.keyboard?.on('keydown-ESC', () => {
             // Priority: Close Menus first
-            const modals = [settingsMenu, this.albumModal, this.timetableModal, this.loreModal, this.inventoryModal, this.shopModal];
+            const modals = [settingsMenu, this.albumModal, this.timetableModal, this.loreModal, this.inventoryModal];
             let closedAny = false;
             
             modals.forEach(m => {
@@ -278,60 +266,6 @@ export class UIManager {
 
             grid.appendChild(slot);
         }
-    }
-
-    public renderShop() {
-        const grid = document.getElementById('shop-grid');
-        const goldEl = document.getElementById('shop-gold');
-        const prestigeEl = document.getElementById('shop-prestige-total');
-        if (!grid) return;
-
-        grid.innerHTML = '';
-        
-        // Update Displays
-        const localSessionId = this.network.room?.sessionId;
-        const player = localSessionId ? this.network.room?.state.players.get(localSessionId) : null;
-        if (goldEl && player) {
-            goldEl.innerText = (player.gold || 0).toString();
-        }
-        if (prestigeEl && player) {
-            prestigeEl.innerText = (player.personalPrestige || 0).toString();
-        }
-
-        const CATALOG = [
-            { id: "pot_antidote", price: 10 },
-            { id: "food_rock_cake", price: 10 },
-            { id: "mat_wolfsbane", price: 50 },
-            { id: "mat_bezoar", price: 50 }
-        ];
-
-        CATALOG.forEach(entry => {
-            const itemDef = ITEM_REGISTRY[entry.id];
-            if (!itemDef) return;
-
-            const slot = document.createElement('div');
-            slot.className = 'inv-slot shop-slot';
-            slot.style.cursor = 'pointer';
-            
-            const canAfford = player ? (player.gold || 0) >= entry.price : false;
-            if (!canAfford) slot.style.opacity = '0.5';
-
-            slot.innerHTML = `
-                <div style="font-size:10px; color:#fff; position:absolute; top:2px; left:2px;">${itemDef.Name}</div>
-                <div style="font-size:12px; color:#f0c040; position:absolute; bottom:2px; right:2px;">${entry.price} 💰</div>
-            `;
-            slot.title = itemDef.Description;
-
-            slot.onclick = () => {
-                if (canAfford) {
-                    this.network.room?.send("buy", entry.id);
-                } else {
-                    alert("Not enough Gold!");
-                }
-            };
-
-            grid.appendChild(slot);
-        });
     }
 
     private selectInventoryItem(item: any, itemDef: any) {

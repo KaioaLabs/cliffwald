@@ -104,9 +104,9 @@ export class WorldRoom extends Room<GameState> {
             this.spawnPos = entitiesResult.spawnPos;
             this.pathfinder = new Pathfinding(result.navGrid);
             
-            console.log(`[SERVER] Map loaded. Initializing 300 Student Slots...`);
+            console.log(`[SERVER] Map loaded. Initializing 24 Student Slots...`);
             this.spawnManager.loadSeats(mapData);
-            this.spawnManager.spawnEchoes(300, this.spawnPos);
+            this.spawnManager.spawnEchoes(24, this.spawnPos);
             this.spawnManager.spawnFromMap(mapData);
             // Spawn initial cards
             for(let i=0; i<5; i++) this.itemSystem.spawnRandomItem();

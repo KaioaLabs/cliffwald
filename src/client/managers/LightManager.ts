@@ -4,7 +4,7 @@ import { THEME } from '../../shared/Theme';
 
 interface WindowObject {
     frame: Phaser.GameObjects.Image;
-    light?: Phaser.GameObjects.Light; // Changed from PointLight to Light2D
+    light?: Phaser.GameObjects.Light; 
     ray: Phaser.GameObjects.Image;
     baseX: number;
     baseY: number;
@@ -17,24 +17,42 @@ export class LightManager {
     
     // Cycle Colors
     private readonly COLORS = {
-        NIGHT: { r: 40, g: 50, b: 100 }, // Deeper Night
-        DAWN: { r: 255, g: 180, b: 100 }, // Warmer Dawn
-        DAY: { r: 255, g: 255, b: 230 }, // Natural White
-        DUSK: { r: 255, g: 80, b: 50 }    // Striking Dusk
+        NIGHT: { r: 40, g: 50, b: 100 }, 
+        DAWN: { r: 255, g: 180, b: 100 }, 
+        DAY: { r: 255, g: 255, b: 230 }, 
+        DUSK: { r: 255, g: 255, b: 150 }    
     };
 
     constructor(scene: Phaser.Scene) {
         this.scene = scene;
         if (CONFIG.USE_LIGHTS) {
             this.scene.lights.enable();
-            this.scene.lights.setAmbientColor(0x222222); // Slightly darker ambient for more contrast
+            this.scene.lights.setAmbientColor(0x222222); 
         }
-        
-        // Populate procedural windows
-        this.populateWindows();
     }
 
-    // ... (initFromMap stays the same)
+    public initFromMap(map: Phaser.Tilemaps.Tilemap) {
+        const logicObjects = map.getObjectLayer("Logic")?.objects || [];
+        const windowLocs = logicObjects.filter(o => o.type === 'window' || o.name?.toLowerCase().includes('window'));
+
+        if (windowLocs.length > 0) {
+            console.log(`[LIGHTS] Found ${windowLocs.length} windows in map.`);
+            windowLocs.forEach(loc => {
+                this.addWindow(loc.x, loc.y);
+            });
+        } else {
+            console.warn("[LIGHTS] No window objects found in 'Logic' layer. Using procedural fallback.");
+            this.populateWindows();
+        }
+    }
+
+    private populateWindows() {
+        // Fallback: Add 10 windows along the top wall (y=0 approx)
+        const MAP_WIDTH = 3200; // Standard world size
+        for (let x = 200; x < MAP_WIDTH; x += 400) {
+            this.addWindow(x, 100);
+        }
+    }
 
     private addWindow(x: number, y: number) {
         // 1. Frame
@@ -42,10 +60,8 @@ export class LightManager {
         frame.setDepth(-50); 
         if (CONFIG.USE_LIGHTS) frame.setPipeline('Light2D');
 
-        // 2. Real 2D Light (Affects Normal Maps) - REPLACED PointLight
-        // No longer a GameObject, but a light handled by the scene's light system
-        // REMOVED per user request: "elimina el resto de point lights"
-        // const light = this.scene.lights.addLight(x, y, 200, 0xffffff, 0);
+        // 2. Real 2D Light (Affects Normal Maps)
+        const light = this.scene.lights.addLight(x, y, 300, 0xffffff, 0);
 
         // 3. Volumetric Ray (Visual Atmospheric effect)
         const ray = this.scene.add.image(x, y + 16, 'window_light_ray');
@@ -54,7 +70,7 @@ export class LightManager {
         ray.setBlendMode(Phaser.BlendModes.ADD);
         ray.setAlpha(0);
 
-        this.windows.push({ frame, ray, baseX: x, baseY: y }); // Light removed
+        this.windows.push({ frame, light, ray, baseX: x, baseY: y }); 
     }
 
     public update(gameHour: number) {

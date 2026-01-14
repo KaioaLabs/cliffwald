@@ -60,7 +60,6 @@
 
         <!-- Quick Access Menu (Top Right) -->
         <div id="quick-menu" class="pointer-events-auto">
-            <button id="btn-shop" title="School Shop">🛒</button>
             <button id="btn-inventory" title="Inventory">🎒</button>
             <button id="btn-album" title="Card Album">📖</button>
             <button id="btn-timetable" title="Class Schedule">📅</button>
@@ -73,24 +72,6 @@
             <div id="chat-container">
                 <div id="chat-messages"></div>
                 <input type="text" id="chat-input" placeholder="Press ENTER to chat..." maxlength="100">
-            </div>
-        </div>
-
-        <!-- Shop Modal -->
-        <div id="shop-modal" class="modal hidden pointer-events-auto">
-            <div class="modal-header">
-                <h2>School Shop</h2>
-                <div style="font-size: 14px; margin-left: 20px; display: flex; gap: 15px;">
-                    <div>Gold: <span id="shop-gold" style="color: #f0c040;">0</span> 💰</div>
-                    <div>Prestige: <span id="shop-prestige-total" style="color: #88f;">0</span> 💎</div>
-                </div>
-                <button class="close-btn">×</button>
-            </div>
-            <div class="modal-content">
-                <div id="shop-grid" class="inv-grid">
-                    <!-- Items injected by JS -->
-                </div>
-                <p style="color: #aaa; font-size: 12px; margin-top: 10px; text-align: center;">Click an item to purchase.</p>
             </div>
         </div>
 

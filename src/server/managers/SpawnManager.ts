@@ -245,7 +245,7 @@ export class SpawnManager {
         const bedCol = studentIndex % 4; // 0 to 3
         const sleepPos = {
             x: dormBase.x + (bedCol * TILE_SIZE * 2),
-            y: dormBase.y + (bedRow * TILE_SIZE * 3) // Spacing between rows
+            y: dormBase.y + (bedRow * TILE_SIZE * 3) + 20 // Offset +20 to spawn at foot of bed
         };
         
         // 2. EAT POSITIONS (Great Hall: 3 Parallel Tables)
