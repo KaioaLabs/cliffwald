@@ -172,6 +172,12 @@ export class NetworkManager {
         }
     }
 
+    public sendJump() {
+        if (this.room) {
+            this.room.send("jump", {});
+        }
+    }
+
     public disconnect() {
         if (this.room) {
             this.room.leave();

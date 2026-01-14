@@ -45,6 +45,7 @@ export class GameScene extends Phaser.Scene {
     cameraTarget!: Phaser.GameObjects.PointLight | Phaser.GameObjects.Image; 
     cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
     wasd?: { W: Phaser.Input.Keyboard.Key, A: Phaser.Input.Keyboard.Key, S: Phaser.Input.Keyboard.Key, D: Phaser.Input.Keyboard.Key };
+    spaceKey?: Phaser.Input.Keyboard.Key;
     physicsWorld?: RAPIER.World;
     gestureManager?: GestureManager;
     
@@ -351,6 +352,7 @@ export class GameScene extends Phaser.Scene {
             this.playerController = new PlayerController(this, this.physicsWorld);
             AssetManager.createAnimations(this);
             this.wasd = this.input.keyboard?.addKeys('W,A,S,D') as any;
+            this.spaceKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
 
             this.cameraTarget = this.add.image(1600, 1000, '').setVisible(false);
             this.cameras.main.startFollow(this.cameraTarget, true, 0.2, 0.2);
@@ -967,45 +969,15 @@ export class GameScene extends Phaser.Scene {
         if (climb?.active && ladder && bounds && this.cursors && this.wasd) {
             // console.log("[LADDER] Climbing... Height:", climb.climbHeight);
             // --- LADDER MOVEMENT ---
-            const speed = 2.0; // Ladder slide speed
-            const climbSpeed = 2.0;
 
-            // Horizontal (Slide Ladder)
-            if (this.cursors.left.isDown || this.wasd.A.isDown) {
-                ladder.x = Math.max(bounds.min, ladder.x - speed);
-            } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
-                ladder.x = Math.min(bounds.max, ladder.x + speed);
-            }
-
-            // Vertical (Climb Player)
-            if (this.cursors.up.isDown || this.wasd.W.isDown) {
-                climb.climbHeight = Math.min(250, climb.climbHeight + climbSpeed);
-            } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
-                // Check Dismount
-                if (climb.climbHeight <= 0) {
-                    this.climbingState = { active: false, ladderX: 0, climbHeight: 0 };
-                    if (player) player.climbOffset = 0;
-                    return { left: false, right: false, up: false, down: false };
-                }
-                climb.climbHeight = Math.max(0, climb.climbHeight - climbSpeed);
-            }
-
-            // Sync Player Visuals
-            if (player && player.visual?.sprite) {
-                // Force X to ladder X, Y to ladder Base Y
-                // Direct override:
-                player.visual.sprite.x = ladder.x;
-                player.visual.sprite.y = ladder.y; // Base
-                player.climbOffset = -climb.climbHeight; // Negative to go UP
-                player.visual.sprite.setDepth(ladder.y + 100);
-            }
-
-            return { left: false, right: false, up: false, down: false }; // Suppress standard movement
-        }
 
         if (!this.cursors || !this.wasd) return { left: false, right: false, up: false, down: false };
         if (this.uiManager && this.uiManager.getChatInputActive()) {
             return { left: false, right: false, up: false, down: false };
+        }
+
+        if (this.spaceKey && Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
+            this.network.sendJump();
         }
         
         let input = {

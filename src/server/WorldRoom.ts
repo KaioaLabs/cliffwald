@@ -310,6 +310,10 @@ export class WorldRoom extends Room<GameState> {
             this.chatManager.handleChat(client.sessionId, text);
         });
 
+        this.onMessage("jump", (client) => {
+            this.broadcast("player_jump", { id: client.sessionId });
+        });
+
         // --- ACADEMIC SYSTEM ---
         this.onMessage("submit_score", (client, data: { score: number }) => {
             const player = this.state.players.get(client.sessionId);
