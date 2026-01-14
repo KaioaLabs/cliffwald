@@ -35,6 +35,7 @@ model Player {
   skin      String   @default("player_idle") // e.g. "player_red", "player_blue"
   house     String   @default("ignis") // "ignis", "axiom", "vesper"
   prestige  Int      @default(0)
+  gold      Int      @default(0)
 
   // Progression & Alignment (Fable System)
   xp             Int @default(0) // Personal Level

@@ -36,6 +36,7 @@ exports.CONFIG = {
     DAY_PHASE_DURATION_MS: 1800000, // 30 Minutes
     // Academic Schedule (Source of Truth for UI and AI) – Definición de Ventanas de Oportunidad
     ACADEMIC_SCHEDULE: [
+        { start: 5, end: 7, name: "Early Training", location: "Courtyard", activity: "free" },
         { start: 7, end: 8.5, name: "Breakfast", location: "Great Hall", activity: "eat" },
         { start: 8.5, end: 10.5, name: "Morning Class", location: "Classroom", activity: "class" },
         { start: 10.5, end: 12.5, name: "Free Time", location: "Courtyard", activity: "free" },
@@ -43,7 +44,7 @@ exports.CONFIG = {
         { start: 14, end: 17, name: "Field Study", location: "Forest", activity: "free" },
         { start: 17, end: 19, name: "Afternoon Class", location: "Classroom", activity: "class" },
         { start: 19, end: 21, name: "Dinner", location: "Great Hall", activity: "eat" },
-        { start: 21, end: 7, name: "Curfew", location: "Dormitories", activity: "sleep" }
+        { start: 21, end: 5, name: "Curfew", location: "Dormitories", activity: "sleep" }
     ],
     // Debug
     SHOW_COLLIDERS: false,
@@ -148,19 +149,19 @@ function getGameTime(timestamp) {
     let gameMinute = 0;
     let isNight = false;
     if (cyclePos < exports.CONFIG.DAY_PHASE_DURATION_MS) {
-        // DAY PHASE (06:00 to 22:00 = 16 hours)
+        // DAY PHASE (05:00 to 21:00 = 16 hours)
         // Progress 0..1
         const progress = cyclePos / exports.CONFIG.DAY_PHASE_DURATION_MS;
-        const totalGameMinutes = 6 * 60 + (progress * 16 * 60); // Start at 06:00 + progress * 16h
+        const totalGameMinutes = 5 * 60 + (progress * 16 * 60); // Start at 05:00 + progress * 16h
         gameHour = Math.floor(totalGameMinutes / 60) % 24;
         gameMinute = Math.floor(totalGameMinutes % 60);
         isNight = false;
     }
     else {
-        // NIGHT PHASE (22:00 to 06:00 = 8 hours)
+        // NIGHT PHASE (21:00 to 05:00 = 8 hours)
         // Progress 0..1
         const nightProgress = (cyclePos - exports.CONFIG.DAY_PHASE_DURATION_MS) / (exports.CONFIG.CYCLE_DURATION_MS - exports.CONFIG.DAY_PHASE_DURATION_MS);
-        const totalGameMinutes = 22 * 60 + (nightProgress * 8 * 60); // Start at 22:00 + progress * 8h
+        const totalGameMinutes = 21 * 60 + (nightProgress * 8 * 60); // Start at 21:00 + progress * 8h
         gameHour = Math.floor(totalGameMinutes / 60) % 24;
         gameMinute = Math.floor(totalGameMinutes % 60);
         isNight = true;

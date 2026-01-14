@@ -1,6 +1,7 @@
 import { WorldRoom } from "../WorldRoom";
 import { CONFIG } from "../../shared/Config";
 import { WorldItem } from "../../shared/SchemaDef";
+import { LevelRegistry } from "../managers/LevelRegistry";
 
 interface ActiveMatch {
     p1: string;
@@ -22,9 +23,12 @@ export class DuelSystem {
 
     public update() {
         const now = Date.now();
-
-        // Iterate over all configured zones
-        CONFIG.DUEL_ZONES.forEach(zone => {
+        const registry = LevelRegistry.getInstance();
+        
+        // Iterate over all configured zones from Map Data
+        const zones = registry.getDuelZones();
+        
+        zones.forEach(zone => {
             const match = this.matches.get(zone.id);
             const candidates: string[] = [];
 
@@ -202,7 +206,7 @@ export class DuelSystem {
             
             if (eject) {
                 // Find Exit for this Zone
-                const exit = CONFIG.DUEL_EXITS[match.zoneId];
+                const exit = LevelRegistry.getInstance().getDuelExit(match.zoneId);
                 if (exit) {
                     p.x = exit.x;
                     p.y = exit.y;
@@ -215,6 +219,10 @@ export class DuelSystem {
                             ent.ai.targetId = undefined;
                         }
                     }
+                } else {
+                     // Fallback if exit missing in map?
+                     // Maybe eject 300px away?
+                     console.warn(`[DUEL] No exit found for zone ${match.zoneId}`);
                 }
             }
         }

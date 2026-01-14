@@ -53,6 +53,14 @@ const mockScene = {
         text: vi.fn().mockReturnValue({ setOrigin: vi.fn().mockReturnThis(), destroy: vi.fn() }),
         particles: vi.fn().mockReturnValue({ setPosition: vi.fn(), start: vi.fn(), stop: vi.fn(), emitParticleAt: vi.fn() })
     },
+    lights: {
+        addLight: vi.fn().mockReturnValue({
+            intensity: 0,
+            x: 0,
+            y: 0,
+            radius: 0
+        })
+    },
     input: {
         on: vi.fn(), 
         x: 0,

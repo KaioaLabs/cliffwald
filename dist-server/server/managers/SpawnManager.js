@@ -121,7 +121,7 @@ class SpawnManager {
         const TILE_SIZE = 32;
         const studentIndex = (numericId !== undefined) ? ((numericId - 1) % 8) : 0;
         const seatId = (numericId !== undefined) ? (numericId - 1) : 0;
-        // 1. SLEEP POSITIONS (Dorms: 2 Rows of 4 Beds)
+        // ... (Location logic remains) ...
         // Base Dorm Pos from Config
         let dormBase = Config_1.CONFIG.SCHOOL_LOCATIONS.DORM_IGNIS;
         if (house === 'axiom')
@@ -135,22 +135,16 @@ class SpawnManager {
             y: dormBase.y + (bedRow * TILE_SIZE * 3) // Spacing between rows
         };
         // 2. EAT POSITIONS (Great Hall: 3 Parallel Tables)
-        // Ignis (Top), Axiom (Mid), Vesper (Bottom)
         let tableOffsetY = 0;
         if (house === 'ignis')
             tableOffsetY = -80;
         if (house === 'vesper')
             tableOffsetY = 80;
-        // Students sit on both sides of the long table? Or just one side facing table?
-        // Prompt says "orientado hacia donde este la mesa".
-        // Let's assume table is horizontal. 
-        // 8 students. 4 top, 4 bottom? Or 8 in a row?
-        // Let's do 4 top (facing down), 4 bottom (facing up).
-        const tableRow = Math.floor(studentIndex / 4); // 0 (Top side), 1 (Bottom side)
-        const tableCol = studentIndex % 4; // 0-3
+        const tableRow = Math.floor(studentIndex / 4);
+        const tableCol = studentIndex % 4;
         const eatPos = {
-            x: Config_1.CONFIG.SCHOOL_LOCATIONS.GREAT_HALL.x + (tableCol * 64) - 96, // Centered horizontally
-            y: Config_1.CONFIG.SCHOOL_LOCATIONS.GREAT_HALL.y + tableOffsetY + (tableRow === 0 ? -40 : 40) // Above or below table
+            x: Config_1.CONFIG.SCHOOL_LOCATIONS.GREAT_HALL.x + (tableCol * 64) - 96,
+            y: Config_1.CONFIG.SCHOOL_LOCATIONS.GREAT_HALL.y + tableOffsetY + (tableRow === 0 ? -40 : 40)
         };
         const classPos = this.seats.class.get(seatId) || (() => {
             const seatRow = Math.floor((seatId % 24) / 8);
@@ -171,6 +165,17 @@ class SpawnManager {
         body.userData = { sessionId: id };
         const colliderDesc = rapier2d_compat_1.default.ColliderDesc.ball(Config_1.CONFIG.PLAYER_RADIUS);
         this.physicsWorld.createCollider(colliderDesc, body);
+        // ARCHETYPE SELECTION (Bartle Taxonomy for Gamers)
+        const rand = Math.random();
+        let archetype = 'SOCIALIZER';
+        if (rand < 0.25)
+            archetype = 'ACHIEVER';
+        else if (rand < 0.50)
+            archetype = 'SOCIALIZER';
+        else if (rand < 0.75)
+            archetype = 'EXPLORER';
+        else
+            archetype = 'KILLER';
         // 3. Create ECS Entity
         const entity = this.world.add({
             id: numericId,
@@ -187,7 +192,11 @@ class SpawnManager {
                     sleep: sleepPos,
                     class: classPos,
                     eat: eatPos
-                }
+                },
+                archetype: archetype,
+                inputNoise: { x: 0, y: 0 },
+                noiseTimer: 0,
+                reactionDelay: archetype === 'ACHIEVER' ? 50 : (archetype === 'KILLER' ? 150 : 500)
             }
         });
         this.entities.set(id, entity);
@@ -214,11 +223,25 @@ class SpawnManager {
         // Remove from entities map (old session key)
         this.entities.delete(clientSessionId);
         // Add AI Component
+        const rand = Math.random();
+        let archetype = 'SOCIALIZER';
+        if (rand < 0.25)
+            archetype = 'ACHIEVER';
+        else if (rand < 0.50)
+            archetype = 'SOCIALIZER';
+        else if (rand < 0.75)
+            archetype = 'EXPLORER';
+        else
+            archetype = 'KILLER';
         entity.ai = {
             state: 'idle',
             timer: 0,
             home: pos,
-            house: house
+            house: house,
+            archetype: archetype,
+            inputNoise: { x: 0, y: 0 },
+            noiseTimer: 0,
+            reactionDelay: archetype === 'ACHIEVER' ? 50 : (archetype === 'KILLER' ? 150 : 500)
         };
         // Reset Input
         entity.input = { left: false, right: false, up: false, down: false };

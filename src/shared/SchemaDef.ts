@@ -17,6 +17,7 @@ export class Player extends Schema {
     @type("number") vy: number = 0;
     
     @type("number") personalPrestige: number = 0;
+    @type("number") gold: number = 0;
     @type("number") xp: number = 0; // Global Experience (Classes + Alignment)
     @type("number") academicPoints: number = 0; // PA (School Grades)
 
@@ -31,6 +32,9 @@ export class Player extends Schema {
     // Class / Activity State
     @type("boolean") isAttendingClass: boolean = false;
     @type("number") classEndsAt: number = 0; // Timestamp when class finishes
+    
+    // Discipline
+    @type("number") detentionWork: number = 0; // Remaining 'work units' to be free
 }
 
 export class WorldItem extends Schema {

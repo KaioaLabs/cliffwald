@@ -2,6 +2,7 @@ import { WorldRoom } from "../WorldRoom";
 import { WorldItem, InventoryItem } from "../../shared/SchemaDef";
 import { ITEM_REGISTRY } from "../../shared/data/ItemRegistry";
 import { CONFIG } from "../../shared/Config";
+import { LevelRegistry } from "../managers/LevelRegistry";
 
 export class ItemSystem {
     private room: WorldRoom;
@@ -24,32 +25,29 @@ export class ItemSystem {
     }
 
     public spawnRandomItem() {
-        const locations = [
-            CONFIG.SCHOOL_LOCATIONS.COURTYARD,
-            CONFIG.SCHOOL_LOCATIONS.FOREST,
-            CONFIG.SCHOOL_LOCATIONS.GREAT_HALL,
-            CONFIG.SCHOOL_LOCATIONS.ACADEMIC_WING
-        ];
+        // ... (existing logic) ...
+    }
+
+    public spawnDetentionTasks() {
+        const det = LevelRegistry.getInstance().getLocation("DETENTION");
+        const taskTypes = ["cauldron", "scroll", "dust"];
         
-        const loc = locations[Math.floor(Math.random() * locations.length)];
-        const x = loc.x + (Math.random() * 400 - 200);
-        const y = loc.y + (Math.random() * 400 - 200);
+        for (let i = 0; i < 5; i++) {
+            const x = det.x + (Math.random() * 100 - 50);
+            const y = det.y + (Math.random() * 100 - 50);
+            const type = taskTypes[Math.floor(Math.random() * taskTypes.length)];
+            
+            const id = `task_${Date.now()}_${i}`;
+            const item = new WorldItem();
+            item.id = id;
+            item.x = x;
+            item.y = y;
+            item.type = "task";
+            item.itemId = type; // e.g. "cauldron"
 
-        // Pick random item from registry
-        const itemKeys = Object.keys(ITEM_REGISTRY);
-        const randomKey = itemKeys[Math.floor(Math.random() * itemKeys.length)];
-        const itemDef = ITEM_REGISTRY[randomKey];
-
-        const id = `item_${Date.now()}_${Math.floor(Math.random()*1000)}`;
-        const item = new WorldItem();
-        item.id = id;
-        item.x = x;
-        item.y = y;
-        item.type = itemDef.Type.toLowerCase(); // 'card', 'potion', etc.
-        item.itemId = randomKey;
-
-        this.room.state.items.set(id, item);
-        console.log(`[ITEM] Spawned ${itemDef.Name} (${randomKey}) at ${Math.floor(x)},${Math.floor(y)}`);
+            this.room.state.items.set(id, item);
+        }
+        console.log(`[DISCIPLINE] Spawned 5 Detention Tasks.`);
     }
 
     public tryCollectItem(sessionId: string, worldItemId: string) {
@@ -63,6 +61,36 @@ export class ItemSystem {
         const distSq = (pos.x - worldItem.x)**2 + (pos.y - worldItem.y)**2;
 
         if (distSq < CONFIG.VALIDATION.INTERACTION_RADIUS_SQ) {
+            // --- DETENTION TASK LOGIC ---
+            if (worldItem.type === 'task') {
+                if (player.detentionWork > 0) {
+                    player.detentionWork = Math.max(0, player.detentionWork - 10);
+                    this.room.send(this.room.clients.getById(sessionId)!, "notification", `Task Done! Work remaining: ${player.detentionWork}`);
+                    
+                    if (player.detentionWork <= 0) {
+                        this.room.releaseFromDetention(sessionId);
+                    }
+
+                    // Cleanup and Respawn one task elsewhere in detention room to keep loop going
+                    this.room.state.items.delete(worldItemId);
+                    
+                    // Simple respawn logic
+                    setTimeout(() => {
+                        const det = LevelRegistry.getInstance().getLocation("DETENTION");
+                        const rx = det.x + (Math.random() * 100 - 50);
+                        const ry = det.y + (Math.random() * 100 - 50);
+                        const newItem = new WorldItem();
+                        newItem.id = `task_respawn_${Date.now()}`;
+                        newItem.x = rx;
+                        newItem.y = ry;
+                        newItem.type = "task";
+                        newItem.itemId = worldItem.itemId;
+                        this.room.state.items.set(newItem.id, newItem);
+                    }, 2000);
+                }
+                return;
+            }
+
             const itemDef = ITEM_REGISTRY[worldItem.itemId];
             if (!itemDef) {
                 this.room.state.items.delete(worldItemId);

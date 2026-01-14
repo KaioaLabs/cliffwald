@@ -4,6 +4,7 @@ import { CONFIG } from "../../shared/Config";
 import { GameState, Player } from "../../shared/SchemaDef";
 import { Entity } from "../../shared/ecs/components";
 import { MapData, parseSeats, parseNPCs } from "../../shared/MapParser";
+import { LevelRegistry } from "./LevelRegistry";
 
 export class SpawnManager {
     private world: ECSWorld;
@@ -18,11 +19,98 @@ export class SpawnManager {
         food: new Map<number, {x: number, y: number}>()
     };
 
+    private prefectIds = new Set<string>();
+
     constructor(world: ECSWorld, physicsWorld: RAPIER.World, state: GameState, entities: Map<string, Entity>) {
         this.world = world;
         this.physicsWorld = physicsWorld;
         this.state = state;
         this.entities = entities;
+    }
+
+    public checkPrefectSpawns(isNight: boolean) {
+        if (isNight && this.prefectIds.size === 0) {
+            this.spawnPrefects();
+        } else if (!isNight && this.prefectIds.size > 0) {
+            this.despawnPrefects();
+        }
+    }
+
+    private spawnPrefects() {
+        console.log("[SPAWN] Night has fallen. Spawning Prefects...");
+        // Use LevelRegistry for locations if available, or fallback to known spots
+        const registry = LevelRegistry.getInstance();
+        const hallway = registry.hasData() ? registry.getLocation("ACADEMIC_WING") : { x: 1600, y: 1600 };
+        const courtyard = registry.hasData() ? registry.getLocation("COURTYARD") : { x: 1056, y: 1280 };
+        
+        // Dorm entrance is rough, using Ignis for now or a specific spot if we had it
+        const dorm = registry.hasData() ? registry.getLocation("DORM_IGNIS") : { x: 600, y: 1100 };
+
+        const locs = [
+            { x: hallway.x, y: hallway.y, name: "Hallway Prefect" }, 
+            { x: courtyard.x, y: courtyard.y, name: "Courtyard Prefect" }, 
+            { x: dorm.x, y: dorm.y, name: "Dorm Prefect" } 
+        ];
+
+        locs.forEach((loc, i) => {
+            const id = `prefect_${i}`;
+            
+            // Physics
+            const bodyDesc = RAPIER.RigidBodyDesc.dynamic()
+                .setTranslation(loc.x, loc.y)
+                .setLinearDamping(10.0) 
+                .lockRotations(); 
+            const body = this.physicsWorld.createRigidBody(bodyDesc);
+            body.userData = { sessionId: id };
+            const colliderDesc = RAPIER.ColliderDesc.ball(CONFIG.PLAYER_RADIUS);
+            this.physicsWorld.createCollider(colliderDesc, body);
+
+            // ECS
+            const entity = this.world.add({
+                id: 1000 + i, // High ID for Prefects
+                body: body,
+                input: { left: false, right: false, up: false, down: false },
+                facing: { x: 0, y: 1 },
+                player: { sessionId: id },
+                ai: {
+                    state: 'patrol', // Default state for Prefect
+                    timer: 0,
+                    home: { x: loc.x, y: loc.y },
+                    archetype: 'KILLER', // Aggressive
+                    reactionDelay: 50
+                }
+            });
+            this.entities.set(id, entity);
+
+            // Schema
+            const playerState = new Player();
+            playerState.id = id;
+            playerState.username = loc.name;
+            playerState.x = loc.x;
+            playerState.y = loc.y;
+            playerState.skin = "player_idle"; // Reuse player sprite for now
+            playerState.house = "ignis"; // Default, but client will tint based on name/flag
+            // We need a way to tell client to tint this PREFECT color.
+            // Client checks name for "Student" or "Echo". 
+            // We'll update Client logic later to handle "Prefect" name or add a field.
+            
+            this.state.players.set(id, playerState);
+            this.prefectIds.add(id);
+        });
+    }
+
+    private despawnPrefects() {
+        console.log("[SPAWN] Morning has broken. Despawning Prefects...");
+        this.prefectIds.forEach(id => {
+            const entity = this.entities.get(id);
+            if (entity) {
+                if (entity.body) this.physicsWorld.removeRigidBody(entity.body);
+                this.world.remove(entity);
+                this.entities.delete(id);
+            }
+            this.state.players.delete(id);
+        });
+        this.prefectIds.clear();
     }
 
     public loadSeats(mapData: MapData) {
@@ -67,14 +155,16 @@ export class SpawnManager {
         const TILE_SIZE = 32;
 
         houses.forEach(house => {
-            let dormPos = CONFIG.SCHOOL_LOCATIONS.DORM_IGNIS;
-            if (house === 'axiom') dormPos = CONFIG.SCHOOL_LOCATIONS.DORM_AXIOM;
-            if (house === 'vesper') dormPos = CONFIG.SCHOOL_LOCATIONS.DORM_VESPER;
+            const registry = LevelRegistry.getInstance();
+            let dormPos = registry.getLocation("DORM_IGNIS");
+            if (house === 'axiom') dormPos = registry.getLocation("DORM_AXIOM");
+            if (house === 'vesper') dormPos = registry.getLocation("DORM_VESPER");
 
-            for (let i = 1; i <= 8; i++) {
+            const studentsPerHouse = Math.floor(count / 3);
+            for (let i = 1; i <= studentsPerHouse; i++) {
                 const id = `student_${house}_${i}`;
                 const numericId = globalIdCounter++;
-                const studentIndex = i - 1; // 0-7
+                const studentIndex = i - 1; // 0-based
                 const skin = house === 'ignis' ? "player_red" : (house === 'axiom' ? "player_blue" : "player_idle");
                 
                 // FIXED BED POSITION (Row of 8 beds)
@@ -143,11 +233,13 @@ export class SpawnManager {
         const studentIndex = (numericId !== undefined) ? ((numericId - 1) % 8) : 0;
         const seatId = (numericId !== undefined) ? (numericId - 1) : 0;
 
-        // 1. SLEEP POSITIONS (Dorms: 2 Rows of 4 Beds)
-        // Base Dorm Pos from Config
-        let dormBase = CONFIG.SCHOOL_LOCATIONS.DORM_IGNIS;
-        if (house === 'axiom') dormBase = CONFIG.SCHOOL_LOCATIONS.DORM_AXIOM;
-        if (house === 'vesper') dormBase = CONFIG.SCHOOL_LOCATIONS.DORM_VESPER;
+        // ... (Location logic remains) ...
+        const registry = LevelRegistry.getInstance();
+        
+        // Base Dorm Pos from Registry
+        let dormBase = registry.getLocation("DORM_IGNIS");
+        if (house === 'axiom') dormBase = registry.getLocation("DORM_AXIOM");
+        if (house === 'vesper') dormBase = registry.getLocation("DORM_VESPER");
 
         const bedRow = Math.floor(studentIndex / 4); // 0 or 1
         const bedCol = studentIndex % 4; // 0 to 3
@@ -157,22 +249,17 @@ export class SpawnManager {
         };
         
         // 2. EAT POSITIONS (Great Hall: 3 Parallel Tables)
-        // Ignis (Top), Axiom (Mid), Vesper (Bottom)
         let tableOffsetY = 0;
         if (house === 'ignis') tableOffsetY = -80;
         if (house === 'vesper') tableOffsetY = 80;
 
-        // Students sit on both sides of the long table? Or just one side facing table?
-        // Prompt says "orientado hacia donde este la mesa".
-        // Let's assume table is horizontal. 
-        // 8 students. 4 top, 4 bottom? Or 8 in a row?
-        // Let's do 4 top (facing down), 4 bottom (facing up).
-        const tableRow = Math.floor(studentIndex / 4); // 0 (Top side), 1 (Bottom side)
-        const tableCol = studentIndex % 4; // 0-3
+        const tableRow = Math.floor(studentIndex / 4); 
+        const tableCol = studentIndex % 4; 
         
+        const gh = registry.getLocation("GREAT_HALL");
         const eatPos = {
-            x: CONFIG.SCHOOL_LOCATIONS.GREAT_HALL.x + (tableCol * 64) - 96, // Centered horizontally
-            y: CONFIG.SCHOOL_LOCATIONS.GREAT_HALL.y + tableOffsetY + (tableRow === 0 ? -40 : 40) // Above or below table
+            x: gh.x + (tableCol * 64) - 96, 
+            y: gh.y + tableOffsetY + (tableRow === 0 ? -40 : 40)
         };
 
         const classPos = this.seats.class.get(seatId) || (() => {
@@ -198,6 +285,14 @@ export class SpawnManager {
         const colliderDesc = RAPIER.ColliderDesc.ball(CONFIG.PLAYER_RADIUS);
         this.physicsWorld.createCollider(colliderDesc, body);
         
+        // ARCHETYPE SELECTION (Bartle Taxonomy for Gamers)
+        const rand = Math.random();
+        let archetype: 'ACHIEVER' | 'SOCIALIZER' | 'EXPLORER' | 'KILLER' = 'SOCIALIZER';
+        if (rand < 0.25) archetype = 'ACHIEVER';
+        else if (rand < 0.50) archetype = 'SOCIALIZER';
+        else if (rand < 0.75) archetype = 'EXPLORER';
+        else archetype = 'KILLER';
+
         // 3. Create ECS Entity
         const entity = this.world.add({
             id: numericId,
@@ -214,7 +309,11 @@ export class SpawnManager {
                     sleep: sleepPos,
                     class: classPos,
                     eat: eatPos
-                }
+                },
+                archetype: archetype,
+                inputNoise: { x: 0, y: 0 },
+                noiseTimer: 0,
+                reactionDelay: archetype === 'ACHIEVER' ? 50 : (archetype === 'KILLER' ? 150 : 500)
             }
         });
         this.entities.set(id, entity);
@@ -249,11 +348,22 @@ export class SpawnManager {
         this.entities.delete(clientSessionId);
         
         // Add AI Component
+        const rand = Math.random();
+        let archetype: 'ACHIEVER' | 'SOCIALIZER' | 'EXPLORER' | 'KILLER' = 'SOCIALIZER';
+        if (rand < 0.25) archetype = 'ACHIEVER';
+        else if (rand < 0.50) archetype = 'SOCIALIZER';
+        else if (rand < 0.75) archetype = 'EXPLORER';
+        else archetype = 'KILLER';
+
         entity.ai = {
             state: 'idle',
             timer: 0,
             home: pos,
-            house: house
+            house: house,
+            archetype: archetype,
+            inputNoise: { x: 0, y: 0 },
+            noiseTimer: 0,
+            reactionDelay: archetype === 'ACHIEVER' ? 50 : (archetype === 'KILLER' ? 150 : 500)
         };
         
         // Reset Input

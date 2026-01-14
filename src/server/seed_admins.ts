@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import { CONFIG } from "../shared/Config";
 
 const ADMIN_USER = "admin";
-const ADMIN_PASS = "2580";
+const ADMIN_PASS = "admin";
 
 export async function seedAdmins() {
     try {

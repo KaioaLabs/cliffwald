@@ -36442,6 +36442,404 @@
       "visible": true,
       "x": 0,
       "y": 0
+    },
+    {
+      "draworder": "topdown",
+      "id": 200,
+      "name": "Logic",
+      "objects": [
+        {
+          "id": 5000,
+          "name": "DORM_IGNIS",
+          "type": "location",
+          "point": true,
+          "x": 576,
+          "y": 480,
+          "width": 0,
+          "height": 0,
+          "properties": [
+            {
+              "name": "location_id",
+              "type": "string",
+              "value": "DORM_IGNIS"
+            }
+          ]
+        },
+        {
+          "id": 5001,
+          "name": "DORM_AXIOM",
+          "type": "location",
+          "point": true,
+          "x": 576,
+          "y": 1120,
+          "width": 0,
+          "height": 0,
+          "properties": [
+            {
+              "name": "location_id",
+              "type": "string",
+              "value": "DORM_AXIOM"
+            }
+          ]
+        },
+        {
+          "id": 5002,
+          "name": "DORM_VESPER",
+          "type": "location",
+          "point": true,
+          "x": 576,
+          "y": 1760,
+          "width": 0,
+          "height": 0,
+          "properties": [
+            {
+              "name": "location_id",
+              "type": "string",
+              "value": "DORM_VESPER"
+            }
+          ]
+        },
+        {
+          "id": 5003,
+          "name": "GREAT_HALL",
+          "type": "location",
+          "point": true,
+          "x": 1600,
+          "y": 560,
+          "width": 0,
+          "height": 0,
+          "properties": [
+            {
+              "name": "location_id",
+              "type": "string",
+              "value": "GREAT_HALL"
+            }
+          ]
+        },
+        {
+          "id": 5004,
+          "name": "ACADEMIC_WING",
+          "type": "location",
+          "point": true,
+          "x": 1600,
+          "y": 1360,
+          "width": 0,
+          "height": 0,
+          "properties": [
+            {
+              "name": "location_id",
+              "type": "string",
+              "value": "ACADEMIC_WING"
+            }
+          ]
+        },
+        {
+          "id": 5005,
+          "name": "INFIRMARY",
+          "type": "location",
+          "point": true,
+          "x": 1600,
+          "y": 960,
+          "width": 0,
+          "height": 0,
+          "properties": [
+            {
+              "name": "location_id",
+              "type": "string",
+              "value": "INFIRMARY"
+            }
+          ]
+        },
+        {
+          "id": 5006,
+          "name": "TRAINING_GROUNDS",
+          "type": "location",
+          "point": true,
+          "x": 2640,
+          "y": 1520,
+          "width": 0,
+          "height": 0,
+          "properties": [
+            {
+              "name": "location_id",
+              "type": "string",
+              "value": "TRAINING_GROUNDS"
+            }
+          ]
+        },
+        {
+          "id": 5007,
+          "name": "ALCHEMY_LAB",
+          "type": "location",
+          "point": true,
+          "x": 2592,
+          "y": 640,
+          "width": 0,
+          "height": 0,
+          "properties": [
+            {
+              "name": "location_id",
+              "type": "string",
+              "value": "ALCHEMY_LAB"
+            }
+          ]
+        },
+        {
+          "id": 5008,
+          "name": "COURTYARD",
+          "type": "location",
+          "point": true,
+          "x": 1056,
+          "y": 1280,
+          "width": 0,
+          "height": 0,
+          "properties": [
+            {
+              "name": "location_id",
+              "type": "string",
+              "value": "COURTYARD"
+            }
+          ]
+        },
+        {
+          "id": 5009,
+          "name": "FOREST",
+          "type": "location",
+          "point": true,
+          "x": 1600,
+          "y": 2880,
+          "width": 0,
+          "height": 0,
+          "properties": [
+            {
+              "name": "location_id",
+              "type": "string",
+              "value": "FOREST"
+            }
+          ]
+        },
+        {
+          "id": 5010,
+          "name": "DETENTION",
+          "type": "location",
+          "point": true,
+          "x": 500,
+          "y": 2800,
+          "width": 0,
+          "height": 0,
+          "properties": [
+            {
+              "name": "location_id",
+              "type": "string",
+              "value": "DETENTION"
+            }
+          ]
+        },
+        {
+          "id": 5011,
+          "name": "LIBRARY",
+          "type": "location",
+          "point": true,
+          "x": 2600,
+          "y": 1000,
+          "width": 0,
+          "height": 0,
+          "properties": [
+            {
+              "name": "location_id",
+              "type": "string",
+              "value": "LIBRARY"
+            }
+          ]
+        },
+        {
+          "id": 5012,
+          "name": "infirmary_bed_0",
+          "type": "infirmary_bed",
+          "point": true,
+          "x": 1550,
+          "y": 960,
+          "width": 0,
+          "height": 0
+        },
+        {
+          "id": 5013,
+          "name": "infirmary_bed_1",
+          "type": "infirmary_bed",
+          "point": true,
+          "x": 1580,
+          "y": 960,
+          "width": 0,
+          "height": 0
+        },
+        {
+          "id": 5014,
+          "name": "infirmary_bed_2",
+          "type": "infirmary_bed",
+          "point": true,
+          "x": 1620,
+          "y": 960,
+          "width": 0,
+          "height": 0
+        },
+        {
+          "id": 5015,
+          "name": "infirmary_bed_3",
+          "type": "infirmary_bed",
+          "point": true,
+          "x": 1650,
+          "y": 960,
+          "width": 0,
+          "height": 0
+        },
+        {
+          "id": 5016,
+          "name": "infirmary_bed_4",
+          "type": "infirmary_bed",
+          "point": true,
+          "x": 1550,
+          "y": 1000,
+          "width": 0,
+          "height": 0
+        },
+        {
+          "id": 5017,
+          "name": "infirmary_bed_5",
+          "type": "infirmary_bed",
+          "point": true,
+          "x": 1650,
+          "y": 1000,
+          "width": 0,
+          "height": 0
+        },
+        {
+          "id": 5018,
+          "name": "infirmary_exit",
+          "type": "exit",
+          "point": true,
+          "x": 1600,
+          "y": 1050,
+          "width": 0,
+          "height": 0
+        },
+        {
+          "id": 5019,
+          "name": "duel_zone_0",
+          "type": "duel_zone",
+          "shape": "ellipse",
+          "ellipse": true,
+          "x": 1900,
+          "y": 900,
+          "width": 600,
+          "height": 600,
+          "properties": [
+            {
+              "name": "zone_id",
+              "type": "int",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "id": 5020,
+          "name": "duel_zone_1",
+          "type": "duel_zone",
+          "shape": "ellipse",
+          "ellipse": true,
+          "x": 2700,
+          "y": 900,
+          "width": 600,
+          "height": 600,
+          "properties": [
+            {
+              "name": "zone_id",
+              "type": "int",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "id": 5021,
+          "name": "duel_zone_2",
+          "type": "duel_zone",
+          "shape": "ellipse",
+          "ellipse": true,
+          "x": 1900,
+          "y": 1500,
+          "width": 600,
+          "height": 600,
+          "properties": [
+            {
+              "name": "zone_id",
+              "type": "int",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "id": 5022,
+          "name": "duel_zone_3",
+          "type": "duel_zone",
+          "shape": "ellipse",
+          "ellipse": true,
+          "x": 2700,
+          "y": 1500,
+          "width": 600,
+          "height": 600,
+          "properties": [
+            {
+              "name": "zone_id",
+              "type": "int",
+              "value": 3
+            }
+          ]
+        },
+        {
+          "id": 5023,
+          "name": "duel_exit_0",
+          "type": "duel_exit",
+          "point": true,
+          "x": 2200,
+          "y": 1550,
+          "width": 0,
+          "height": 0
+        },
+        {
+          "id": 5024,
+          "name": "duel_exit_1",
+          "type": "duel_exit",
+          "point": true,
+          "x": 3000,
+          "y": 1550,
+          "width": 0,
+          "height": 0
+        },
+        {
+          "id": 5025,
+          "name": "duel_exit_2",
+          "type": "duel_exit",
+          "point": true,
+          "x": 2200,
+          "y": 2150,
+          "width": 0,
+          "height": 0
+        },
+        {
+          "id": 5026,
+          "name": "duel_exit_3",
+          "type": "duel_exit",
+          "point": true,
+          "x": 3000,
+          "y": 2150,
+          "width": 0,
+          "height": 0
+        }
+      ],
+      "opacity": 1,
+      "type": "objectgroup",
+      "visible": true,
+      "x": 0,
+      "y": 0
     }
   ],
   "nextlayerid": 7,

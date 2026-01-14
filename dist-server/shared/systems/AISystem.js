@@ -16,6 +16,11 @@ const AISystem = (world, physicsWorld, dt, currentHour, pathfinder, castCallback
         const { ai, body, input, id, facing } = entity;
         if (!ai)
             continue;
+        // --- ARTIFICIAL REACTION DELAY ---
+        // Only process AI logic if timer exceeds reaction delay
+        if (ai.timer < (ai.reactionDelay || 0)) {
+            continue;
+        }
         ai.timer += dt;
         const currentPos = body.translation();
         const numericId = typeof entity.id === 'number' ? entity.id : (parseInt(entity.id || "0") || 0);
@@ -199,6 +204,23 @@ const AISystem = (world, physicsWorld, dt, currentHour, pathfinder, castCallback
                         });
                         finalX += sepX;
                         finalY += sepY;
+                    }
+                    // --- HUMANIZATION: MOVEMENT NOISE ---
+                    // Achievers move in perfect lines. Socializers/Explorers weave a bit.
+                    if (ai.archetype !== 'ACHIEVER') {
+                        ai.noiseTimer = (ai.noiseTimer || 0) + dt;
+                        if (ai.noiseTimer > 1000) { // Change noise every second
+                            const noiseStrength = ai.archetype === 'SOCIALIZER' ? 0.3 : 0.6;
+                            ai.inputNoise = {
+                                x: (Math.random() - 0.5) * noiseStrength,
+                                y: (Math.random() - 0.5) * noiseStrength
+                            };
+                            ai.noiseTimer = 0;
+                        }
+                        if (ai.inputNoise) {
+                            finalX += ai.inputNoise.x;
+                            finalY += ai.inputNoise.y;
+                        }
                     }
                     // Normalize result
                     const finalLen = Math.sqrt(finalX * finalX + finalY * finalY);

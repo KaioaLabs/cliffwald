@@ -21,6 +21,7 @@ import { UIManager } from './UIManager';
 import { LightManager } from './managers/LightManager';
 import { VisualProjectileManager } from './managers/VisualProjectileManager';
 import { LoginManager } from './managers/LoginManager';
+import { MinigameManager } from './managers/MinigameManager';
 
 export class GameScene extends Phaser.Scene {
     network: NetworkManager;
@@ -31,6 +32,11 @@ export class GameScene extends Phaser.Scene {
     
     // Static World Props
     staticProps: Phaser.GameObjects.GameObject[] = [];
+    
+    // Ladder State
+    ladderObj?: Phaser.GameObjects.Container;
+    ladderBounds?: { min: number, max: number };
+    climbingState?: { active: boolean, ladderX: number, climbHeight: number };
 
     room?: Colyseus.Room;
 
@@ -179,6 +185,13 @@ export class GameScene extends Phaser.Scene {
                 console.error("Failed to load one or more tilesets:", { tileset, tilesetTable, tilesetFloor });
             }
 
+            // --- DATA DRIVEN LOGIC EXTRACTION ---
+            const logicObjects = map.getObjectLayer("Logic")?.objects || [];
+            const getLoc = (name: string) => logicObjects.find(o => o.name === name) || { x: 0, y: 0 };
+            const getZones = (type: string) => logicObjects.filter(o => o.type === type);
+
+            // Shadow Management
+
             buildPhysics(this.physicsWorld, this.cache.tilemap.get('map').data);
 
             try {
@@ -190,7 +203,7 @@ export class GameScene extends Phaser.Scene {
 
             this.projectileManager = new VisualProjectileManager(this);
 
-            // --- STATIC PROPS (Beds & Tables) ---
+            // --- STATIC PROPS SYSTEM ---
             const createProp = (x: number, y: number, w: number, h: number, color: number, label: string, isBed: boolean = false) => {
                 const container = this.add.container(x, y);
                 
@@ -210,7 +223,6 @@ export class GameScene extends Phaser.Scene {
                 container.setDepth(y - 10); // Dynamic depth based on Y
                 
                 // Add shadow using generic base, but SCALED to be the object's shape
-                // We anchor at the bottom of the object
                 const bottomY = y + h/2;
                 
                 const shadow = this.add.image(x, bottomY, 'shadow_base');
@@ -218,8 +230,6 @@ export class GameScene extends Phaser.Scene {
                 shadow.setOrigin(0.5, 1.0); // Feet anchor
                 shadow.setDepth(-99.5); // Below furniture
                 
-                // Store scaling factors so ShadowUtils can skew the rectangle correctly
-                // shadow_base is 32x32
                 const scaleX = w / 32;
                 const scaleY = h / 32;
                 
@@ -231,36 +241,111 @@ export class GameScene extends Phaser.Scene {
                 
                 this.tableShadows.push(shadow);
                 
+                // Track globally
+                this.staticProps.push(container);
+                container.setData('label', label); // For debug/finding
+                
                 return container;
             };
 
             // Great Hall: 3 Tables
-            const gh = CONFIG.SCHOOL_LOCATIONS.GREAT_HALL;
-            createProp(gh.x, gh.y - 80, 256, 48, 0x5d4037, "Ignis Table"); // Wider tables
-            createProp(gh.x, gh.y, 256, 48, 0x5d4037, "Axiom Table");
-            createProp(gh.x, gh.y + 80, 256, 48, 0x5d4037, "Vesper Table");
+            const gh = getLoc("GREAT_HALL");
+            if (gh.x !== 0) {
+                createProp(gh.x, gh.y - 80, 256, 48, 0x5d4037, "Ignis Table"); // Wider tables
+                createProp(gh.x, gh.y, 256, 48, 0x5d4037, "Axiom Table");
+                createProp(gh.x, gh.y + 80, 256, 48, 0x5d4037, "Vesper Table");
+            }
 
             // Dorms: 8 Beds per house (Total 24)
             const dormHouses: ('ignis' | 'axiom' | 'vesper')[] = ['ignis', 'axiom', 'vesper'];
             dormHouses.forEach(house => {
-                let dormBase = CONFIG.SCHOOL_LOCATIONS.DORM_IGNIS;
-                if (house === 'axiom') dormBase = CONFIG.SCHOOL_LOCATIONS.DORM_AXIOM;
-                if (house === 'vesper') dormBase = CONFIG.SCHOOL_LOCATIONS.DORM_VESPER;
-
-                for (let i = 0; i < 8; i++) {
-                    const row = Math.floor(i / 4);
-                    const col = i % 4;
-                    const bx = dormBase.x + (col * 64);
-                    const by = dormBase.y + (row * 96);
-                    createProp(bx, by, 34, 54, 0x4e342e, "Bed", true);
+                const dormBase = getLoc(`DORM_${house.toUpperCase()}`);
+                if (dormBase.x !== 0) {
+                    for (let i = 0; i < 8; i++) {
+                        const row = Math.floor(i / 4);
+                        const col = i % 4;
+                        const bx = dormBase.x + (col * 64);
+                        const by = dormBase.y + (row * 96);
+                        createProp(bx, by, 34, 54, 0x4e342e, "Bed", true);
+                    }
                 }
             });
 
             // Spawn Infirmary Beds
-            CONFIG.INFIRMARY_BEDS.forEach((pos) => {
+            getZones("infirmary_bed").forEach((pos) => {
                 createProp(pos.x, pos.y, 34, 54, 0xffffff, "Hospital Bed", true);
             });
 
+            // --- LIBRARY VISUALS ---
+            const lib = getLoc("LIBRARY");
+            if (lib.x !== 0) {
+                // Create Visual Shelf (Texture generated in AssetManager)
+                const shelf = this.add.image(lib.x, lib.y, 'grand_bookshelf_v2');
+                shelf.setOrigin(0.5, 1.0);
+                shelf.setDepth(lib.y - 50); // Behind ladder
+                
+                // Add Ladder Rail
+                const railY = lib.y - 280; // Top of ladder
+                const rail = this.add.rectangle(lib.x, railY, 500, 4, 0x111111);
+                rail.setDepth(lib.y + 1000); // Always on top? No, just high Z
+                
+                // --- LADDER LOGIC ---
+                // Create Ladder Container
+                const ladder = this.add.container(lib.x, lib.y);
+                ladder.setDepth(lib.y + 50); // Slightly in front of shelf base
+                
+                const ladderGfx = this.add.graphics();
+                ladderGfx.lineStyle(4, 0x5d4037);
+                ladderGfx.beginPath();
+                ladderGfx.moveTo(-15, 0); ladderGfx.lineTo(-15, -280); // Left rail
+                ladderGfx.moveTo(15, 0); ladderGfx.lineTo(15, -280);   // Right rail
+                for(let i=0; i<8; i++) {
+                    const ry = -20 - (i*35);
+                    ladderGfx.moveTo(-15, ry); ladderGfx.lineTo(15, ry); // Rungs
+                }
+                ladderGfx.strokePath();
+                ladder.add(ladderGfx);
+                
+                // Wheels
+                const wheelL = this.add.circle(-15, 0, 5, 0x000000);
+                const wheelR = this.add.circle(15, 0, 5, 0x000000);
+                ladder.add(wheelL); ladder.add(wheelR);
+                
+                // Interaction Zone (Visual only now)
+                const ladderZone = this.add.zone(0, -140, 60, 300);
+                ladder.add(ladderZone);
+                
+                let currentClimbY = 0;
+                const LADDER_MIN_X = lib.x - 230;
+                const LADDER_MAX_X = lib.x + 230;
+                
+                // Store reference for update loop
+                this.ladderObj = ladder;
+                this.ladderBounds = { min: LADDER_MIN_X, max: LADDER_MAX_X };
+
+                // Tables (Reduced to 2 to make room)
+                for (let i = 0; i < 2; i++) {
+                    const tx = lib.x + (i === 0 ? -150 : 150);
+                    const ty = lib.y + 100;
+                    createProp(tx, ty, 80, 32, 0x5d4037, "Study Table");
+                }
+            }
+
+            // --- DUNGEON VISUALS ---
+            const det = getLoc("DETENTION");
+            if (det.x !== 0) {
+                this.add.rectangle(det.x, det.y, 300, 300, 0x1a1a1a).setDepth(-101); // Dark Floor
+                this.add.text(det.x, det.y - 120, "DUNGEON", { fontSize: '32px', color: '#ff0000', alpha: 0.3 }).setOrigin(0.5).setDepth(-90);
+                
+                // Iron Bars
+                for (let i = -2; i <= 2; i++) {
+                    const bar = this.add.rectangle(det.x + (i * 60), det.y, 4, 280, 0x333333);
+                    if (CONFIG.USE_LIGHTS) bar.setPipeline('Light2D');
+                    bar.setDepth(det.y + 140);
+                    this.staticProps.push(bar); // Add to tracking
+                }
+            }
+            
             this.playerController = new PlayerController(this, this.physicsWorld);
             AssetManager.createAnimations(this);
             this.wasd = this.input.keyboard?.addKeys('W,A,S,D') as any;
@@ -270,16 +355,21 @@ export class GameScene extends Phaser.Scene {
             this.cameras.main.centerOn(1600, 1000);
 
             // --- VISUALS: DUEL ZONE ---
-            CONFIG.DUEL_ZONES.forEach(zone => {
-                const duelZone = this.add.circle(zone.x, zone.y, zone.radius, 0xaa0000, 0.2);
-                duelZone.setStrokeStyle(4, 0xff0000, 0.5);
-                duelZone.setDepth(-90);
+            getZones("duel_zone").forEach(zone => {
+                const radius = zone.width / 2;
+                const cx = zone.x + radius;
+                const cy = zone.y + radius;
+                const zoneId = (zone as any).properties?.find((p: any) => p.name === 'zone_id')?.value ?? 0;
+
+                const duelVisual = this.add.circle(cx, cy, radius, 0xaa0000, 0.2);
+                duelVisual.setStrokeStyle(4, 0xff0000, 0.5);
+                duelVisual.setDepth(-90);
                 
                 // Tatami inner ring (decor)
-                this.add.circle(zone.x, zone.y, zone.radius * 0.3, 0xaa0000, 0.1).setDepth(-90);
+                this.add.circle(cx, cy, radius * 0.3, 0xaa0000, 0.1).setDepth(-90);
                 
                 // Ring Number
-                this.add.text(zone.x, zone.y, (zone.id + 1).toString(), {
+                this.add.text(cx, cy, (zoneId + 1).toString(), {
                     fontSize: '64px',
                     color: '#ffffff',
                     alpha: 0.2
@@ -446,15 +536,52 @@ export class GameScene extends Phaser.Scene {
                 this.projectileManager.removeNetworkProjectile(id);
             };
             
+            // Listen for Jump Events
+            this.network.onPlayerJump = (sessionId: string) => {
+                this.playerController.performJump(sessionId);
+            };
+            
+import { MinigameManager } from './managers/MinigameManager';
+
+export class GameScene extends Phaser.Scene {
+    network: NetworkManager;
+    uiManager!: UIManager;
+    lightManager!: LightManager;
+    projectileManager!: VisualProjectileManager;
+    loginManager!: LoginManager;
+    minigameManager!: MinigameManager;
+    
+    // ... properties ...
+
+    constructor() {
+        super('GameScene');
+        this.network = new NetworkManager(this);
+        this.minigameManager = new MinigameManager();
+        this.setupRemoteLogging();
+        // ...
+    }
+
+    // ... inside create() ...
+            
             // CLASS MINIGAME LISTENERS
-            this.network.room?.onMessage("start_minigame", (data: { duration: number }) => {
-                this.uiManager.showClassMinigame(data.duration);
+            this.network.room?.onMessage("start_minigame", (data: { duration: number, type: string }) => {
+                console.log("[CLASS] Starting Minigame:", data.type);
+                // Map server type to minigame type
+                let type: 'charms' | 'potions' | 'history' = 'charms';
+                if (data.type === 'potions') type = 'potions';
+                if (data.type === 'history') type = 'history';
+                
+                this.minigameManager.startMinigame(type, data.duration, (score) => {
+                    console.log("[CLASS] Minigame finished. Score:", score);
+                    this.network.room?.send("submit_score", { score });
+                });
             });
             
             this.network.room?.onMessage("class_completed", (data: { grade: string, points: number }) => {
-                this.uiManager.hideClassMinigame();
                 this.uiManager.showNotification(`Class Finished! Grade: ${data.grade} (+${data.points} PA)`);
             });
+
+            // ... items ...
 
             // Items (if NetworkManager supports it - we need to check/add if missing)
             // Checking NetworkManager.ts, it doesn't have onItemAdd yet. 
@@ -550,6 +677,32 @@ export class GameScene extends Phaser.Scene {
 
                         sprite = text;
                     } 
+                    // --- DETENTION TASK VISUAL ---
+                    else if (item.type === 'task') {
+                        let color = 0x888888; // Default gray
+                        if (item.itemId === 'scroll') color = 0xffff00;
+                        if (item.itemId === 'dust') color = 0xffffff;
+                        
+                        const rect = this.add.rectangle(item.x, item.y, 24, 24, color);
+                        rect.setStrokeStyle(2, 0x000000);
+                        rect.setDepth(10);
+                        
+                        // Floating animation
+                        this.tweens.add({
+                            targets: rect,
+                            y: item.y - 10,
+                            duration: 1000,
+                            yoyo: true,
+                            repeat: -1
+                        });
+
+                        rect.setInteractive({ cursor: 'pointer' });
+                        rect.on('pointerdown', () => {
+                            this.network.room?.send("collect", id);
+                        });
+                        
+                        sprite = rect;
+                    }
                     // --- STANDARD ITEM VISUAL ---
                     else {
                         let visual: Phaser.GameObjects.Image | Phaser.GameObjects.Shape;
@@ -790,10 +943,12 @@ export class GameScene extends Phaser.Scene {
                 this.playerController.updateClassStatus(sessionId, true, data.classEndsAt);
             }
             
-            // Listen for future changes
-            data.onChange(() => {
-                this.playerController.updateClassStatus(sessionId, data.isAttendingClass, data.classEndsAt);
-            });
+            // Listen for future changes (Schema only)
+            if (typeof data.onChange === 'function') {
+                data.onChange(() => {
+                    this.playerController.updateClassStatus(sessionId, data.isAttendingClass, data.classEndsAt);
+                });
+            }
 
         } else {
             this.playerController.updatePlayerState(sessionId, data, data.unconsciousUntil);
@@ -809,6 +964,72 @@ export class GameScene extends Phaser.Scene {
     handleInput() {
         // Strict Login Gate: No input processing until authenticated
         if (!this.authToken || !this.room) return { left: false, right: false, up: false, down: false };
+
+        const climb = this.climbingState;
+        const ladder = this.ladderObj;
+        const bounds = this.ladderBounds;
+        const localId = this.network.room.sessionId;
+        const player = this.playerController.players.get(localId);
+
+        // --- LADDER MOUNT / DISMOUNT LOGIC ---
+        if (ladder && player && player.visual?.sprite) {
+            // Check Mount
+            if (!climb?.active) {
+                const sprite = player.visual.sprite;
+                // Distance to Ladder Base
+                const dist = Phaser.Math.Distance.Between(sprite.x, sprite.y, ladder.x, ladder.y);
+                
+                // If pressing UP and near ladder (< 40px)
+                if (dist < 40 && (this.cursors?.up.isDown || this.wasd?.W.isDown)) {
+                    console.log("[LADDER] Mounting Ladder!");
+                    this.climbingState = {
+                        active: true,
+                        ladderX: ladder.x,
+                        climbHeight: 0
+                    };
+                    return { left: false, right: false, up: false, down: false }; // Consume input
+                }
+            }
+        }
+
+        if (climb?.active && ladder && bounds && this.cursors && this.wasd) {
+            // console.log("[LADDER] Climbing... Height:", climb.climbHeight);
+            // --- LADDER MOVEMENT ---
+            const speed = 2.0; // Ladder slide speed
+            const climbSpeed = 2.0;
+
+            // Horizontal (Slide Ladder)
+            if (this.cursors.left.isDown || this.wasd.A.isDown) {
+                ladder.x = Math.max(bounds.min, ladder.x - speed);
+            } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
+                ladder.x = Math.min(bounds.max, ladder.x + speed);
+            }
+
+            // Vertical (Climb Player)
+            if (this.cursors.up.isDown || this.wasd.W.isDown) {
+                climb.climbHeight = Math.min(250, climb.climbHeight + climbSpeed);
+            } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
+                // Check Dismount
+                if (climb.climbHeight <= 0) {
+                    this.climbingState = { active: false, ladderX: 0, climbHeight: 0 };
+                    if (player) player.climbOffset = 0;
+                    return { left: false, right: false, up: false, down: false };
+                }
+                climb.climbHeight = Math.max(0, climb.climbHeight - climbSpeed);
+            }
+
+            // Sync Player Visuals
+            if (player && player.visual?.sprite) {
+                // Force X to ladder X, Y to ladder Base Y
+                // Direct override:
+                player.visual.sprite.x = ladder.x;
+                player.visual.sprite.y = ladder.y; // Base
+                player.climbOffset = -climb.climbHeight; // Negative to go UP
+                player.visual.sprite.setDepth(ladder.y + 100);
+            }
+
+            return { left: false, right: false, up: false, down: false }; // Suppress standard movement
+        }
 
         if (!this.cursors || !this.wasd) return { left: false, right: false, up: false, down: false };
         if (this.uiManager && this.uiManager.getChatInputActive()) {

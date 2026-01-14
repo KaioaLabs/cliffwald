@@ -1,0 +1,44 @@
+[
+ {
+  "color": "#ff0000",
+  "id": 1,
+  "name": "DuelZone",
+  "properties": [
+   {
+    "name": "zone_id",
+    "type": "int",
+    "value": 0
+   }
+  ]
+ },
+ {
+  "color": "#00ff00",
+  "id": 2,
+  "name": "Location",
+  "properties": [
+   {
+    "name": "location_id",
+    "type": "string",
+    "value": ""
+   }
+  ]
+ },
+ {
+  "color": "#0000ff",
+  "id": 3,
+  "name": "InfirmaryBed",
+  "properties": [
+   {
+    "name": "bed_id",
+    "type": "int",
+    "value": 0
+   }
+  ]
+ },
+ {
+  "color": "#ffff00",
+  "id": 4,
+  "name": "Exit",
+  "properties": []
+ }
+]

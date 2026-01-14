@@ -5,6 +5,20 @@ import { ItemSystem } from './systems/ItemSystem';
 import { DuelSystem } from './systems/DuelSystem';
 import { WorldRoom } from './WorldRoom';
 import { Player, WorldItem, InventoryItem } from '../shared/SchemaDef';
+import { LevelRegistry } from './managers/LevelRegistry';
+
+// Local Mock Data constants for testing
+const MOCK_INFIRMARY_BEDS = [
+    { x: 1550, y: 960 }, { x: 1580, y: 960 }, { x: 1620, y: 960 }
+];
+const MOCK_DUEL_ZONES = [
+    { x: 2200, y: 1200, radius: 300, id: 0 },
+    { x: 3000, y: 1200, radius: 300, id: 1 },
+    { x: 2200, y: 1800, radius: 300, id: 2 },
+    { x: 3000, y: 1800, radius: 300, id: 3 }
+];
+const MOCK_DUEL_EXITS = new Map();
+MOCK_DUEL_EXITS.set(0, { x: 2200, y: 1550 });
 
 // Mock Dependencies
 const mockRoom = {
@@ -45,6 +59,15 @@ describe('Feature Verification V2', () => {
         let player: Player;
 
         beforeEach(() => {
+            // Mock LevelRegistry Data
+            LevelRegistry.getInstance().setData({
+                locations: new Map(),
+                duelZones: [],
+                infirmaryBeds: MOCK_INFIRMARY_BEDS,
+                infirmaryExit: {x: 1600, y: 1050},
+                duelExits: new Map()
+            });
+
             healthSystem = new HealthSystem(mockRoom);
             player = new Player();
             player.username = "TestStudent";
@@ -57,7 +80,7 @@ describe('Feature Verification V2', () => {
         it('should knock out player to an infirmary bed', () => {
             healthSystem.knockOut(player, 'sess1');
             expect(player.unconsciousUntil).toBeGreaterThan(Date.now());
-            const validBeds = CONFIG.INFIRMARY_BEDS;
+            const validBeds = MOCK_INFIRMARY_BEDS;
             expect(validBeds.some(b => b.x === player.x && b.y === player.y)).toBe(true);
         });
 
@@ -74,6 +97,13 @@ describe('Feature Verification V2', () => {
         let item: WorldItem;
 
         beforeEach(() => {
+            LevelRegistry.getInstance().setData({
+                locations: new Map([["DETENTION", {x: 500, y: 2800, id: "DETENTION"}]]),
+                duelZones: [],
+                infirmaryBeds: [],
+                infirmaryExit: null,
+                duelExits: new Map()
+            });
             itemSystem = new ItemSystem(mockRoom);
             player = new Player();
             player.inventory.clear();
@@ -95,6 +125,15 @@ describe('Feature Verification V2', () => {
         let p1: Player, p2: Player, p3: Player;
 
         beforeEach(() => {
+            // Mock LevelRegistry with Local Mock Data
+            LevelRegistry.getInstance().setData({
+                locations: new Map(),
+                duelZones: MOCK_DUEL_ZONES,
+                infirmaryBeds: [],
+                infirmaryExit: null,
+                duelExits: MOCK_DUEL_EXITS
+            });
+
             duelSystem = new DuelSystem(mockRoom);
             mockRoom.state.players.clear();
             mockRoom.entities.clear();
@@ -118,7 +157,7 @@ describe('Feature Verification V2', () => {
         });
 
         it('should start countdown when 2 players enter Ring 1', () => {
-            const r1 = CONFIG.DUEL_ZONES[0];
+            const r1 = MOCK_DUEL_ZONES[0];
             mockRoom.entities.get('a')!.body.translation = () => ({ x: r1.x, y: r1.y });
             mockRoom.entities.get('b')!.body.translation = () => ({ x: r1.x + 10, y: r1.y + 10 });
 
@@ -131,7 +170,7 @@ describe('Feature Verification V2', () => {
         });
 
         it('should repel 3rd player if match is active/starting', () => {
-            const r1 = CONFIG.DUEL_ZONES[0];
+            const r1 = MOCK_DUEL_ZONES[0];
             // Alice & Bob inside
             mockRoom.entities.get('a')!.body.translation = () => ({ x: r1.x, y: r1.y });
             mockRoom.entities.get('b')!.body.translation = () => ({ x: r1.x + 10, y: r1.y + 10 });
@@ -145,13 +184,13 @@ describe('Feature Verification V2', () => {
         });
 
         it('should end match if player leaves during active duel', async () => {
-            const r1 = CONFIG.DUEL_ZONES[0];
+            const r1 = MOCK_DUEL_ZONES[0];
             mockRoom.entities.get('a')!.body.translation = () => ({ x: r1.x, y: r1.y });
             mockRoom.entities.get('b')!.body.translation = () => ({ x: r1.x + 10, y: r1.y + 10 });
             
             duelSystem.update(); // Pre-match
             
-            // Fast forward 6 seconds manually (mocking time is better but let's reset startTime)
+            // Fast forward 6 seconds manually
             (duelSystem as any).matches.get(0).startTime -= 6000;
             
             duelSystem.update(); // Now Active (FIGHT!)
@@ -168,8 +207,8 @@ describe('Feature Verification V2', () => {
         });
 
         it('should allow simultaneous matches in different rings', () => {
-            const r1 = CONFIG.DUEL_ZONES[0];
-            const r2 = CONFIG.DUEL_ZONES[1];
+            const r1 = MOCK_DUEL_ZONES[0];
+            const r2 = MOCK_DUEL_ZONES[1];
 
             // Ring 1: Alice & Bob
             mockRoom.entities.get('a')!.body.translation = () => ({ x: r1.x, y: r1.y });

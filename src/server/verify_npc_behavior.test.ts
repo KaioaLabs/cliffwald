@@ -8,19 +8,39 @@ import { Pathfinding } from '../shared/systems/Pathfinding';
 // Mock Config if needed, or use real one
 import { CONFIG } from '../shared/Config';
 
-describe('NPC Behavior & Seating Verification', () => {
-    let world: ECSWorld;
-    let physicsWorld: RAPIER.World;
-    let state: GameState;
+import { LevelRegistry } from "./managers/LevelRegistry";
+
+describe("NPC Behavior & Seating Verification", () => {
     let spawnManager: SpawnManager;
-    let entities: Map<string, any>;
+    let physicsWorld: RAPIER.World;
+    let world: any;
+    let entities: Map<string, Entity>;
+    let state: GameState;
 
     beforeEach(async () => {
+        // Mock LevelRegistry
+        LevelRegistry.getInstance().setData({
+            locations: new Map([
+                ["DORM_IGNIS", { x: 500, y: 500, id: "DORM_IGNIS" }],
+                ["DORM_AXIOM", { x: 800, y: 500, id: "DORM_AXIOM" }],
+                ["DORM_VESPER", { x: 1100, y: 500, id: "DORM_VESPER" }],
+                ["GREAT_HALL", { x: 1000, y: 1000, id: "GREAT_HALL" }]
+            ]),
+            duelZones: [],
+            infirmaryBeds: [],
+            infirmaryExit: { x: 0, y: 0 },
+            duelExits: new Map()
+        });
+
         await RAPIER.init();
-        world = createWorld();
-        physicsWorld = new RAPIER.World({ x: 0, y: 0 });
-        state = new GameState();
+        physicsWorld = new RAPIER.World({ x: 0.0, y: 0.0 });
+        world = {
+            add: vi.fn((c) => c),
+            remove: vi.fn()
+        };
         entities = new Map();
+        state = new GameState();
+        
         spawnManager = new SpawnManager(world, physicsWorld, state, entities);
     });
 
@@ -72,13 +92,14 @@ describe('NPC Behavior & Seating Verification', () => {
         const entity = entities.get("student_ignis_1");
         expect(entity).toBeDefined();
         
-        // 3. Verify AI Routine Spots match the Fixed Seat, NOT the passed (0,0)
-        expect(entity.ai.routineSpots.sleep).toEqual({ x: 100, y: 100 });
+        // 3. Verify AI Routine Spots match the Calculated Seat (Ignis Dorm Base)
+        // DORM_IGNIS is at 500,500. Index 0 -> Row 0, Col 0 -> Offset 0,0.
+        expect(entity.ai.routineSpots.sleep).toEqual({ x: 500, y: 500 });
         
         // 4. Verify Physical Spawn Position
         const pos = entity.body.translation();
-        expect(pos.x).toBe(100);
-        expect(pos.y).toBe(100);
+        expect(pos.x).toBe(500);
+        expect(pos.y).toBe(500);
     });
 
     it('should fallback to math if seat is missing', () => {
@@ -86,8 +107,8 @@ describe('NPC Behavior & Seating Verification', () => {
         spawnManager.createEchoEntity("student_fallback", 999, 999, "skin", "Fallback", "ignis", 1);
         
         const entity = entities.get("student_fallback");
-        // Should use the x,y passed to the function (999,999) as sleep pos
-        expect(entity.ai.routineSpots.sleep).toEqual({ x: 999, y: 999 });
+        // Should use Calculated Position based on DORM_IGNIS (500,500)
+        expect(entity.ai.routineSpots.sleep).toEqual({ x: 500, y: 500 });
     });
 
     it('should find diagonal paths (8-way pathfinding)', () => {

@@ -1,4 +1,5 @@
 import { CONFIG } from "../Config";
+import { LevelRegistry } from "../../server/managers/LevelRegistry";
 
 export interface RoutineTarget {
     pos: { x: number, y: number };
@@ -6,7 +7,7 @@ export interface RoutineTarget {
     activity: 'class' | 'eat' | 'sleep' | 'free' | 'duel';
 }
 
-export function getStudentScheduleTarget(numericId: number, currentHour: number, routineSpots: any): RoutineTarget {
+export function getStudentScheduleTarget(numericId: number, currentHour: number, routineSpots: any, archetype: 'ACHIEVER' | 'SOCIALIZER' | 'EXPLORER' | 'KILLER' = 'SOCIALIZER'): RoutineTarget {
     // 1. Find the current activity in the schedule
     const scheduleItem = CONFIG.ACADEMIC_SCHEDULE.find(item => {
         if (item.start < item.end) {
@@ -35,7 +36,7 @@ export function getStudentScheduleTarget(numericId: number, currentHour: number,
         return { pos: routineSpots.sleep, facing: { x: 0, y: -1 }, activity: 'sleep' };
     }
 
-    // 3. Free Time Dispersion Logic (Deterministic)
+    // 3. Free Time Dispersion Logic
     const getSpread = (center: {x: number, y: number}, radius: number) => {
         const angle = numericId * 2.399; // Golden Angle
         const r = Math.sqrt(numericId + 1) * (radius / 5); 
@@ -44,21 +45,36 @@ export function getStudentScheduleTarget(numericId: number, currentHour: number,
     };
 
     let desiredPos = routineSpots.sleep;
+    const registry = LevelRegistry.getInstance();
     
     // Switch between free locations based on the specific schedule item name
     if (scheduleItem.name === "Free Time") {
-        // 50% go to Duel, 50% go to Courtyard
-        if (numericId % 2 === 0) {
-            desiredPos = getSpread(CONFIG.SCHOOL_LOCATIONS.TRAINING_GROUNDS, 200);
+        if (archetype === 'KILLER') {
+            const loc = registry.hasData() ? registry.getLocation("TRAINING_GROUNDS") : {x: 2640, y: 1520};
+            desiredPos = getSpread(loc, 200);
             return { pos: desiredPos, facing: { x: 0, y: 1 }, activity: 'duel' };
-        } else {
-            desiredPos = getSpread(CONFIG.SCHOOL_LOCATIONS.COURTYARD, 150);
+        } 
+        else if (archetype === 'SOCIALIZER') {
+            const loc = registry.hasData() ? registry.getLocation("COURTYARD") : {x: 1056, y: 1280};
+            desiredPos = getSpread(loc, 150);
             return { pos: desiredPos, facing: { x: 0, y: 1 }, activity: 'free' };
         }
+        else if (archetype === 'EXPLORER') {
+            const loc = registry.hasData() ? registry.getLocation("FOREST") : {x: 1600, y: 2880};
+            desiredPos = getSpread(loc, 300);
+            return { pos: desiredPos, facing: { x: 0, y: 1 }, activity: 'free' };
+        }
+        else { // ACHIEVER
+            // Achievers study in class or library even in free time
+            desiredPos = routineSpots.class;
+            return { pos: desiredPos, facing: { x: 0, y: -1 }, activity: 'free' };
+        }
     } else if (scheduleItem.name === "Field Study") {
-        desiredPos = getSpread(CONFIG.SCHOOL_LOCATIONS.FOREST, 400);
+        const loc = registry.hasData() ? registry.getLocation("FOREST") : {x: 1600, y: 2880};
+        desiredPos = getSpread(loc, 400);
     } else {
-        desiredPos = getSpread(CONFIG.SCHOOL_LOCATIONS.COURTYARD, 150);
+        const loc = registry.hasData() ? registry.getLocation("COURTYARD") : {x: 1056, y: 1280};
+        desiredPos = getSpread(loc, 150);
     }
 
     return { pos: desiredPos, facing: { x: 0, y: 1 }, activity: 'free' };

@@ -2,11 +2,21 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { WorldRoom } from "./WorldRoom";
 import { GameState, Player } from "../shared/SchemaDef";
 import { CONFIG } from "../shared/Config";
+import { LevelRegistry } from "./managers/LevelRegistry";
 
 describe("Audit: Class System & Core Mechanics", () => {
     let room: WorldRoom;
 
     beforeEach(async () => {
+        // Mock LevelRegistry
+        LevelRegistry.getInstance().setData({
+            locations: new Map([["ACADEMIC_WING", { x: 100, y: 100, id: "ACADEMIC_WING" }]]),
+            duelZones: [],
+            infirmaryBeds: [],
+            infirmaryExit: { x: 0, y: 0 },
+            duelExits: new Map()
+        });
+
         room = new WorldRoom();
         room.setState(new GameState());
         // Mock Physics and Spawn to avoid loading heavy map files
@@ -41,6 +51,13 @@ describe("Audit: Class System & Core Mechanics", () => {
             broadcastSystemMessage: vi.fn()
         } as any;
         
+        // Mock PrestigeSystem
+        room.prestigeSystem = {
+            addPrestige: vi.fn(),
+            addGold: vi.fn(),
+            removePrestige: vi.fn()
+        } as any;
+
         // Force Time to 10:00 AM (Class Time)
         // 10 AM = 10 * 60 * 60 * 1000 = 36,000,000 ms from start of day
         // We mock getGameTime implicitly by setting World Start Time relative to "now"
@@ -105,8 +122,10 @@ describe("Audit: Class System & Core Mechanics", () => {
 
         const updatedPlayer = room.state.players.get(sessionId);
         expect(updatedPlayer?.isAttendingClass).toBe(false);
-        expect(updatedPlayer?.academicPoints).toBe(5); // +5 Reward
-        expect(room.clients[0].send).toHaveBeenCalledWith("class_completed", expect.anything());
+        // expect(updatedPlayer?.academicPoints).toBe(5); // +5 Reward
+        expect(room.prestigeSystem.addPrestige).toHaveBeenCalledWith(sessionId, 5);
+        expect(room.prestigeSystem.addGold).toHaveBeenCalledWith(sessionId, 20);
+        expect(room.clients[0].send).toHaveBeenCalledWith("class_completed", expect.objectContaining({ grade: "A", prestige: 5, gold: 20 }));
     });
 
     it("should set Echoes to attending_class state", () => {

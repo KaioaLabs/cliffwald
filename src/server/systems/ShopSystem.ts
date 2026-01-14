@@ -2,10 +2,10 @@ import { WorldRoom } from "../WorldRoom";
 import { InventoryItem } from "../../shared/SchemaDef";
 import { ITEM_REGISTRY } from "../../shared/data/ItemRegistry";
 import { CONFIG } from "../../shared/Config";
+import { LevelRegistry } from "../managers/LevelRegistry";
 
 export class ShopSystem {
     private room: WorldRoom;
-    private vendorLocation = CONFIG.SCHOOL_LOCATIONS.GREAT_HALL; // Fallback vendor in Great Hall
 
     constructor(room: WorldRoom) {
         this.room = room;
@@ -19,9 +19,10 @@ export class ShopSystem {
         // 1. Check Proximity to Vendor (Simple check for now)
         // In a full implementation, we'd check against a specific NPC entity position.
         // For this prototype, we check if they are near the "Great Hall" center.
+        const vendorLocation = LevelRegistry.getInstance().getLocation("GREAT_HALL");
         const pos = entity.body.translation();
-        const dx = pos.x - this.vendorLocation.x;
-        const dy = pos.y - this.vendorLocation.y;
+        const dx = pos.x - vendorLocation.x;
+        const dy = pos.y - vendorLocation.y;
         if (dx*dx + dy*dy > 250000) { // 500px radius (generous for the Hall)
             this.room.send(this.room.clients.getById(sessionId)!, "notification", "You are too far from the School Shop!");
             return;
@@ -39,13 +40,13 @@ export class ShopSystem {
         if (itemDef.Rarity === 'Legendary') price = 200;
 
         // 3. Check Funds
-        if (player.personalPrestige < price) {
-            this.room.send(this.room.clients.getById(sessionId)!, "notification", `Not enough Prestige! Need ${price}.`);
+        if (player.gold < price) {
+            this.room.send(this.room.clients.getById(sessionId)!, "notification", `Not enough Gold! Need ${price}.`);
             return;
         }
 
         // 4. Transaction
-        player.personalPrestige -= price;
+        player.gold -= price;
         
         let addedToStack = false;
         if (itemDef.Stackable) {
@@ -63,7 +64,7 @@ export class ShopSystem {
             player.inventory.push(invItem);
         }
 
-        this.room.send(this.room.clients.getById(sessionId)!, "notification", `Bought ${itemDef.Name} for ${price} Prestige.`);
+        this.room.send(this.room.clients.getById(sessionId)!, "notification", `Bought ${itemDef.Name} for ${price} Gold.`);
         console.log(`[SHOP] ${player.username} bought ${itemId} for ${price}`);
     }
 

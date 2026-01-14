@@ -17,6 +17,7 @@ export class NetworkManager {
     public onPong?: (latency: number) => void;
     public onChatMessage?: (msg: { sender: string, text: string }) => void;
     public onHit?: (targetId: string) => void;
+    public onPlayerJump?: (sessionId: string) => void;
 
     // Debug
     public simulatedLatency: number = 0;
@@ -74,6 +75,12 @@ export class NetworkManager {
             this.handleLatency(() => {
                 console.log("[NET] Chat Received:", msg);
                 if (this.onChatMessage) this.onChatMessage(msg);
+            });
+        });
+
+        this.room.onMessage("player_jump", (data: { id: string }) => {
+            this.handleLatency(() => {
+                if (this.onPlayerJump) this.onPlayerJump(data.id);
             });
         });
 

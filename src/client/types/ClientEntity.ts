@@ -1,16 +1,18 @@
 import { Entity } from '../../shared/ecs/components';
 import RAPIER from '@dimforge/rapier2d-compat';
 
-export type ClientEntity = Entity & {
-    shadow?: Phaser.GameObjects.Image;
-    nameTag?: Phaser.GameObjects.Text;
+export interface ClientEntity extends Entity {
+    visualOffset?: { x: number, y: number }; // Jump/general
+    climbOffset?: number; // Vertical climbing (Y axis)
     isLocal?: boolean;
     lastDir?: string;
+    // ... other props
+    shadow?: Phaser.GameObjects.Image;
+    nameTag?: Phaser.GameObjects.Text;
+    classTimerText?: Phaser.GameObjects.Text;
+    prefectLight?: Phaser.GameObjects.Light;
     positionBuffer?: { x: number, y: number, timestamp: number }[];
     lastMoveTime?: number;
     serverPos?: { x: number, y: number };
-    collider?: RAPIER.Collider;
     unconsciousUntil?: number;
-    classTimerText?: Phaser.GameObjects.Text;
-    classEndsAt?: number;
-};
+}

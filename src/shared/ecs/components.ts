@@ -19,6 +19,7 @@ export interface PlayerComponent {
 
 export interface AIComponent {
     state: 'patrol' | 'chase' | 'attack' | 'idle' | 'routine' | 'duel' | 'attending_class';
+    archetype?: 'ACHIEVER' | 'SOCIALIZER' | 'EXPLORER' | 'KILLER';
     timer: number;
     home: { x: number, y: number };
     house?: 'ignis' | 'axiom' | 'vesper';
@@ -30,6 +31,11 @@ export interface AIComponent {
         eat: { x: number, y: number };
     };
     targetId?: string;
+    
+    // Humanization / Gamer Simulation
+    inputNoise?: { x: number, y: number }; // Deviation from perfect path
+    noiseTimer?: number; // How often to change the noise
+    reactionDelay?: number; // Artificial lag
 }
 
 export interface VisualComponent {

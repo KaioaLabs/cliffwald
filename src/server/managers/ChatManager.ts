@@ -11,6 +11,21 @@ export class ChatManager {
         this.room = room;
     }
 
+    private badWords = [
+        "trash", "idiot", "stupid", "sucks", "noob", "diff", "gap", "inting", 
+        "griefing", "scam", "bot", "dog", "cancer", "kys", "die"
+    ];
+
+    private filterText(text: string): string {
+        let cleanText = text;
+        this.badWords.forEach(word => {
+            // Regex for case-insensitive whole word match
+            const regex = new RegExp(`\\b${word}\\b`, 'gi');
+            cleanText = cleanText.replace(regex, '*'.repeat(word.length));
+        });
+        return cleanText;
+    }
+
     public handleChat(clientSessionId: string, text: string) {
         const player = this.room.state.players.get(clientSessionId);
         
@@ -20,77 +35,102 @@ export class ChatManager {
         if (!player || !text) return;
 
         let cleanText = text.slice(0, CONFIG.CHAT.MAX_LENGTH);
+        
+        // --- PROFANITY FILTER ---
+        cleanText = this.filterText(cleanText);
 
-        // --- ADMIN COMMANDS ---
-        if (cleanText.startsWith('/time ')) {
+        // --- COMMAND PARSING ---
+        if (cleanText.startsWith('/')) {
             const parts = cleanText.split(' ');
-            const cmd = parts[1];
-            const arg = parts[2];
+            const command = parts[0].toLowerCase();
 
-            if (cmd === 'set' && arg) {
-                const hour = parseInt(arg);
-                if (!isNaN(hour)) {
-                    timeManager.setGameHour(hour);
-                    this.broadcastSystemMessage(`Time Travel: Jumped to ${hour}:00 (Triggered by ${player.username})`);
-                    
-                    // FORCE TELEPORT LOGIC (Fix Zombie March)
-                    let teleportCount = 0;
-                    // We need access to ECS entities. Cast room to any to access 'entities' map
-                    // or better, inject WorldRoom instance. But JS allows this access if we are careful.
-                    // The safer way is to assume this.room is WorldRoom.
-                    const worldRoom = this.room as any; 
-                    if (worldRoom.entities) {
-                        for (const [id, entity] of worldRoom.entities) {
-                            if (entity.ai && entity.body && entity.ai.routineSpots) {
-                                // Only teleport if it's an NPC (Echo)
-                                // If it is possessed by a player (starts with sess_), we typically don't force move them
-                                // UNLESS we want to force students to class? No, let's leave players alone.
-                                const isPlayer = entity.player?.sessionId?.startsWith('sess_');
-                                if (!isPlayer) {
-                                     const numericId = typeof entity.id === 'number' ? entity.id : (parseInt(entity.id || "0") || 0);
-                                     const schedule = getStudentScheduleTarget(numericId, hour, entity.ai.routineSpots);
-                                     
-                                     // Hard Teleport
-                                     entity.body.setTranslation(schedule.pos, true);
-                                     entity.ai.state = 'idle'; // Reset logic
-                                     entity.ai.timer = 0;
-                                     teleportCount++;
+            // 1. /time [set/add/reset/check]
+            if (command === '/time') {
+                const subCmd = parts[1];
+                const arg = parts[2];
+
+                if (subCmd === 'set' && arg) {
+                    const hour = parseInt(arg);
+                    if (!isNaN(hour)) {
+                        timeManager.setGameHour(hour);
+                        this.broadcastSystemMessage(`Time Travel: Jumped to ${hour}:00 (Triggered by ${player.username})`);
+                        
+                        // FORCE TELEPORT LOGIC
+                        const worldRoom = this.room as any; 
+                        if (worldRoom.entities) {
+                            let teleportCount = 0;
+                            for (const [id, entity] of worldRoom.entities) {
+                                if (entity.ai && entity.body && entity.ai.routineSpots) {
+                                    const isPlayer = entity.player?.sessionId?.startsWith('sess_');
+                                    if (!isPlayer) {
+                                         const numericId = typeof entity.id === 'number' ? entity.id : (parseInt(entity.id || "0") || 0);
+                                         const schedule = getStudentScheduleTarget(numericId, hour, entity.ai.routineSpots);
+                                         entity.body.setTranslation(schedule.pos, true);
+                                         entity.ai.state = 'idle'; 
+                                         entity.ai.timer = 0;
+                                         teleportCount++;
+                                    }
                                 }
                             }
+                            console.log(`[TIME] Teleported ${teleportCount} NPCs.`);
                         }
+                        return; 
                     }
-                    console.log(`[TIME] Teleported ${teleportCount} NPCs to their scheduled locations.`);
-                    return; 
+                }
+                
+                if (subCmd === 'add' && arg) {
+                     const mins = parseInt(arg);
+                     if (!isNaN(mins)) {
+                         timeManager.addTime(mins);
+                         this.broadcastSystemMessage(`Time Warp: Shifted +${mins}m (Triggered by ${player.username})`);
+                         return;
+                     }
+                }
+
+                if (subCmd === 'reset') {
+                    timeManager.reset();
+                    this.broadcastSystemMessage(`Time Sync: Clock synchronized to reality by ${player.username}`);
+                    return;
+                }
+                
+                if (subCmd === 'check') {
+                     const now = timeManager.getNow();
+                     const gt = getGameTime(now);
+                     const senderClient = this.room.clients.getById(clientSessionId);
+                     if (senderClient) {
+                         const msg = new ChatMessage();
+                         msg.sender = "CHRONOS";
+                         msg.text = `Current Game Time: ${gt.hour}:${gt.minute.toString().padStart(2, '0')} (Night: ${gt.isNight})`;
+                         msg.timestamp = Date.now();
+                         senderClient.send("chat", msg);
+                     }
+                     return;
                 }
             }
-            
-            if (cmd === 'add' && arg) {
-                 const mins = parseInt(arg);
-                 if (!isNaN(mins)) {
-                     timeManager.addTime(mins);
-                     this.broadcastSystemMessage(`Time Warp: Shifted +${mins}m (Triggered by ${player.username})`);
-                     return;
-                 }
-            }
 
-            if (cmd === 'reset') {
-                timeManager.reset();
-                this.broadcastSystemMessage(`Time Sync: Clock synchronized to reality by ${player.username}`);
-                return;
-            }
-            
-            if (cmd === 'check') {
-                 const now = timeManager.getNow();
-                 const gt = getGameTime(now);
-                 const senderClient = this.room.clients.getById(clientSessionId);
-                 if (senderClient) {
-                     const msg = new ChatMessage();
-                     msg.sender = "CHRONOS";
-                     msg.text = `Current Game Time: ${gt.hour}:${gt.minute.toString().padStart(2, '0')} (Night: ${gt.isNight})`;
-                     msg.timestamp = Date.now();
-                     senderClient.send("chat", msg);
-                 }
-                 return;
+            // 2. /tp [x] [y]
+            if (command === '/tp') {
+                const x = parseInt(parts[1]);
+                const y = parseInt(parts[2]);
+                
+                if (!isNaN(x) && !isNaN(y)) {
+                    const worldRoom = this.room as any;
+                    const entity = worldRoom.entities.get(clientSessionId);
+                    
+                    if (entity && entity.body) {
+                        entity.body.setTranslation({ x, y }, true);
+                        
+                        // Force state update immediately for rapid feedback
+                        const pState = this.room.state.players.get(clientSessionId);
+                        if (pState) {
+                            pState.x = x;
+                            pState.y = y;
+                        }
+
+                        this.broadcastSystemMessage(`${player.username} teleported to ${x}, ${y}`);
+                    }
+                    return;
+                }
             }
         }
         // ----------------------

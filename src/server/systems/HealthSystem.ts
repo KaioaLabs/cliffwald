@@ -1,5 +1,6 @@
 import { WorldRoom } from "../WorldRoom";
 import { CONFIG } from "../../shared/Config";
+import { LevelRegistry } from "../managers/LevelRegistry";
 
 export class HealthSystem {
     private room: WorldRoom;
@@ -36,11 +37,12 @@ export class HealthSystem {
         // Simple logic: Pick random for now, or check occupancy if possible.
         // Better: Iterate beds and check if anyone is close.
         
-        let targetBed = CONFIG.INFIRMARY_BEDS[0];
+        const beds = LevelRegistry.getInstance().getInfirmaryBeds();
+        let targetBed = beds[0] || { x: 1600, y: 960 }; // Fallback
         let minOccupancy = Infinity;
 
         // Find the "most free" bed (simple distance check against all players)
-        for (const bed of CONFIG.INFIRMARY_BEDS) {
+        for (const bed of beds) {
             let nearby = 0;
             this.room.state.players.forEach(p => {
                 if (Math.abs(p.x - bed.x) < 10 && Math.abs(p.y - bed.y) < 10) nearby++;

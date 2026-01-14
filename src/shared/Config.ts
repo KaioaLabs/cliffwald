@@ -37,14 +37,14 @@ export const CONFIG = {
 
     // Academic Schedule (Source of Truth for UI and AI) – Definición de Ventanas de Oportunidad
     ACADEMIC_SCHEDULE: [
-        { start: 7, end: 8.5, name: "Breakfast", location: "Great Hall", activity: "eat" },
+        { start: 5, end: 8.5, name: "Breakfast", location: "Great Hall", activity: "eat" },
         { start: 8.5, end: 10.5, name: "Morning Class", location: "Classroom", activity: "class" },
         { start: 10.5, end: 12.5, name: "Free Time", location: "Courtyard", activity: "free" },
         { start: 12.5, end: 14, name: "Lunch", location: "Great Hall", activity: "eat" },
         { start: 14, end: 17, name: "Field Study", location: "Forest", activity: "free" },
         { start: 17, end: 19, name: "Afternoon Class", location: "Classroom", activity: "class" },
         { start: 19, end: 21, name: "Dinner", location: "Great Hall", activity: "eat" },
-        { start: 21, end: 7, name: "Curfew", location: "Dormitories", activity: "sleep" }
+        { start: 21, end: 5, name: "Curfew", location: "Dormitories", activity: "sleep" }
     ],
 
     // Debug
@@ -61,51 +61,11 @@ export const CONFIG = {
     DAYS_PER_WEEK: 7,
     WEEKS_PER_COURSE: 8, // 8 Real Weeks = 1 Course
 
-    // School Locations (Scaled for 100x100 Map)
-    SCHOOL_LOCATIONS: {
-        // Dormitories (Left Wing)
-        DORM_IGNIS: { x: 576, y: 480 },
-        DORM_AXIOM: { x: 576, y: 1120 },
-        DORM_VESPER: { x: 576, y: 1760 },
-        
-        // Central Hub
-        GREAT_HALL: { x: 1600, y: 560 },       
-        ACADEMIC_WING: { x: 1600, y: 1360 },    
-        INFIRMARY: { x: 1600, y: 960 },
-        
-        // Right Wing
-        TRAINING_GROUNDS: { x: 2640, y: 1520 }, 
-        ALCHEMY_LAB: { x: 2592, y: 640 },       
-        
-        // Outdoor
-        COURTYARD: { x: 1056, y: 1280 },        
-        FOREST: { x: 1600, y: 2880 }           
-    },
-
-    // Infirmary Logic
-    INFIRMARY_BEDS: [
-        { x: 1550, y: 960 },
-        { x: 1580, y: 960 },
-        { x: 1620, y: 960 },
-        { x: 1650, y: 960 },
-        { x: 1550, y: 1000 },
-        { x: 1650, y: 1000 }
-    ],
-    INFIRMARY_EXIT: { x: 1600, y: 1050 },
+    // Prefect Logic
+    PREFECT_VISION_RADIUS: 150, // px
+    DETENTION_DURATION_MS: 180000, // 3 mins for now
 
     // Duel / Combat
-    DUEL_ZONES: [
-        { x: 2200, y: 1200, radius: 300, id: 0 },
-        { x: 3000, y: 1200, radius: 300, id: 1 },
-        { x: 2200, y: 1800, radius: 300, id: 2 },
-        { x: 3000, y: 1800, radius: 300, id: 3 }
-    ],
-    DUEL_EXITS: [
-        { x: 2200, y: 1550 },
-        { x: 3000, y: 1550 },
-        { x: 2200, y: 2150 },
-        { x: 3000, y: 2150 }
-    ],
     DUEL_TIMEOUT_MS: 60000, // 1 Minute Max Duel
     DUEL_COOLDOWN_MS: 5000, // Time before loser can re-enter
 
@@ -168,19 +128,19 @@ export function getGameTime(timestamp: number) {
     let isNight = false;
 
     if (cyclePos < CONFIG.DAY_PHASE_DURATION_MS) {
-        // DAY PHASE (06:00 to 22:00 = 16 hours)
+        // DAY PHASE (05:00 to 21:00 = 16 hours)
         // Progress 0..1
         const progress = cyclePos / CONFIG.DAY_PHASE_DURATION_MS;
-        const totalGameMinutes = 6 * 60 + (progress * 16 * 60); // Start at 06:00 + progress * 16h
+        const totalGameMinutes = 5 * 60 + (progress * 16 * 60); // Start at 05:00 + progress * 16h
         
         gameHour = Math.floor(totalGameMinutes / 60) % 24;
         gameMinute = Math.floor(totalGameMinutes % 60);
         isNight = false;
     } else {
-        // NIGHT PHASE (22:00 to 06:00 = 8 hours)
+        // NIGHT PHASE (21:00 to 05:00 = 8 hours)
         // Progress 0..1
         const nightProgress = (cyclePos - CONFIG.DAY_PHASE_DURATION_MS) / (CONFIG.CYCLE_DURATION_MS - CONFIG.DAY_PHASE_DURATION_MS);
-        const totalGameMinutes = 22 * 60 + (nightProgress * 8 * 60); // Start at 22:00 + progress * 8h
+        const totalGameMinutes = 21 * 60 + (nightProgress * 8 * 60); // Start at 21:00 + progress * 8h
         
         gameHour = Math.floor(totalGameMinutes / 60) % 24;
         gameMinute = Math.floor(totalGameMinutes % 60);

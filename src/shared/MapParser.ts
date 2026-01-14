@@ -12,6 +12,8 @@ export interface MapObject {
     height: number;
     rotation?: number;
     properties?: { name: string; type: string; value: any }[];
+    ellipse?: boolean; // Tiled ellipse marker
+    point?: boolean;   // Tiled point marker
 }
 
 export interface MapLayer {
@@ -35,6 +37,29 @@ export interface PhysicsResult {
     gridHeight: number;
     tileWidth: number;
     tileHeight: number;
+}
+
+// --- Logic Types ---
+
+export interface GameLocation {
+    x: number;
+    y: number;
+    id: string; // "DORM_IGNIS", etc.
+}
+
+export interface DuelZone {
+    id: number;
+    x: number; // Center X
+    y: number; // Center Y
+    radius: number;
+}
+
+export interface LogicData {
+    locations: Map<string, GameLocation>; // "DORM_IGNIS" -> {x,y}
+    duelZones: DuelZone[];
+    infirmaryBeds: {x: number, y: number}[];
+    infirmaryExit: {x: number, y: number} | null;
+    duelExits: Map<number, {x: number, y: number}>; // ID -> Point
 }
 
 // --- Helper Functions ---
@@ -66,8 +91,6 @@ export function parseSeats(map: MapData) {
         const studentId = getProperty(obj, 'studentId');
         if (studentId === undefined) return;
 
-        // Correct coordinates: Tiled objects are top-left, we might want center or specific pivot
-        // Currently keeping as raw Tiled coordinates to match legacy logic
         const pos = { x: obj.x, y: obj.y };
 
         if (obj.type === 'bed') seats.bed.set(studentId, pos);
@@ -98,6 +121,61 @@ export function parseEntities(map: MapData) {
     };
 }
 
+export function parseLogic(map: MapData): LogicData {
+    const logicData: LogicData = {
+        locations: new Map(),
+        duelZones: [],
+        infirmaryBeds: [],
+        infirmaryExit: null,
+        duelExits: new Map()
+    };
+
+    const objects = getObjects(map, "Logic");
+    
+    objects.forEach(obj => {
+        // Tiled Points have x,y at the point.
+        // Tiled Ellipses/Rects have x,y at Top-Left.
+        
+        if (obj.type === 'location') {
+            // Assumed to be a Point
+            logicData.locations.set(obj.name || "unknown", {
+                id: obj.name || "unknown",
+                x: obj.x,
+                y: obj.y
+            });
+        } else if (obj.type === 'duel_zone') {
+            // Assumed to be an Ellipse (Circle)
+            // Convert Top-Left to Center
+            const radius = obj.width / 2;
+            const centerX = obj.x + radius;
+            const centerY = obj.y + radius;
+            const zoneId = getProperty(obj, 'zone_id') ?? -1;
+            
+            logicData.duelZones.push({
+                id: zoneId,
+                x: centerX,
+                y: centerY,
+                radius: radius
+            });
+        } else if (obj.type === 'infirmary_bed') {
+            logicData.infirmaryBeds.push({ x: obj.x, y: obj.y });
+        } else if (obj.type === 'exit' && obj.name === 'infirmary_exit') {
+            logicData.infirmaryExit = { x: obj.x, y: obj.y };
+        } else if (obj.type === 'duel_exit') {
+            // parse id from name "duel_exit_N"
+            const parts = (obj.name || "").split('_');
+            const id = parseInt(parts[parts.length - 1]);
+            if (!isNaN(id)) {
+                logicData.duelExits.set(id, { x: obj.x, y: obj.y });
+            }
+        }
+    });
+
+    logicData.infirmaryBeds.sort((a: any, b: any) => (a.x - b.x)); // Basic sort for beds if needed
+    
+    return logicData;
+}
+
 export function buildPhysics(world: RAPIER.World, mapData: MapData): PhysicsResult {
     if (!mapData || !Array.isArray(mapData.layers)) {
         console.error("[MapParser] Invalid map data format.");
@@ -109,7 +187,6 @@ export function buildPhysics(world: RAPIER.World, mapData: MapData): PhysicsResu
     const tileW = mapData.tilewidth || 32;
     const tileH = mapData.tileheight || 32;
 
-    // Initialize navGrid with 0s
     const navGrid: number[][] = Array.from({ length: mapH }, () => Array(mapW).fill(0));
 
     const collisionObjects = getObjects(mapData, "Collisions");
@@ -119,17 +196,17 @@ export function buildPhysics(world: RAPIER.World, mapData: MapData): PhysicsResu
             return;
         }
 
-        // A. Rapier Physics (Fixed bodies)
-        // Tiled objects in pixels -> Rapier in pixels (Center origin)
         const cx = obj.x + obj.width / 2;
         const cy = obj.y + obj.height / 2;
         
         const rigidBodyDesc = RAPIER.RigidBodyDesc.fixed().setTranslation(cx, cy);
         const body = world.createRigidBody(rigidBodyDesc);
         const colliderDesc = RAPIER.ColliderDesc.cuboid(obj.width / 2, obj.height / 2);
+        
+        colliderDesc.setCollisionGroups(0x0001FFFF);
+
         world.createCollider(colliderDesc, body);
 
-        // B. Navigation Grid (Mark blocked cells)
         const startX = Math.floor(obj.x / tileW);
         const startY = Math.floor(obj.y / tileH);
         const endX = Math.ceil((obj.x + obj.width) / tileW);

@@ -10,6 +10,10 @@ export class UIScene extends Phaser.Scene {
 
     // Prestige UI
     pillars: Map<string, { fill: Phaser.GameObjects.Rectangle, text: Phaser.GameObjects.Text }> = new Map();
+    prestigeHitArea?: Phaser.GameObjects.Zone;
+    tooltipContainer?: Phaser.GameObjects.Container;
+    tooltipText?: Phaser.GameObjects.Text;
+    currentPoints = { ignis: 0, axiom: 0, vesper: 0 };
 
     constructor() {
         super({ key: 'UIScene' });
@@ -100,6 +104,54 @@ export class UIScene extends Phaser.Scene {
 
             this.pillars.set(house.id, { fill, text });
         });
+
+        // Hit Area for Tooltip (Covers all 3 pillars)
+        // 3 pillars * 25px = 75px wide approx.
+        const centerX = startX + 25; 
+        this.prestigeHitArea = this.add.zone(centerX, startY + 30, 80, 60)
+            .setInteractive({ cursor: 'pointer' });
+
+        // Tooltip Container
+        this.tooltipContainer = this.add.container(startX, startY + 70).setVisible(false).setDepth(100);
+        
+        const bg = this.add.rectangle(0, 0, 120, 60, 0x000000, 0.9).setOrigin(0.5, 0);
+        bg.setStrokeStyle(1, 0xFFFFFF);
+        this.tooltipContainer.add(bg);
+
+        this.tooltipText = this.add.text(0, 10, "", {
+            fontSize: '10px',
+            fontFamily: 'monospace',
+            color: '#ffffff',
+            align: 'center'
+        }).setOrigin(0.5, 0);
+        this.tooltipContainer.add(this.tooltipText);
+
+        // Interaction
+        this.prestigeHitArea.on('pointerover', () => {
+            this.updateTooltipText();
+            this.tooltipContainer?.setVisible(true);
+        });
+
+        this.prestigeHitArea.on('pointerout', () => {
+            this.tooltipContainer?.setVisible(false);
+        });
+        
+        this.prestigeHitArea.on('pointerdown', () => {
+             // Toggle for mobile
+             if (this.tooltipContainer) {
+                 this.tooltipContainer.setVisible(!this.tooltipContainer.visible);
+                 if (this.tooltipContainer.visible) this.updateTooltipText();
+             }
+        });
+    }
+
+    updateTooltipText() {
+        if (!this.tooltipText) return;
+        this.tooltipText.setText(
+            `IGNIS: ${this.currentPoints.ignis}\n` +
+            `AXIOM: ${this.currentPoints.axiom}\n` +
+            `VESPER: ${this.currentPoints.vesper}`
+        );
     }
 
     repositionPrestigeUI(width: number) {
@@ -111,12 +163,24 @@ export class UIScene extends Phaser.Scene {
                 const x = startX + (index * 25);
                 p.fill.x = x;
                 p.text.x = x;
-                // Update background too? (Better to use a container, but this is simple)
             }
         });
+        
+        // Move Hit Area
+        if (this.prestigeHitArea) {
+             const centerX = startX + 25; 
+             this.prestigeHitArea.setPosition(centerX, 20 + 30);
+        }
+
+        // Move Tooltip
+        if (this.tooltipContainer) {
+            this.tooltipContainer.setPosition(startX + 25, 20 + 70);
+        }
     }
 
     updatePoints(ignis: number, axiom: number, vesper: number) {
+        this.currentPoints = { ignis, axiom, vesper }; // Store for tooltip
+
         const maxDisplay = Math.max(ignis, axiom, vesper, 100); // Scale relative to max
         
         const updatePillar = (id: string, val: number) => {
@@ -131,6 +195,11 @@ export class UIScene extends Phaser.Scene {
         updatePillar('ignis', ignis);
         updatePillar('axiom', axiom);
         updatePillar('vesper', vesper);
+        
+        // If tooltip is open, update it live
+        if (this.tooltipContainer?.visible) {
+            this.updateTooltipText();
+        }
     }
 
     updateTime(totalSeconds: number, course: number, month: string) {

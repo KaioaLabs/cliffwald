@@ -3,7 +3,7 @@ import { GameState, Player, ChatMessage, Projectile, InventoryItem } from "../sh
 import { CONFIG, getGameHour, getAcademicProgress, getGameTime } from "../shared/Config";
 import { PlayerInput, JoinOptions } from "../shared/types/NetworkTypes";
 import RAPIER from "@dimforge/rapier2d-compat";
-import { buildPhysics, MapData, parseEntities } from "../shared/MapParser";
+import { buildPhysics, MapData, parseEntities, parseLogic } from "../shared/MapParser";
 import { createWorld, ECSWorld } from "../shared/ecs/world";
 import { MovementSystem } from "../shared/systems/MovementSystem";
 import { AISystem } from "../shared/systems/AISystem";
@@ -14,6 +14,7 @@ import { SPELL_REGISTRY } from "../shared/items/SpellRegistry";
 import { Entity } from "../shared/ecs/components";
 import { AuthService } from "./services/AuthService";
 import { SpawnManager } from "./managers/SpawnManager";
+import { LevelRegistry } from "./managers/LevelRegistry";
 import { PlayerService } from "./services/PlayerService";
 import * as fs from "fs/promises";
 import path from "path";
@@ -47,6 +48,7 @@ export class WorldRoom extends Room<GameState> {
     alignmentMap = new Map<string, number>(); // <sessionId, alignmentScore> (-100 to +100)
     attendanceLog = new Set<string>(); // Tracks awarded attendance: "Day_WindowIndex_SessionId"
     attendanceTimer = 0;
+    minigameStartTimes = new Map<string, number>(); // <sessionId, startTime>
 
     spawnPos = { x: 300, y: 300 };
     
@@ -95,13 +97,16 @@ export class WorldRoom extends Room<GameState> {
             
             const result = buildPhysics(this.physicsWorld, mapData);
             const entitiesResult = parseEntities(mapData);
+            const logicData = parseLogic(mapData);
+
+            LevelRegistry.getInstance().setData(logicData);
             
             this.spawnPos = entitiesResult.spawnPos;
             this.pathfinder = new Pathfinding(result.navGrid);
             
-            console.log(`[SERVER] Map loaded. Initializing 24 Student Slots...`);
+            console.log(`[SERVER] Map loaded. Initializing 300 Student Slots...`);
             this.spawnManager.loadSeats(mapData);
-            this.spawnManager.spawnEchoes(24, this.spawnPos);
+            this.spawnManager.spawnEchoes(300, this.spawnPos);
             this.spawnManager.spawnFromMap(mapData);
             // Spawn initial cards
             for(let i=0; i<5; i++) this.itemSystem.spawnRandomItem();
@@ -111,6 +116,7 @@ export class WorldRoom extends Room<GameState> {
 
         let logTimer = 0;
         let lastRewardedHour = -1;
+        let lastLogHour = -1;
 
         this.setSimulationInterval((deltaTime) => {
             const now = timeManager.getNow();
@@ -120,7 +126,24 @@ export class WorldRoom extends Room<GameState> {
             }
 
             // Use decoupled time for logic
-            const currentHour = getGameTime(now).hour;
+            // --- TIME & SCHEDULE ---
+            const { hour: currentHour, isNight } = getGameTime(now);
+            
+            // Check Prefect Spawns (Night Watch)
+            this.spawnManager.checkPrefectSpawns(isNight);
+
+            if (Math.abs(currentHour - lastLogHour) > 0.1) {
+                lastLogHour = currentHour;
+                
+                // Attendance Check (Every 0.1 hours = 6 mins game time)
+                this.checkClassAttendance(currentHour);
+                
+                // Narrative / Day Cycle Events
+                if (Math.floor(currentHour) !== Math.floor(lastRewardedHour)) {
+                    // Hour changed
+                    // console.log(`[TIME] Hour is now ${Math.floor(currentHour)}:00`);
+                }
+            }
             const { currentCourse, currentMonth, currentWeek, currentDay } = getAcademicProgress(this.state.worldStartTime, now);
             
             // Sync Calendar State
@@ -183,6 +206,17 @@ export class WorldRoom extends Room<GameState> {
                 (id) => {
                     const p = this.state.players.get(id);
                     return p ? { x: p.x, y: p.y } : null;
+                },
+                (id, text) => this.chatManager.handleChat(id, text),
+                (id) => {
+                    // JUMP EVENT
+                    this.broadcast("player_jump", { id });
+                },
+                (prefectId, victimId) => {
+                    // CATCH EVENT
+                    // Only send to detention if it's a real player (or maybe echoes too?)
+                    // For now, punish everyone.
+                    this.sendToDetention(victimId);
                 }
             );
             
@@ -205,6 +239,23 @@ export class WorldRoom extends Room<GameState> {
                         if (playerState.x !== newX || playerState.y !== newY) {
                             playerState.x = newX;
                             playerState.y = newY;
+                        }
+
+                        // --- DETENTION RELEASE CHECK ---
+                        // Note: detentionWork is set to 50 on entry. If it was > 0 and now is <= 0, release.
+                        // We need a way to know if they were PREVIOUSLY in detention.
+                        // Using a simple check: if player is near detention and work is 0, we don't care.
+                        // But if they are EXACTLY at detention coordinates and work is 0?
+                        // Let's use a "flag" or just check work units.
+                        // Actually, ItemSystem handles the reduction. 
+                        // I will check here if work is 0 BUT they are in the detention zone.
+                        const detentionLoc = LevelRegistry.getInstance().getLocation("DETENTION");
+                        const distToDetention = Math.sqrt((playerState.x - detentionLoc.x)**2 + (playerState.y - detentionLoc.y)**2);
+                        if (playerState.detentionWork <= 0 && distToDetention < 200) {
+                             // They might have just been released or never detained.
+                             // To avoid infinite teleport loops, we only release if we have a record they were detained.
+                             // Or just check if work was > 0.
+                             // Let's use a simpler approach: ItemSystem calls releaseFromDetention directly!
                         }
                     }
                 }
@@ -259,6 +310,48 @@ export class WorldRoom extends Room<GameState> {
             this.chatManager.handleChat(client.sessionId, text);
         });
 
+        // --- ACADEMIC SYSTEM ---
+        this.onMessage("submit_score", (client, data: { score: number }) => {
+            const player = this.state.players.get(client.sessionId);
+            if (!player || !player.isAttendingClass) return;
+
+            // ANTI-CHEAT: Check duration
+            const startTime = this.minigameStartTimes.get(client.sessionId) || 0;
+            const elapsed = Date.now() - startTime;
+            this.minigameStartTimes.delete(client.sessionId);
+
+            if (elapsed < 25000) { // Minimum 25s for a 30s game
+                console.warn(`[CLASS:CHEAT] ${player.username} submitted score too fast! (${elapsed}ms)`);
+                player.isAttendingClass = false;
+                client.send("class_completed", { grade: "T", points: 0 }); // Fail
+                return;
+            }
+
+            const score = Math.min(100, Math.max(0, data.score || 0));
+            let grade = "T";
+            let prestige = 0;
+            let gold = 10; // Participation gold
+            let xp = 10;
+
+            if (score >= 90) { grade = "S"; prestige = 20; gold = 100; xp = 100; }
+            else if (score >= 70) { grade = "A"; prestige = 10; gold = 50; xp = 75; }
+            else if (score >= 50) { grade = "B"; prestige = 5; gold = 20; xp = 50; }
+
+            // Apply Rewards via System
+            if (prestige > 0) this.prestigeSystem.addPrestige(client.sessionId, prestige);
+            if (gold > 0) this.prestigeSystem.addGold(client.sessionId, gold);
+            
+            player.xp += xp;
+            player.isAttendingClass = false;
+            player.classEndsAt = 0;
+
+            // Feedback
+            client.send("class_completed", { grade, prestige, gold });
+            this.chatManager.broadcastSystemMessage(`${player.username} finished class with Grade ${grade}!`, "TEACHER");
+            
+            console.log(`[CLASS] ${player.username} scored ${score} (${grade}). Gold: ${player.gold}, Prestige: ${player.personalPrestige}`);
+        });
+
         // Start Auto-Save
         this.persistenceSystem.startAutoSave();
     }
@@ -292,12 +385,13 @@ export class WorldRoom extends Room<GameState> {
                     if (now > playerState.classEndsAt) {
                         playerState.isAttendingClass = false;
                         playerState.classEndsAt = 0;
-                        // Reward!
-                        playerState.academicPoints += 5; // Good job!
+                        // Reward! (Legacy fallback for simple attendance)
+                        this.prestigeSystem.addPrestige(sessionId, 5);
+                        this.prestigeSystem.addGold(sessionId, 20);
                         playerState.xp += 50;
                         const client = this.clients.find(c => c.sessionId === sessionId);
                         if (client) {
-                            client.send("class_completed", { grade: "A", points: 5 });
+                            client.send("class_completed", { grade: "A", prestige: 5, gold: 20 });
                             this.chatManager.broadcastSystemMessage(`${playerState.username} finished class!`, "TEACHER");
                         }
                     }
@@ -338,8 +432,8 @@ export class WorldRoom extends Room<GameState> {
             else if (entity.ai) {
                  // Check Echo Attendance (Passive)
                  // Re-using the previous logic but inside this loop
-                 let targetLoc = CONFIG.SCHOOL_LOCATIONS.ACADEMIC_WING;
-                 if (item.location === "Forest") targetLoc = CONFIG.SCHOOL_LOCATIONS.FOREST;
+                 let targetLoc = LevelRegistry.getInstance().getLocation("ACADEMIC_WING");
+                 if (item.location === "Forest") targetLoc = LevelRegistry.getInstance().getLocation("FOREST");
 
                  const key = `${currentCourse}_${currentDay}_${scheduleIndex}_${sessionId}`;
                  if (!this.attendanceLog.has(key)) {
@@ -374,6 +468,59 @@ export class WorldRoom extends Room<GameState> {
         console.log("[SERVER] Room disposing. Attempting final save for all players...");
         this.persistenceSystem.stopAutoSave();
         await this.persistenceSystem.saveAllPlayers();
+    }
+
+    public sendToDetention(sessionId: string) {
+        const player = this.state.players.get(sessionId);
+        const entity = this.entities.get(sessionId);
+        
+        if (player && entity && entity.body) {
+            console.log(`[DISCIPLINE] Detaining ${player.username} (${sessionId})`);
+            
+            // 1. Teleport
+            const detentionPos = LevelRegistry.getInstance().getLocation("DETENTION");
+            entity.body.setTranslation(detentionPos, true);
+            player.x = detentionPos.x;
+            player.y = detentionPos.y;
+            
+            // 2. Set Work (Anti-AFK)
+            player.detentionWork = 50; // Needs 5 tasks (10 units each)
+            
+            // 3. Spawn Tasks if not already present
+            this.itemSystem.spawnDetentionTasks();
+            
+            // 4. Notify
+            const client = this.clients.find(c => c.sessionId === sessionId);
+            if (client) {
+                client.send("notification", "YOU HAVE BEEN DETAINED! Complete 5 tasks to leave.");
+            }
+            
+            this.chatManager.broadcastSystemMessage(`${player.username} has been sent to DETENTION.`, "PREFECT");
+        }
+    }
+
+    public releaseFromDetention(sessionId: string) {
+        const player = this.state.players.get(sessionId);
+        const entity = this.entities.get(sessionId);
+        if (player && entity && entity.body) {
+            console.log(`[DISCIPLINE] Releasing ${player.username}`);
+            
+            // Return to Dorm based on house
+            const registry = LevelRegistry.getInstance();
+            let dormPos = registry.getLocation("DORM_IGNIS");
+            if (player.house === 'axiom') dormPos = registry.getLocation("DORM_AXIOM");
+            if (player.house === 'vesper') dormPos = registry.getLocation("DORM_VESPER");
+            
+            entity.body.setTranslation(dormPos, true);
+            player.x = dormPos.x;
+            player.y = dormPos.y;
+            player.detentionWork = 0;
+            
+            const client = this.clients.find(c => c.sessionId === sessionId);
+            if (client) {
+                client.send("notification", "You are free! Return to your studies.");
+            }
+        }
     }
 
     handleCast(sessionId: string, spellId: string, vx: number, vy: number) {
@@ -480,6 +627,7 @@ export class WorldRoom extends Room<GameState> {
             playerState.y = pos.y;
             playerState.skin = options.skin || "player_idle";
             playerState.personalPrestige = session.dbPlayer.prestige || 0;
+            playerState.gold = session.dbPlayer.gold || 0;
             playerState.house = house || 'ignis';
             
             // Fable System & Grades
@@ -556,6 +704,7 @@ export class WorldRoom extends Room<GameState> {
             echoState.y = entity.body.translation().y;
             echoState.skin = oldState?.skin || "player_idle";
             echoState.personalPrestige = oldState?.personalPrestige || 0; // RESTORE POINTS TO ECHO
+            echoState.gold = oldState?.gold || 0;
             echoState.house = house || 'ignis';
             
             this.state.players.set(slotId, echoState);

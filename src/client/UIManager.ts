@@ -282,16 +282,20 @@ export class UIManager {
 
     public renderShop() {
         const grid = document.getElementById('shop-grid');
-        const prestigeEl = document.getElementById('shop-prestige');
+        const goldEl = document.getElementById('shop-gold');
+        const prestigeEl = document.getElementById('shop-prestige-total');
         if (!grid) return;
 
         grid.innerHTML = '';
         
-        // Update Prestige Display
+        // Update Displays
         const localSessionId = this.network.room?.sessionId;
         const player = localSessionId ? this.network.room?.state.players.get(localSessionId) : null;
+        if (goldEl && player) {
+            goldEl.innerText = (player.gold || 0).toString();
+        }
         if (prestigeEl && player) {
-            prestigeEl.innerText = player.personalPrestige.toString();
+            prestigeEl.innerText = (player.personalPrestige || 0).toString();
         }
 
         const CATALOG = [
@@ -309,21 +313,20 @@ export class UIManager {
             slot.className = 'inv-slot shop-slot';
             slot.style.cursor = 'pointer';
             
-            const canAfford = player ? player.personalPrestige >= entry.price : false;
+            const canAfford = player ? (player.gold || 0) >= entry.price : false;
             if (!canAfford) slot.style.opacity = '0.5';
 
             slot.innerHTML = `
                 <div style="font-size:10px; color:#fff; position:absolute; top:2px; left:2px;">${itemDef.Name}</div>
-                <div style="font-size:12px; color:#f0c040; position:absolute; bottom:2px; right:2px;">${entry.price} 💎</div>
+                <div style="font-size:12px; color:#f0c040; position:absolute; bottom:2px; right:2px;">${entry.price} 💰</div>
             `;
             slot.title = itemDef.Description;
 
             slot.onclick = () => {
                 if (canAfford) {
                     this.network.room?.send("buy", entry.id);
-                    // Optimistic update or wait for server state sync
                 } else {
-                    alert("Not enough prestige!");
+                    alert("Not enough Gold!");
                 }
             };
 
