@@ -5,7 +5,7 @@ import { GameScene } from './main';
 import { CONFIG } from '../shared/Config';
 
 export class DebugManager {
-    private scene: Phaser.Scene;
+    private scene: GameScene;
     private pane: any; 
     private debugGraphics: Phaser.GameObjects.Graphics;
     
@@ -42,7 +42,7 @@ export class DebugManager {
     private cursorLight: Phaser.GameObjects.Light | null = null;
     private defaultPlayerSpeed: number;
 
-    constructor(scene: Phaser.Scene) {
+    constructor(scene: GameScene) {
         this.scene = scene;
         this.defaultPlayerSpeed = CONFIG.PLAYER_SPEED;
         this.pane = new Pane({ title: 'Cliffwald2D DevTools' });
@@ -71,7 +71,7 @@ export class DebugManager {
         fNet.addBinding(this.settings, 'showServerPos', { label: 'Show Ghost' });
         fNet.addBinding(this.settings, 'simulatedLatency', { min: 0, max: 1000, step: 10, label: 'Sim Lag (ms)' })
             .on('change', (ev: any) => {
-                const net = (this.scene as GameScene).network;
+                const net = this.scene.network;
                 if (net) net.simulatedLatency = ev.value;
             });
 
@@ -83,8 +83,8 @@ export class DebugManager {
             });
         fPlayer.addBinding(this.settings, 'noclip', { label: 'Noclip / God' })
             .on('change', (ev: any) => {
-                const pc = (this.scene as GameScene).playerController;
-                const net = (this.scene as GameScene).network;
+                const pc = this.scene.playerController;
+                const net = this.scene.network;
                 if (pc && net && net.room) {
                     pc.setNoclip(net.room.sessionId, ev.value);
                 }
@@ -111,8 +111,13 @@ export class DebugManager {
 
         // --- TIME ---
         const fTime = this.pane.addFolder({ title: 'Time / World', expanded: true });
-        fTime.addBinding(this.settings, 'overrideTime', { label: 'Override Time' });
-        fTime.addBinding(this.settings, 'debugHour', { min: 0, max: 24, step: 0.1, label: 'Game Hour' });
+        fTime.addBinding(this.settings, 'overrideTime', { label: 'Admin Time' });
+        fTime.addBinding(this.settings, 'debugHour', { min: 0, max: 24, step: 0.25, label: 'Game Hour' })
+            .on('change', (ev: any) => {
+                if (this.settings.overrideTime && this.scene.network.room) {
+                    this.scene.network.room.send("admin_time_jump", { hour: ev.value });
+                }
+            });
     }
 
     public update() {
@@ -120,6 +125,10 @@ export class DebugManager {
 
         if (this.settings.showHitboxes) {
             this.drawHitboxes();
+        }
+
+        if (this.settings.showPhysics) {
+            this.drawPhysics();
         }
 
         // Cursor Light Logic
@@ -142,14 +151,40 @@ export class DebugManager {
         }
     }
 
+    private drawPhysics() {
+        if (!this.scene.physicsWorld) return;
+        
+        this.debugGraphics.lineStyle(1, 0x00ff00, 1);
+
+        this.scene.physicsWorld.forEachCollider((collider) => {
+            const translation = collider.translation();
+            const shape = collider.shape as any; 
+            
+            // Cuboid
+            if (shape.halfExtents) { 
+                const he = shape.halfExtents;
+                this.debugGraphics.strokeRect(
+                    translation.x - he.x, 
+                    translation.y - he.y, 
+                    he.x * 2, 
+                    he.y * 2
+                );
+            } 
+            // Ball / Circle
+            else if (shape.radius) {
+                const r = shape.radius;
+                this.debugGraphics.strokeCircle(translation.x, translation.y, r);
+            }
+        });
+    }
+
     private drawHitboxes() {
         const color = this.settings.debugColor;
         this.debugGraphics.lineStyle(2, color, 1);
 
         // 1. Local Player (Prediction)
-        const player = (this.scene as any).currentPlayer; // Legacy check, use controller
-        const controller = (this.scene as GameScene).playerController;
-        const net = (this.scene as GameScene).network;
+        const controller = this.scene.playerController;
+        const net = this.scene.network;
         
         if (controller && net && net.room) {
              const localId = net.room.sessionId;

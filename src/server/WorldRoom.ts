@@ -314,6 +314,17 @@ export class WorldRoom extends Room<GameState> {
             this.broadcast("player_jump", { id: client.sessionId });
         });
 
+        // --- DEBUG / ADMIN TOOLS ---
+        this.onMessage("admin_time_jump", (client, data: { hour: number }) => {
+            // In production, you would check if client is Admin.
+            // For now, we allow it for development flow.
+            if (data && typeof data.hour === 'number') {
+                timeManager.setGameHour(data.hour);
+                this.state.timeOffset = timeManager.getOffset(); // Force immediate sync
+                console.log(`[ADMIN] ${client.sessionId} set time to ${data.hour}h`);
+            }
+        });
+
         // --- ACADEMIC SYSTEM ---
         this.onMessage("submit_score", (client, data: { score: number }) => {
             const player = this.state.players.get(client.sessionId);

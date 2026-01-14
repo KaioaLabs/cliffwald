@@ -823,28 +823,20 @@ export class GameScene extends Phaser.Scene {
         let decimalHour = 0;
         let gameTime = { hour: 12, minute: 0, day: 1, month: 'Jan', year: 1 };
         
-        if (this.debugManager && this.debugManager.settings.overrideTime) {
-            // Use Debug Time
-            decimalHour = this.debugManager.settings.debugHour;
-            const h = Math.floor(decimalHour);
-            const m = Math.floor((decimalHour - h) * 60);
-            gameTime = { hour: h, minute: m, day: 1, month: 'Debug', year: 1 };
-        } else {
-            // Use Server Synced Time
-            const offset = this.network.room?.state.timeOffset || 0;
-            const now = Date.now() + offset;
-            gameTime = getGameTime(now);
-            decimalHour = gameTime.hour + (gameTime.minute / 60);
+        // Use Server Synced Time
+        const offset = this.network.room?.state.timeOffset || 0;
+        const now = Date.now() + offset;
+        gameTime = getGameTime(now);
+        decimalHour = gameTime.hour + (gameTime.minute / 60);
 
-            // Update Calendar UI
-            if (this.network.room) {
-                const worldStart = this.network.room.state.worldStartTime;
-                const progress = getAcademicProgress(worldStart, now);
-                const phase = gameTime.isNight ? 'Night' : 'Day';
-                
-                if (this.uiManager) {
-                    this.uiManager.updateCalendar(progress.currentMonth, progress.currentWeek, progress.currentDay, phase);
-                }
+        // Update Calendar UI
+        if (this.network.room) {
+            const worldStart = this.network.room.state.worldStartTime;
+            const progress = getAcademicProgress(worldStart, now);
+            const phase = gameTime.isNight ? 'Night' : 'Day';
+            
+            if (this.uiManager) {
+                this.uiManager.updateCalendar(progress.currentMonth, progress.currentWeek, progress.currentDay, phase);
             }
         }
 
@@ -866,28 +858,6 @@ export class GameScene extends Phaser.Scene {
 
         if (this.uiManager) {
             this.uiManager.updateTimetable(gameTime.hour);
-        }
-
-        const showColliders = CONFIG.SHOW_COLLIDERS || (this.debugManager && this.debugManager.settings.showPhysics);
-
-        if (showColliders && this.debugGraphics && this.physicsWorld) {
-            this.debugGraphics.clear();
-            this.debugGraphics.lineStyle(1, 0x00ff00, 1);
-            this.physicsWorld.forEachCollider((collider) => {
-                const type = collider.shape.type;
-                const translation = collider.translation();
-                if (type === 0 || (collider.shape as any).halfExtents) { 
-                    const he = (collider.shape as any).halfExtents;
-                    if (he) {
-                        this.debugGraphics?.strokeRect(translation.x - he.x, translation.y - he.y, he.x * 2, he.y * 2);
-                    }
-                } else if (type === 1 || (collider.shape as any).radius) {
-                    const r = (collider.shape as any).radius;
-                    if (r) {
-                        this.debugGraphics?.strokeCircle(translation.x, translation.y, r);
-                    }
-                }
-            });
         }
     }
 
