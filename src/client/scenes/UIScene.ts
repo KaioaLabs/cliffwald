@@ -57,24 +57,6 @@ export class UIScene extends Phaser.Scene {
             if (this.pvpStatusText) this.pvpStatusText.setPosition(gameSize.width - 20, 55);
             this.repositionPrestigeUI(gameSize.width);
         });
-
-        // ALBUM BUTTON (Bottom Right)
-        const albumBtn = this.add.rectangle(this.scale.width - 40, this.scale.height - 40, 40, 40, 0x663300)
-            .setInteractive({ cursor: 'pointer' });
-        this.add.text(this.scale.width - 40, this.scale.height - 40, '📘', { fontSize: '20px' }).setOrigin(0.5);
-        
-        albumBtn.on('pointerdown', () => {
-            // Get player collection from GameScene
-            const gameScene = this.scene.get('GameScene') as any;
-            const room = gameScene.network?.room;
-            if (room) {
-                const player = room.state.players.get(room.sessionId);
-                // Map inventory schema objects to simple ID strings
-                const collection = player ? player.inventory.map((i: any) => i.itemId) : [];
-                this.scene.launch('CardAlbumScene', { collection });
-                this.scene.bringToTop('CardAlbumScene');
-            }
-        });
     }
 
     createPrestigeUI() {

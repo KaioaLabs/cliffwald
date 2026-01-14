@@ -46,6 +46,15 @@ export class DebugManager {
         this.scene = scene;
         this.defaultPlayerSpeed = CONFIG.PLAYER_SPEED;
         this.pane = new Pane({ title: 'Cliffwald2D DevTools' });
+        
+        // Fix overlap with UI
+        const el = this.pane.element;
+        el.style.position = 'absolute';
+        el.style.top = '60px';
+        el.style.right = '10px';
+        el.style.width = '256px';
+        el.style.zIndex = '3000';
+
         this.debugGraphics = this.scene.add.graphics().setDepth(9999); 
 
         this.setupGUI();
