@@ -206,7 +206,12 @@ export class MinigameManager {
 
     private startHistory(duration: number) {
         // "Memory": Sequence
-        const sequence = ['ArrowUp', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'];
+        const options = ['ArrowUp', 'ArrowLeft', 'ArrowRight', 'ArrowDown'];
+        const sequence: string[] = [];
+        for (let i = 0; i < 5; i++) {
+            sequence.push(options[Math.floor(Math.random() * options.length)]);
+        }
+        
         let inputIndex = 0;
 
         const wrapper = this.createWrapper("HISTORY CLASS: Memorize");

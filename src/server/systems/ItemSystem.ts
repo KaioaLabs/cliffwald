@@ -25,7 +25,27 @@ export class ItemSystem {
     }
 
     public spawnRandomItem() {
-        // ... (existing logic) ...
+        const keys = Object.keys(ITEM_REGISTRY);
+        if (keys.length === 0) return;
+
+        const randomKey = keys[Math.floor(Math.random() * keys.length)];
+        const itemDef = ITEM_REGISTRY[randomKey];
+        
+        // Simple random position within map bounds (approx 3200x3200)
+        // Ideally we should check for walls, but for now random is okay for prototype
+        const x = Math.random() * 3000 + 100; 
+        const y = Math.random() * 3000 + 100;
+
+        const id = `world_item_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+        const item = new WorldItem();
+        item.id = id;
+        item.x = x;
+        item.y = y;
+        item.type = itemDef.Type === 'Card' ? 'card' : 'resource';
+        item.itemId = randomKey;
+
+        this.room.state.items.set(id, item);
+        console.log(`[ITEM] Spawned ${itemDef.Name} at ${Math.round(x)},${Math.round(y)}`);
     }
 
     public spawnDetentionTasks() {
