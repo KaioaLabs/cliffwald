@@ -29,6 +29,7 @@ export class GameScene extends Phaser.Scene {
     lightManager!: LightManager;
     projectileManager!: VisualProjectileManager;
     loginManager!: LoginManager;
+    minigameManager!: MinigameManager;
     
     // Static World Props
     staticProps: Phaser.GameObjects.GameObject[] = [];
@@ -60,6 +61,7 @@ export class GameScene extends Phaser.Scene {
     constructor() {
         super('GameScene');
         this.network = new NetworkManager(this);
+        this.minigameManager = new MinigameManager();
         this.setupRemoteLogging();
         
         window.addEventListener('unhandledrejection', (event) => {
@@ -541,60 +543,14 @@ export class GameScene extends Phaser.Scene {
                 this.playerController.performJump(sessionId);
             };
             
-import { MinigameManager } from './managers/MinigameManager';
-
-export class GameScene extends Phaser.Scene {
-    network: NetworkManager;
-    uiManager!: UIManager;
-    lightManager!: LightManager;
-    projectileManager!: VisualProjectileManager;
-    loginManager!: LoginManager;
-    minigameManager!: MinigameManager;
-    
-    // ... properties ...
-
-    constructor() {
-        super('GameScene');
-        this.network = new NetworkManager(this);
-        this.minigameManager = new MinigameManager();
-        this.setupRemoteLogging();
-        // ...
-    }
-
-    // ... inside create() ...
-            
             // CLASS MINIGAME LISTENERS
-            this.network.room?.onMessage("start_minigame", (data: { duration: number, type: string }) => {
-                console.log("[CLASS] Starting Minigame:", data.type);
-                // Map server type to minigame type
-                let type: 'charms' | 'potions' | 'history' = 'charms';
-                if (data.type === 'potions') type = 'potions';
-                if (data.type === 'history') type = 'history';
-                
-                this.minigameManager.startMinigame(type, data.duration, (score) => {
-                    console.log("[CLASS] Minigame finished. Score:", score);
-                    this.network.room?.send("submit_score", { score });
-                });
-            });
+            // Note: These need to be attached AFTER connection usually, but here we attach to room?
+            // Wait, this.network.room is null here before connect().
+            // Correct approach: NetworkManager should handle these or we attach after connect.
+            // But let's look at how onPong works. It's a callback on NetworkManager.
             
-            this.network.room?.onMessage("class_completed", (data: { grade: string, points: number }) => {
-                this.uiManager.showNotification(`Class Finished! Grade: ${data.grade} (+${data.points} PA)`);
-            });
-
-            // ... items ...
-
-            // Items (if NetworkManager supports it - we need to check/add if missing)
-            // Checking NetworkManager.ts, it doesn't have onItemAdd yet. 
-            // We should add it to NetworkManager first, OR keep the manual attach for items for now 
-            // if we want to be atomic. But the instruction says "Refactor... items". 
-            // I will implement the callback on NetworkManager side too.
-            // For now, let's assume I will update NetworkManager.ts in the next step.
-            
-            /* 
-               Wait, the previous `attachRoomListeners` handled items too. 
-               If I remove it, I lose item sync. 
-               I must update NetworkManager.ts to support `onItemAdd` / `onItemRemove`.
-            */
+            // For now, let's just keep them here but we must attach them AFTER connect() succeeds.
+            // Removing the broken code block.
 
             const success = await this.network.connect(this.authToken, this.skin);
             
@@ -602,10 +558,22 @@ export class GameScene extends Phaser.Scene {
                 this.room = this.network.room;
                 console.log("Joined successfully!", this.room.sessionId);
                 
-                // Item Sync (Manual for now until NetworkManager is updated, or I can update NetworkManager first)
-                // Actually, let's keep the manual Item sync here temporarily but use the better 'attach' pattern
-                // OR better yet, let's just delegate the Item sync to a new method in this file 
-                // to avoid the nested complexity, while I prepare to update NetworkManager.
+                // Attach Minigame Listeners NOW that room exists
+                this.room.onMessage("start_minigame", (data: { duration: number, type: string }) => {
+                    console.log("[CLASS] Starting Minigame:", data.type);
+                    let type: 'charms' | 'potions' | 'history' = 'charms';
+                    if (data.type === 'potions') type = 'potions';
+                    if (data.type === 'history') type = 'history';
+                    
+                    this.minigameManager.startMinigame(type, data.duration, (score) => {
+                        console.log("[CLASS] Minigame finished. Score:", score);
+                        this.network.room?.send("submit_score", { score });
+                    });
+                });
+                
+                this.room.onMessage("class_completed", (data: { grade: string, points: number }) => {
+                    this.uiManager.showNotification(`Class Finished! Grade: ${data.grade} (+${data.points} PA)`);
+                });
                 
                 this.setupItemSync();
 
