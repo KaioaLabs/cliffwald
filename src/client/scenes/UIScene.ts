@@ -36,7 +36,9 @@ export class UIScene extends Phaser.Scene {
         }).setOrigin(1, 0);
 
         // ... mobile logic ...
-        const isMobile = !this.sys.game.device.os.desktop;
+        // Robust check: OS is mobile OR device supports touch
+        const isMobile = !this.sys.game.device.os.desktop || this.sys.game.device.input.touch;
+        
         if (isMobile) {
             this.joystick = new VirtualJoystick(this, 0, 0);
         }

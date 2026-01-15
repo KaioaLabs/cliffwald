@@ -587,3 +587,46 @@
     font-weight: bold;
     z-index: 10;
 }
+
+/* MOBILE RESPONSIVE TWEAKS */
+@media (max-width: 768px) {
+    #quick-menu button {
+        width: 50px;
+        height: 50px;
+        font-size: 24px;
+    }
+
+    #chat-container.active {
+        height: 50vh;
+    }
+
+    .modal {
+        min-width: 95%;
+        max-width: 95%;
+        padding: 10px;
+    }
+
+    #login-screen input, #login-screen select, #login-screen button {
+        padding: 12px;
+        font-size: 16px;
+    }
+}
+
+/* Portrait Warning */
+@media (orientation: portrait) {
+    body::after {
+        content: "Please rotate your device ⟳";
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: #000;
+        color: #f0c040;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-family: monospace;
+        z-index: 9999;
+        pointer-events: none;
+        opacity: 0.9;
+        font-size: 24px;
+    }
+}

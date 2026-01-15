@@ -60,10 +60,14 @@ export class GestureManager {
 
             let shouldStart = false;
 
-            if (isDesktop) {
-                if (isRightClick) shouldStart = true;
-            } else {
-                if (isRightSide) shouldStart = true;
+            if (isRightClick) {
+                shouldStart = true;
+            } else if (isRightSide) {
+                // Allow touch drawing on right side, or left-click drawing on mobile-detected devices
+                // pointerType 'touch' ensures we don't accidentally draw with mouse left-click on desktop
+                if (pointer.pointerType === 'touch' || !isDesktop) {
+                    shouldStart = true;
+                }
             }
             
             if (shouldStart) {
