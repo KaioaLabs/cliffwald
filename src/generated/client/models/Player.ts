@@ -37,6 +37,7 @@ export type PlayerAvgAggregateOutputType = {
   alignment: number | null
   academicPoints: number | null
   detentionWork: number | null
+  unconsciousUntil: number | null
   health: number | null
   maxHealth: number | null
 }
@@ -52,6 +53,7 @@ export type PlayerSumAggregateOutputType = {
   alignment: number | null
   academicPoints: number | null
   detentionWork: number | null
+  unconsciousUntil: bigint | null
   health: number | null
   maxHealth: number | null
 }
@@ -69,6 +71,7 @@ export type PlayerMinAggregateOutputType = {
   alignment: number | null
   academicPoints: number | null
   detentionWork: number | null
+  unconsciousUntil: bigint | null
   health: number | null
   maxHealth: number | null
 }
@@ -86,6 +89,7 @@ export type PlayerMaxAggregateOutputType = {
   alignment: number | null
   academicPoints: number | null
   detentionWork: number | null
+  unconsciousUntil: bigint | null
   health: number | null
   maxHealth: number | null
 }
@@ -103,6 +107,7 @@ export type PlayerCountAggregateOutputType = {
   alignment: number
   academicPoints: number
   detentionWork: number
+  unconsciousUntil: number
   health: number
   maxHealth: number
   _all: number
@@ -120,6 +125,7 @@ export type PlayerAvgAggregateInputType = {
   alignment?: true
   academicPoints?: true
   detentionWork?: true
+  unconsciousUntil?: true
   health?: true
   maxHealth?: true
 }
@@ -135,6 +141,7 @@ export type PlayerSumAggregateInputType = {
   alignment?: true
   academicPoints?: true
   detentionWork?: true
+  unconsciousUntil?: true
   health?: true
   maxHealth?: true
 }
@@ -152,6 +159,7 @@ export type PlayerMinAggregateInputType = {
   alignment?: true
   academicPoints?: true
   detentionWork?: true
+  unconsciousUntil?: true
   health?: true
   maxHealth?: true
 }
@@ -169,6 +177,7 @@ export type PlayerMaxAggregateInputType = {
   alignment?: true
   academicPoints?: true
   detentionWork?: true
+  unconsciousUntil?: true
   health?: true
   maxHealth?: true
 }
@@ -186,6 +195,7 @@ export type PlayerCountAggregateInputType = {
   alignment?: true
   academicPoints?: true
   detentionWork?: true
+  unconsciousUntil?: true
   health?: true
   maxHealth?: true
   _all?: true
@@ -290,6 +300,7 @@ export type PlayerGroupByOutputType = {
   alignment: number
   academicPoints: number
   detentionWork: number
+  unconsciousUntil: bigint
   health: number
   maxHealth: number
   _count: PlayerCountAggregateOutputType | null
@@ -330,6 +341,7 @@ export type PlayerWhereInput = {
   alignment?: Prisma.IntFilter<"Player"> | number
   academicPoints?: Prisma.IntFilter<"Player"> | number
   detentionWork?: Prisma.IntFilter<"Player"> | number
+  unconsciousUntil?: Prisma.BigIntFilter<"Player"> | bigint | number
   health?: Prisma.IntFilter<"Player"> | number
   maxHealth?: Prisma.IntFilter<"Player"> | number
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -349,6 +361,7 @@ export type PlayerOrderByWithRelationInput = {
   alignment?: Prisma.SortOrder
   academicPoints?: Prisma.SortOrder
   detentionWork?: Prisma.SortOrder
+  unconsciousUntil?: Prisma.SortOrder
   health?: Prisma.SortOrder
   maxHealth?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
@@ -371,6 +384,7 @@ export type PlayerWhereUniqueInput = Prisma.AtLeast<{
   alignment?: Prisma.IntFilter<"Player"> | number
   academicPoints?: Prisma.IntFilter<"Player"> | number
   detentionWork?: Prisma.IntFilter<"Player"> | number
+  unconsciousUntil?: Prisma.BigIntFilter<"Player"> | bigint | number
   health?: Prisma.IntFilter<"Player"> | number
   maxHealth?: Prisma.IntFilter<"Player"> | number
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -390,6 +404,7 @@ export type PlayerOrderByWithAggregationInput = {
   alignment?: Prisma.SortOrder
   academicPoints?: Prisma.SortOrder
   detentionWork?: Prisma.SortOrder
+  unconsciousUntil?: Prisma.SortOrder
   health?: Prisma.SortOrder
   maxHealth?: Prisma.SortOrder
   _count?: Prisma.PlayerCountOrderByAggregateInput
@@ -415,6 +430,7 @@ export type PlayerScalarWhereWithAggregatesInput = {
   alignment?: Prisma.IntWithAggregatesFilter<"Player"> | number
   academicPoints?: Prisma.IntWithAggregatesFilter<"Player"> | number
   detentionWork?: Prisma.IntWithAggregatesFilter<"Player"> | number
+  unconsciousUntil?: Prisma.BigIntWithAggregatesFilter<"Player"> | bigint | number
   health?: Prisma.IntWithAggregatesFilter<"Player"> | number
   maxHealth?: Prisma.IntWithAggregatesFilter<"Player"> | number
 }
@@ -430,6 +446,7 @@ export type PlayerCreateInput = {
   alignment?: number
   academicPoints?: number
   detentionWork?: number
+  unconsciousUntil?: bigint | number
   health?: number
   maxHealth?: number
   user: Prisma.UserCreateNestedOneWithoutPlayerInput
@@ -449,6 +466,7 @@ export type PlayerUncheckedCreateInput = {
   alignment?: number
   academicPoints?: number
   detentionWork?: number
+  unconsciousUntil?: bigint | number
   health?: number
   maxHealth?: number
   inventory?: Prisma.InventoryItemUncheckedCreateNestedManyWithoutPlayerInput
@@ -465,6 +483,7 @@ export type PlayerUpdateInput = {
   alignment?: Prisma.IntFieldUpdateOperationsInput | number
   academicPoints?: Prisma.IntFieldUpdateOperationsInput | number
   detentionWork?: Prisma.IntFieldUpdateOperationsInput | number
+  unconsciousUntil?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   health?: Prisma.IntFieldUpdateOperationsInput | number
   maxHealth?: Prisma.IntFieldUpdateOperationsInput | number
   user?: Prisma.UserUpdateOneRequiredWithoutPlayerNestedInput
@@ -484,6 +503,7 @@ export type PlayerUncheckedUpdateInput = {
   alignment?: Prisma.IntFieldUpdateOperationsInput | number
   academicPoints?: Prisma.IntFieldUpdateOperationsInput | number
   detentionWork?: Prisma.IntFieldUpdateOperationsInput | number
+  unconsciousUntil?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   health?: Prisma.IntFieldUpdateOperationsInput | number
   maxHealth?: Prisma.IntFieldUpdateOperationsInput | number
   inventory?: Prisma.InventoryItemUncheckedUpdateManyWithoutPlayerNestedInput
@@ -502,6 +522,7 @@ export type PlayerCreateManyInput = {
   alignment?: number
   academicPoints?: number
   detentionWork?: number
+  unconsciousUntil?: bigint | number
   health?: number
   maxHealth?: number
 }
@@ -517,6 +538,7 @@ export type PlayerUpdateManyMutationInput = {
   alignment?: Prisma.IntFieldUpdateOperationsInput | number
   academicPoints?: Prisma.IntFieldUpdateOperationsInput | number
   detentionWork?: Prisma.IntFieldUpdateOperationsInput | number
+  unconsciousUntil?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   health?: Prisma.IntFieldUpdateOperationsInput | number
   maxHealth?: Prisma.IntFieldUpdateOperationsInput | number
 }
@@ -534,6 +556,7 @@ export type PlayerUncheckedUpdateManyInput = {
   alignment?: Prisma.IntFieldUpdateOperationsInput | number
   academicPoints?: Prisma.IntFieldUpdateOperationsInput | number
   detentionWork?: Prisma.IntFieldUpdateOperationsInput | number
+  unconsciousUntil?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   health?: Prisma.IntFieldUpdateOperationsInput | number
   maxHealth?: Prisma.IntFieldUpdateOperationsInput | number
 }
@@ -556,6 +579,7 @@ export type PlayerCountOrderByAggregateInput = {
   alignment?: Prisma.SortOrder
   academicPoints?: Prisma.SortOrder
   detentionWork?: Prisma.SortOrder
+  unconsciousUntil?: Prisma.SortOrder
   health?: Prisma.SortOrder
   maxHealth?: Prisma.SortOrder
 }
@@ -571,6 +595,7 @@ export type PlayerAvgOrderByAggregateInput = {
   alignment?: Prisma.SortOrder
   academicPoints?: Prisma.SortOrder
   detentionWork?: Prisma.SortOrder
+  unconsciousUntil?: Prisma.SortOrder
   health?: Prisma.SortOrder
   maxHealth?: Prisma.SortOrder
 }
@@ -588,6 +613,7 @@ export type PlayerMaxOrderByAggregateInput = {
   alignment?: Prisma.SortOrder
   academicPoints?: Prisma.SortOrder
   detentionWork?: Prisma.SortOrder
+  unconsciousUntil?: Prisma.SortOrder
   health?: Prisma.SortOrder
   maxHealth?: Prisma.SortOrder
 }
@@ -605,6 +631,7 @@ export type PlayerMinOrderByAggregateInput = {
   alignment?: Prisma.SortOrder
   academicPoints?: Prisma.SortOrder
   detentionWork?: Prisma.SortOrder
+  unconsciousUntil?: Prisma.SortOrder
   health?: Prisma.SortOrder
   maxHealth?: Prisma.SortOrder
 }
@@ -620,6 +647,7 @@ export type PlayerSumOrderByAggregateInput = {
   alignment?: Prisma.SortOrder
   academicPoints?: Prisma.SortOrder
   detentionWork?: Prisma.SortOrder
+  unconsciousUntil?: Prisma.SortOrder
   health?: Prisma.SortOrder
   maxHealth?: Prisma.SortOrder
 }
@@ -669,6 +697,14 @@ export type FloatFieldUpdateOperationsInput = {
   divide?: number
 }
 
+export type BigIntFieldUpdateOperationsInput = {
+  set?: bigint | number
+  increment?: bigint | number
+  decrement?: bigint | number
+  multiply?: bigint | number
+  divide?: bigint | number
+}
+
 export type PlayerCreateNestedOneWithoutInventoryInput = {
   create?: Prisma.XOR<Prisma.PlayerCreateWithoutInventoryInput, Prisma.PlayerUncheckedCreateWithoutInventoryInput>
   connectOrCreate?: Prisma.PlayerCreateOrConnectWithoutInventoryInput
@@ -694,6 +730,7 @@ export type PlayerCreateWithoutUserInput = {
   alignment?: number
   academicPoints?: number
   detentionWork?: number
+  unconsciousUntil?: bigint | number
   health?: number
   maxHealth?: number
   inventory?: Prisma.InventoryItemCreateNestedManyWithoutPlayerInput
@@ -711,6 +748,7 @@ export type PlayerUncheckedCreateWithoutUserInput = {
   alignment?: number
   academicPoints?: number
   detentionWork?: number
+  unconsciousUntil?: bigint | number
   health?: number
   maxHealth?: number
   inventory?: Prisma.InventoryItemUncheckedCreateNestedManyWithoutPlayerInput
@@ -743,6 +781,7 @@ export type PlayerUpdateWithoutUserInput = {
   alignment?: Prisma.IntFieldUpdateOperationsInput | number
   academicPoints?: Prisma.IntFieldUpdateOperationsInput | number
   detentionWork?: Prisma.IntFieldUpdateOperationsInput | number
+  unconsciousUntil?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   health?: Prisma.IntFieldUpdateOperationsInput | number
   maxHealth?: Prisma.IntFieldUpdateOperationsInput | number
   inventory?: Prisma.InventoryItemUpdateManyWithoutPlayerNestedInput
@@ -760,6 +799,7 @@ export type PlayerUncheckedUpdateWithoutUserInput = {
   alignment?: Prisma.IntFieldUpdateOperationsInput | number
   academicPoints?: Prisma.IntFieldUpdateOperationsInput | number
   detentionWork?: Prisma.IntFieldUpdateOperationsInput | number
+  unconsciousUntil?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   health?: Prisma.IntFieldUpdateOperationsInput | number
   maxHealth?: Prisma.IntFieldUpdateOperationsInput | number
   inventory?: Prisma.InventoryItemUncheckedUpdateManyWithoutPlayerNestedInput
@@ -776,6 +816,7 @@ export type PlayerCreateWithoutInventoryInput = {
   alignment?: number
   academicPoints?: number
   detentionWork?: number
+  unconsciousUntil?: bigint | number
   health?: number
   maxHealth?: number
   user: Prisma.UserCreateNestedOneWithoutPlayerInput
@@ -794,6 +835,7 @@ export type PlayerUncheckedCreateWithoutInventoryInput = {
   alignment?: number
   academicPoints?: number
   detentionWork?: number
+  unconsciousUntil?: bigint | number
   health?: number
   maxHealth?: number
 }
@@ -825,6 +867,7 @@ export type PlayerUpdateWithoutInventoryInput = {
   alignment?: Prisma.IntFieldUpdateOperationsInput | number
   academicPoints?: Prisma.IntFieldUpdateOperationsInput | number
   detentionWork?: Prisma.IntFieldUpdateOperationsInput | number
+  unconsciousUntil?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   health?: Prisma.IntFieldUpdateOperationsInput | number
   maxHealth?: Prisma.IntFieldUpdateOperationsInput | number
   user?: Prisma.UserUpdateOneRequiredWithoutPlayerNestedInput
@@ -843,6 +886,7 @@ export type PlayerUncheckedUpdateWithoutInventoryInput = {
   alignment?: Prisma.IntFieldUpdateOperationsInput | number
   academicPoints?: Prisma.IntFieldUpdateOperationsInput | number
   detentionWork?: Prisma.IntFieldUpdateOperationsInput | number
+  unconsciousUntil?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   health?: Prisma.IntFieldUpdateOperationsInput | number
   maxHealth?: Prisma.IntFieldUpdateOperationsInput | number
 }
@@ -891,6 +935,7 @@ export type PlayerSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   alignment?: boolean
   academicPoints?: boolean
   detentionWork?: boolean
+  unconsciousUntil?: boolean
   health?: boolean
   maxHealth?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -911,6 +956,7 @@ export type PlayerSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extens
   alignment?: boolean
   academicPoints?: boolean
   detentionWork?: boolean
+  unconsciousUntil?: boolean
   health?: boolean
   maxHealth?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -929,6 +975,7 @@ export type PlayerSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extens
   alignment?: boolean
   academicPoints?: boolean
   detentionWork?: boolean
+  unconsciousUntil?: boolean
   health?: boolean
   maxHealth?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -947,11 +994,12 @@ export type PlayerSelectScalar = {
   alignment?: boolean
   academicPoints?: boolean
   detentionWork?: boolean
+  unconsciousUntil?: boolean
   health?: boolean
   maxHealth?: boolean
 }
 
-export type PlayerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "x" | "y" | "skin" | "house" | "prestige" | "gold" | "xp" | "alignment" | "academicPoints" | "detentionWork" | "health" | "maxHealth", ExtArgs["result"]["player"]>
+export type PlayerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "x" | "y" | "skin" | "house" | "prestige" | "gold" | "xp" | "alignment" | "academicPoints" | "detentionWork" | "unconsciousUntil" | "health" | "maxHealth", ExtArgs["result"]["player"]>
 export type PlayerInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   inventory?: boolean | Prisma.Player$inventoryArgs<ExtArgs>
@@ -983,6 +1031,7 @@ export type $PlayerPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs
     alignment: number
     academicPoints: number
     detentionWork: number
+    unconsciousUntil: bigint
     health: number
     maxHealth: number
   }, ExtArgs["result"]["player"]>
@@ -1422,6 +1471,7 @@ export interface PlayerFieldRefs {
   readonly alignment: Prisma.FieldRef<"Player", 'Int'>
   readonly academicPoints: Prisma.FieldRef<"Player", 'Int'>
   readonly detentionWork: Prisma.FieldRef<"Player", 'Int'>
+  readonly unconsciousUntil: Prisma.FieldRef<"Player", 'BigInt'>
   readonly health: Prisma.FieldRef<"Player", 'Int'>
   readonly maxHealth: Prisma.FieldRef<"Player", 'Int'>
 }

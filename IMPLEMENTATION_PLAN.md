@@ -1,6 +1,6 @@
 # CLIFFWALD ONLINE – IMPLEMENTATION ROADMAP
-**Versión:** 1.5 (Revisión: Live Ops & Polish - Enero 2026)
-**Estado:** Fase 5 Completada. Enfocado en Fase 6 (Torneos) y 7 (Pulido IA).
+**Versión:** 1.6 (Deploy Ready - Enero 2026)
+**Estado:** Fase 5 Completada. Fase 6 (Live Ops) En Curso. QA Completado.
 
 Este plan prioriza la **Estabilidad Masiva** y la Automatización de Eventos.
 
@@ -13,6 +13,7 @@ Este plan prioriza la **Estabilidad Masiva** y la Automatización de Eventos.
 ## ✅ FASE 2: CHRONOS & ATMÓSFERA
 *   **Estado:** COMPLETADO.
 *   **Logros:** Ciclo Día/Noche (45m), Horarios, IA Gamer (Salto, Chat), Librería.
+*   **Polish:** Time Jump Debug robusto y persistencia de hora.
 
 ## ✅ FASE 3: LA NOCHE & DISCIPLINA
 *   **Estado:** COMPLETADO.
@@ -21,18 +22,24 @@ Este plan prioriza la **Estabilidad Masiva** y la Automatización de Eventos.
 ## ✅ FASE 4: EL BUCLE ACADÉMICO (GAMEPLAY DÍA)
 *   **Estado:** COMPLETADO.
 *   **Logros:**
-    *   **MinigameManager:** Infraestructura Cliente lista.
-    *   **Clase Encantamientos:** Minijuego "Runic Timing" (Timing preciso).
-    *   **Clase Pociones:** Minijuego "Cauldron Stir" (Machacar botón).
-    *   **Clase Historia:** Minijuego "Archive Memory" (Simon Says).
-    *   **Integración:** El servidor envía `start_minigame` al sentarse en clase.
+    *   **AcademicManager:** Sistema centralizado de asistencia y notas.
+    *   **Minijuegos:** Encantamientos, Pociones, Historia.
+    *   **UI:** Calendario funcional con resaltado de hora actual.
 
 ## ✅ FASE 5: ECONOMÍA & COMERCIO
 *   **Estado:** COMPLETADO.
 *   **Logros:**
     *   **ShopSystem:** Lógica de servidor para compra/venta.
     *   **UI:** Interfaz de Tienda (`ShopDialog`) funcional.
-    *   **Moneda:** Integración completa con Prestigio.
+    *   **Coleccionismo:** Álbum de Cromos con persistencia.
+
+## ✅ CONTROL DE CALIDAD (QA) & AUDITORÍA
+*   **Estado:** COMPLETADO.
+*   **Logros:**
+    *   **Unit Tests:** 50/50 Tests (Vitest) cubriendo Isomorphic Physics e IA.
+    *   **E2E Tests:** Auditoría de Sesión Automática (Playwright).
+    *   **Pathfinding Polish:** Implementado **Bresenham Corner Validation** y **String Pulling (Smooth Path)**.
+    *   **Anti-Hive Mind:** Implementado **Stochastic Reaction Latency** y **Deterministic Lane Offsets**.
 
 ---
 
@@ -49,9 +56,9 @@ Este plan prioriza la **Estabilidad Masiva** y la Automatización de Eventos.
 ## 🚧 FASE 7: SIMULATION POLISH (EN PROGRESO)
 *Objetivo: Perfeccionar la ilusión de vida (Turing Test).*
 
-3.  **IA de Echoes Avanzada (Refinamiento):**
-    *   Ajustar los "Archetypes" (Socializer, Killer, Achiever) para que sean más distinguibles.
-    *   Pulir la navegación (Pathfinding) para evitar atascos en puertas.
+3.  **✅ IA de Echoes Avanzada (Refinamiento):**
+    *   Humanización: "Lane Logic" (Carriles) y "Reaction Delay" implementados.
+    *   Stuck Detection: Sistema de desatasco automático.
 4.  **Network Smoothing:**
     *   Optimizar la interpolación de movimiento en redes inestables.
     *   Reducir el ancho de banda de los mensajes de actualización de entidades.

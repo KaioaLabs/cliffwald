@@ -57,6 +57,11 @@ export type User = Prisma.UserModel
  */
 export type Player = Prisma.PlayerModel
 /**
+ * Model WorldState
+ * 
+ */
+export type WorldState = Prisma.WorldStateModel
+/**
  * Model InventoryItem
  * 
  */

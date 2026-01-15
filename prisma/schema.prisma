@@ -42,12 +42,29 @@ model Player {
   alignment      Int @default(0) // -100 (Dark) to +100 (Light)
   academicPoints Int @default(0) // PA (School Grades)
   detentionWork  Int @default(0) // Remaining punishment tasks
+  
+  // Persistence for Status Effects
+  unconsciousUntil BigInt @default(0) // Timestamp (ms) stored as BigInt
 
   // Future proofing for Phase 2
   health    Int      @default(100)
   maxHealth Int      @default(100)
 
   inventory InventoryItem[]
+}
+
+model WorldState {
+  id        Int     @id @default(1) // Singleton ID usually 1
+  
+  // House Cup
+  ignisPoints   Int @default(0)
+  axiomPoints   Int @default(0)
+  vesperPoints  Int @default(0)
+  
+  // Time Persistence (if offset from real time)
+  timeOffset    BigInt @default(0)
+  
+  lastSaved     DateTime @default(now())
 }
 
 model InventoryItem {

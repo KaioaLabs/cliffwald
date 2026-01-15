@@ -48,6 +48,10 @@ export class LevelRegistry {
         return this.data?.duelExits.get(id);
     }
 
+    public getAnchor(id: string): {x: number, y: number} | undefined {
+        return this.data?.anchors.get(id);
+    }
+
     // Helper for safe access
     public hasData(): boolean {
         return this.data !== null;

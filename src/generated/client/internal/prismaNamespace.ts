@@ -392,6 +392,7 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 export const ModelName = {
   User: 'User',
   Player: 'Player',
+  WorldState: 'WorldState',
   InventoryItem: 'InventoryItem'
 } as const
 
@@ -408,7 +409,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "player" | "inventoryItem"
+    modelProps: "user" | "player" | "worldState" | "inventoryItem"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -560,6 +561,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    WorldState: {
+      payload: Prisma.$WorldStatePayload<ExtArgs>
+      fields: Prisma.WorldStateFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.WorldStateFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WorldStatePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.WorldStateFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WorldStatePayload>
+        }
+        findFirst: {
+          args: Prisma.WorldStateFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WorldStatePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.WorldStateFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WorldStatePayload>
+        }
+        findMany: {
+          args: Prisma.WorldStateFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WorldStatePayload>[]
+        }
+        create: {
+          args: Prisma.WorldStateCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WorldStatePayload>
+        }
+        createMany: {
+          args: Prisma.WorldStateCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.WorldStateCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WorldStatePayload>[]
+        }
+        delete: {
+          args: Prisma.WorldStateDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WorldStatePayload>
+        }
+        update: {
+          args: Prisma.WorldStateUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WorldStatePayload>
+        }
+        deleteMany: {
+          args: Prisma.WorldStateDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.WorldStateUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.WorldStateUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WorldStatePayload>[]
+        }
+        upsert: {
+          args: Prisma.WorldStateUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WorldStatePayload>
+        }
+        aggregate: {
+          args: Prisma.WorldStateAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateWorldState>
+        }
+        groupBy: {
+          args: Prisma.WorldStateGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.WorldStateGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.WorldStateCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.WorldStateCountAggregateOutputType> | number
+        }
+      }
+    }
     InventoryItem: {
       payload: Prisma.$InventoryItemPayload<ExtArgs>
       fields: Prisma.InventoryItemFieldRefs
@@ -693,11 +768,24 @@ export const PlayerScalarFieldEnum = {
   alignment: 'alignment',
   academicPoints: 'academicPoints',
   detentionWork: 'detentionWork',
+  unconsciousUntil: 'unconsciousUntil',
   health: 'health',
   maxHealth: 'maxHealth'
 } as const
 
 export type PlayerScalarFieldEnum = (typeof PlayerScalarFieldEnum)[keyof typeof PlayerScalarFieldEnum]
+
+
+export const WorldStateScalarFieldEnum = {
+  id: 'id',
+  ignisPoints: 'ignisPoints',
+  axiomPoints: 'axiomPoints',
+  vesperPoints: 'vesperPoints',
+  timeOffset: 'timeOffset',
+  lastSaved: 'lastSaved'
+} as const
+
+export type WorldStateScalarFieldEnum = (typeof WorldStateScalarFieldEnum)[keyof typeof WorldStateScalarFieldEnum]
 
 
 export const InventoryItemScalarFieldEnum = {
@@ -750,6 +838,13 @@ export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel
  * Reference to a field of type 'Float'
  */
 export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
+    
+
+
+/**
+ * Reference to a field of type 'BigInt'
+ */
+export type BigIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'BigInt'>
     
 
 
@@ -848,6 +943,7 @@ export interface PrismaClientOptions {
 export type GlobalOmitConfig = {
   user?: Prisma.UserOmit
   player?: Prisma.PlayerOmit
+  worldState?: Prisma.WorldStateOmit
   inventoryItem?: Prisma.InventoryItemOmit
 }
 

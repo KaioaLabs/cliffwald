@@ -1,6 +1,6 @@
 # CLIFFWALD ONLINE – GAME DESIGN DOCUMENT (MASTER)
-**Versión:** 2.1 (Unificado "Codex Definitivo" - Enero 2026)
-**Estado:** Fase 5 Completada. Fase 6 (Live Ops) En Curso.
+**Versión:** 2.2 (Update: AI Polish & Deploy Ready - Enero 2026)
+**Estado:** Fase 5 Completada. Fase 6 (Live Ops) En Curso. QA Completado.
 
 ---
 
@@ -18,20 +18,27 @@
 
 ### Stack Tecnológico
 *   **Cliente:** Phaser 3 (Rendering Isométrico) + TypeScript.
-*   **Servidor:** Node.js + Colyseus (Estado Autoritativo).
-*   **Física:** Rapier2D (Determinista, compartida Cliente/Servidor).
-*   **Base de Datos:** PostgreSQL (Supabase) via Prisma ORM.
+*   **Servidor:** Node.js + Colyseus (Stateful Authoritative Server).
+*   **Física:** Rapier2D (Isomorphic Deterministic Physics Engine).
+*   **Red:** Client-Side Prediction con Server Reconciliation.
+*   **Base de Datos:** Estrategia Dual. SQLite (Dev) y PostgreSQL (Prod) via Prisma ORM.
 *   **Protocolo:** WebSockets (State Sync + Delta Compression).
+
+### Protocolos de Calidad (QA)
+*   **Unit Testing:** Vitest (50+ tests cubriendo Física, IA y Lógica).
+*   **E2E Audits:** Playwright (Simulación de sesiones completas: Login -> Jugar -> Persistir).
+*   **Debug Dashboard:** Panel Tweakpane integrado para manipulación en tiempo real (Time Jump, Noclip).
 
 ---
 
 ## 3. SISTEMA DE TIEMPO: "LOS DOS EJES"
 
-### 3.1. Eje 1: El Reloj Atmosférico (Ritmo de Sesión)
+### 3.1. El Reloj Atmosférico (Ritmo de Sesión)
 Controla el bucle inmediato, la iluminación y la rutina diaria.
 *   **Ciclo Total:** 45 Minutos Reales.
 *   **Día (30 Min):** Clases, Socialización, Zonas Seguras.
-*   **Noche (15 Min):** Toque de Queda (Curfew). Los Prefectos patrullan. PvPvE habilitado fuera de los dormitorios.
+*   **Noche (15 Min):** Toque de Queda (Curfew). Los Prefectos patrullan. PvPvE habilitado.
+*   **Time Jump Debug:** Sistema robusto para saltar a cualquier hora. Los NPCs **caminan** hacia sus nuevas rutinas (no se teletransportan) para verificar la integridad del pathfinding.
 
 ### 3.2. Horario de Actividades (Rutina)
 Las actividades ocurren en **Ventanas de Oportunidad**. Asistir habilita la tarea, pero no regala el progreso.
@@ -48,10 +55,9 @@ Las actividades ocurren en **Ventanas de Oportunidad**. Asistir habilita la tare
 | **21:00** | Toque de Queda | Dormitorios | **Zona PvPvE Activa**. |
 | **Noche** | Historia | Biblioteca | Minijuego "Archive Memory" (Memoria). |
 
-### 3.3. Eje 2: El Calendario Cíclico
-*   **Regla de Oro:** 1 Ciclo Solar (45 min) = **1 Día de Calendario**.
-*   **Semana Académica:** Lunes a Domingo = 5h 15m reales.
-*   **Temporada:** 8 Semanas Reales = 1 Curso Completo.
+### 3.3. Interfaz de Usuario (HUD)
+*   **Calendario:** Panel interactivo que resalta la hora y día actual ("NOW").
+*   **Reloj:** Visualización digital HH:MM sincronizada con el servidor.
 
 ---
 
@@ -63,11 +69,16 @@ Las actividades ocurren en **Ventanas de Oportunidad**. Asistir habilita la tare
 *   **El Eco:** Al desconectarse, el personaje no desaparece. Se convierte en un NPC ("Echo") que mantiene el nombre, apariencia, inventario, Oro y Prestigio del jugador.
 
 ### 4.2. Inteligencia Artificial (Vida Escolar)
-Los Ecos siguen una rutina basada en la tabla de horarios y su **Arquetipo** (asignado al nacer/crear):
-*   **Socializer:** Busca grupos en el Patio para chatear.
-*   **Killer:** Busca duelos en el Tatami.
-*   **Achiever:** Va a clase temprano y estudia en la biblioteca.
-*   **Explorer:** Deambula por el bosque o zonas ocultas.
+Implementación avanzada de comportamiento humano ("Anti-Hive Mind"):
+*   **Stochastic Reaction Latency:** Al cambiar la hora (campana), los alumnos aplican un retardo aleatorio (0.5s - 3.0s) para evitar ráfagas de sincronización masiva.
+*   **Deterministic Lane Offsets:** Los NPCs eligen carriles paralelos basados en su ID para evitar el "Tube Effect" en pasillos.
+*   **Steering Separation:** Micro-fuerzas de repulsión física para evitar la superposición de sprites en movimiento.
+*   **Stuck Detection & Recovery:** Sistema de monitoreo de delta de movimiento; si es < 2px/2s, fuerza el repathfinding y un "Jiggle" estocástico.
+*   **Arquetipos Vivos:**
+    *   **Socializer:** State Machine con estados de pausa AFK simulada y broadcast de chat procedural.
+    *   **Killer:** Agente reactivo con targeting aleatorio y casteo de hechizos para entrenamiento.
+    *   **Achiever:** Heurística de prioridad alta para asistencia a clase.
+    *   **Explorer:** Patrones de deambulación Browniana en zonas perimetrales.
 
 ---
 
@@ -87,25 +98,28 @@ El combate se rige por una jerarquía estricta para evitar el "spam" sin sentido
 3.  **Cuadrado (Área)** vence a **Círculo (Escudo)**.
 
 ### 5.3. Duelos y Reglas
-*   **Zona de Duelo:** El combate está restringido a zonas específicas (Tatami) o durante la Noche.
-*   **Condición de Victoria:** 3 Impactos o Ring Out (Empujón fuera de la zona).
+*   **Zona de Duelo:** 4 Anillos en el Tatami. Detectan participantes y árbitros automáticamente.
+*   **Condición de Victoria:** 3 Impactos o Ring Out.
 *   **Consecuencias:** El perdedor queda aturdido (Knockout) temporalmente.
 
 ---
 
-## 6. ECONOMÍA Y PRESTIGIO (VERSION 1.4)
+## 6. PROGRESO ACADÉMICO Y ECONOMÍA
 
-### 6.1. El Oro (Moneda Comercial) 💰
-*   **Uso:** Comprar pociones, comida y cosméticos.
-*   **Tienda:** No existe menú global. Solo se puede comerciar interactuando con **NPCs Vendedores** específicos.
-*   **Fuente:** Salario por completar Clases (Grado S = 100 Oro) o misiones.
+### 6.1. AcademicManager
+Sistema centralizado que gestiona la asistencia y calificación.
+*   **Detección:** Valida si el jugador está sentado en su pupitre asignado.
+*   **Anti-Cheat:** Verifica la duración de la sesión de clase.
+*   **Recompensas:** Otorga XP, Oro y Prestigio basado en el rendimiento (Grado S, A, B).
 
-### 6.2. El Prestigio (Honor de Casa) 💎
-*   **Concepto:** Fama personal y Puntos de Casa simultáneamente.
-*   **Acumulación:** 
-    *   **Personal:** Se guarda en tu perfil. Nunca se pierde por inactividad.
-    *   **Casa:** La suma del Prestigio de todos los miembros (Jugadores + Ecos) determina la Copa de las Casas.
-*   **Anti-Sabotaje:** Un jugador "troll" no puede restar más puntos a su casa de los que él mismo ha aportado.
+### 6.2. Coleccionismo (Álbum de Cromos)
+*   **Mecánica:** Cartas coleccionables de Magos Famosos, Criaturas y Lugares.
+*   **UI:** Interfaz de Álbum con filtrado por rareza (Mythic, Legendary, Rare, Common) e indicador de posesión visual.
+*   **Persistencia:** La colección se guarda en base de datos.
+
+### 6.3. Economía
+*   **Oro:** Moneda transaccional.
+*   **Prestigio:** Moneda social/competitiva.
 
 ---
 
@@ -113,36 +127,17 @@ El combate se rige por una jerarquía estricta para evitar el "spam" sin sentido
 
 ### 7.1. Prefectos (NPCs de Élite)
 *   **Rol:** Guardias nocturnos.
-*   **Mecánica:** Patrullan rutas clave. Tienen un cono de visión (Line of Sight). Si te ven de noche, te persiguen.
-*   **Captura:** Contacto físico = Teletransporte a la Mazmorra.
+*   **Spawn:** Aparecen instantáneamente a las 22:00 y desaparecen a las 05:00.
+*   **Mecánica:** Patrullan rutas clave. Tienen un cono de visión (Line of Sight).
 
 ### 7.2. Detención (La Mazmorra)
 *   **Castigo:** Zona aislada sin salida física.
 *   **Salida:** Debes completar **5 Tareas de Mantenimiento** (limpiar, ordenar) para abrir la puerta mágica.
-*   **Anti-AFK:** El tiempo no baja solo; requiere interacción activa.
-
----
-
-## 8. NARRATIVA PROFUNDA (SISTEMA FABLE)
-
-### 8.1. Las Voces Susurrantes
-Mecánica de alineación moral donde el jugador se debate entre dos fuerzas opuestas.
-*   **La Dualidad (Ángel y Demonio):** El jugador escucha susurros de dos entidades:
-    *   **El Director (Luz/Orden):** Representa el deber y la rectitud.
-    *   **Su Hermano (Sombra/Caos):** Representa la rebeldía y el poder personal.
-*   **Mecánica de Elección:** Se ofrecerán misiones contradictorias simultáneamente. El jugador debe elegir explícitamente cuál de las dos realizar.
-*   **Puntos de Alineación:** Independientes de la Casa. Determinan tu final en la temporada.
-
-### 8.2. El Clímax: Duelo Final
-Al final de la Semana 4 de la temporada:
-1.  **Revelación de los Gemelos:** El sistema anuncia al Top #1 Luz y Top #1 Sombra.
-2.  **El Duelo:** Combate a muerte permanente (del avatar estacional) en el Patio Central. Todo el servidor observa.
-3.  **Estado del Mundo:** La victoria otorga bonificaciones globales para el siguiente mes.
 
 ---
 
 ## 10. HOJA DE RUTA (ESTADO ACTUAL)
 *   **Fase 0-5:** COMPLETADAS (Motor, Física, Magia, Tiempo, Disciplina, Minijuegos, Economía).
-*   **Fase 6 (En Progreso):** Live Ops (Torneos Automáticos y Reset de Temporada).
-*   **Fase 7:** Simulation Polish (IA Turing-Test).
+*   **Fase 6 (En Progreso):** Live Ops (Torneos Automáticos).
+*   **Fase 7:** Simulation Polish (IA Humanizada COMPLETADA).
 *   **Fase 8 (Futuro):** Implementación técnica de "Las Voces Susurrantes".

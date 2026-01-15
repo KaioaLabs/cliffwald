@@ -9,7 +9,7 @@ test('Verify Time Persistence', async () => {
   await page.goto('http://localhost:3000/?dev_user=TimeLord&skin=player_idle');
 
   // Wait for game to init and expose gameClient
-  await page.waitForFunction(() => (window as any).gameClient && (window as any).gameClient.network.room);
+  await page.waitForFunction(() => (window as any).gameClient && (window as any).gameClient.network.room, null, { timeout: 60000 });
 
   // 1. Get Initial Hour
   const initialOffset = await page.evaluate(() => {

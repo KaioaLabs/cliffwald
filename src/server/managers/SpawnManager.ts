@@ -19,6 +19,7 @@ export interface CharacterSpawnData {
     gold?: number;
     xp?: number;
     academicPoints?: number;
+    unconsciousUntil?: number;
     inventory?: InventoryItem[];
     // AI Config
     isAI: boolean;
@@ -120,6 +121,7 @@ export class SpawnManager {
         playerState.gold = data.gold || 0;
         playerState.xp = data.xp || 0;
         playerState.academicPoints = data.academicPoints || 0;
+        playerState.unconsciousUntil = data.unconsciousUntil || 0;
         
         if (data.inventory) {
              data.inventory.forEach(item => playerState.inventory.push(item));
@@ -170,6 +172,7 @@ export class SpawnManager {
             gold: playerData.gold,
             xp: playerData.xp,
             academicPoints: playerData.academicPoints,
+            unconsciousUntil: playerData.unconsciousUntil,
             inventory: playerData.inventory,
             isAI: false,
             routineSpots: routineSpots,

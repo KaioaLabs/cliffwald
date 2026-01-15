@@ -61,7 +61,8 @@ export interface LogicData {
     duelZones: DuelZone[];
     infirmaryBeds: {x: number, y: number}[];
     infirmaryExit: {x: number, y: number} | null;
-    duelExits: Map<number, {x: number, y: number}>; 
+    duelExits: Map<number, {x: number, y: number}>;
+    anchors: Map<string, {x: number, y: number}>;
 }
 
 // --- Helper Functions ---
@@ -129,10 +130,22 @@ export function parseLogic(map: MapData): LogicData {
         duelZones: [],
         infirmaryBeds: [],
         infirmaryExit: null,
-        duelExits: new Map()
+        duelExits: new Map(),
+        anchors: new Map()
     };
 
     const objects = getObjects(map, "Logic");
+    const seatObjects = getObjects(map, "FixedSeats");
+
+    seatObjects.forEach(obj => {
+        const studentId = getProperty(obj, 'studentId');
+        if (studentId !== undefined) {
+            // Map studentId to generic keys
+            if (obj.type === 'bed') logicData.anchors.set(`seat_bed_${studentId}`, { x: obj.x, y: obj.y });
+            else if (obj.type === 'seat_class') logicData.anchors.set(`seat_class_${studentId}`, { x: obj.x, y: obj.y });
+            else if (obj.type === 'seat_food') logicData.anchors.set(`seat_food_${studentId}`, { x: obj.x, y: obj.y });
+        }
+    });
     
     objects.forEach(obj => {
         // Tiled Points have x,y at the point.

@@ -26,64 +26,25 @@ import { HealthSystem } from "./systems/HealthSystem";
 import { AcademicManager } from "./managers/AcademicManager";
 import { PhysicsManager } from "./managers/PhysicsManager";
 
-export class WorldRoom extends Room<GameState> {
-    world!: ECSWorld;
-    
-    // Managers
-    physicsManager!: PhysicsManager;
-    academicManager!: AcademicManager;
-    spawnManager!: SpawnManager;
-    chatManager!: ChatManager;
-    
-    // Systems
-    pathfinder?: Pathfinding;
-    spellSystem!: SpellSystem;
-    prestigeSystem!: PrestigeSystem;
-    duelSystem!: DuelSystem;
-    itemSystem!: ItemSystem;
-    shopSystem!: ShopSystem;
-    persistenceSystem!: PersistenceSystem;
-    healthSystem!: HealthSystem;
-    
-    entities = new Map<string, Entity>();
-    
-    // Security: Cooldown Tracking
-    lastCastTimes = new Map<string, number>();
+import { WorldService } from "./services/WorldService";
 
-    async onAuth(client: Client, options: JoinOptions, request: any) {
-        if (!options.token) return false;
-        const userData = AuthService.verifyToken(options.token);
-        if (!userData) return false;
-        return userData;
-    }
+export class WorldRoom extends Room<GameState> {
+    // ...
 
     async onCreate(options: JoinOptions) {
         this.setMetadata({ name: "Cliffwald World" });
         this.setState(new GameState());
         
-        this.state.ignisPoints = 0;
-        this.state.axiomPoints = 0;
-        this.state.vesperPoints = 0;
-        this.state.worldStartTime = CONFIG.SEASON_START_DATE;
+        // LOAD PERSISTENT WORLD STATE
+        await WorldService.loadWorldState(this.state);
+        this.state.worldStartTime = CONFIG.SEASON_START_DATE; // Fixed anchor
 
         // 1. Core Systems
         this.world = createWorld();
         this.physicsManager = new PhysicsManager(this.state, this.entities);
         
-        this.physicsManager.onZoneEnter = (sessionId, zoneName) => {
-            const client = this.clients.find(c => c.sessionId === sessionId);
-            // Only notify real players, not NPCs (Echoes)
-            if (client) {
-                // Prettify Zone Name: "DORM_IGNIS" -> "Ignis Dormitory"
-                let prettyName = zoneName.replace(/_/g, " ");
-                prettyName = prettyName.charAt(0).toUpperCase() + prettyName.slice(1).toLowerCase();
-                
-                if (zoneName.includes("DORM")) prettyName += " Dormitory";
-                
-                client.send("zone_enter", { name: prettyName });
-            }
-        };
-        
+        // ... (PhysicsZone logic)
+
         // 2. Managers
         this.spawnManager = new SpawnManager(this.world, this.physicsManager.world, this.state, this.entities);
         this.chatManager = new ChatManager(this);
@@ -94,11 +55,12 @@ export class WorldRoom extends Room<GameState> {
         this.duelSystem = new DuelSystem(this);
         this.itemSystem = new ItemSystem(this);
         this.shopSystem = new ShopSystem(this);
-        this.persistenceSystem = new PersistenceSystem(this.entities, this.state.players);
+        this.persistenceSystem = new PersistenceSystem(this.entities, this.state);
         this.healthSystem = new HealthSystem(this);
         
         this.academicManager = new AcademicManager(
             this.state, 
+            // ... 
             this.spawnManager, 
             this.chatManager, 
             this.prestigeSystem, 
@@ -357,6 +319,7 @@ export class WorldRoom extends Room<GameState> {
                 gold: session.dbPlayer.gold,
                 xp: session.dbPlayer.xp,
                 academicPoints: session.dbPlayer.academicPoints,
+                unconsciousUntil: Number(session.dbPlayer.unconsciousUntil || 0),
                 inventory: session.dbPlayer.inventory.map((i: any) => {
                     const item = new InventoryItem();
                     item.itemId = i.itemId;

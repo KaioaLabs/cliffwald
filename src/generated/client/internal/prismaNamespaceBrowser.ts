@@ -51,6 +51,7 @@ export const AnyNull = runtime.objectEnumValues.instances.AnyNull
 export const ModelName = {
   User: 'User',
   Player: 'Player',
+  WorldState: 'WorldState',
   InventoryItem: 'InventoryItem'
 } as const
 
@@ -90,11 +91,24 @@ export const PlayerScalarFieldEnum = {
   alignment: 'alignment',
   academicPoints: 'academicPoints',
   detentionWork: 'detentionWork',
+  unconsciousUntil: 'unconsciousUntil',
   health: 'health',
   maxHealth: 'maxHealth'
 } as const
 
 export type PlayerScalarFieldEnum = (typeof PlayerScalarFieldEnum)[keyof typeof PlayerScalarFieldEnum]
+
+
+export const WorldStateScalarFieldEnum = {
+  id: 'id',
+  ignisPoints: 'ignisPoints',
+  axiomPoints: 'axiomPoints',
+  vesperPoints: 'vesperPoints',
+  timeOffset: 'timeOffset',
+  lastSaved: 'lastSaved'
+} as const
+
+export type WorldStateScalarFieldEnum = (typeof WorldStateScalarFieldEnum)[keyof typeof WorldStateScalarFieldEnum]
 
 
 export const InventoryItemScalarFieldEnum = {

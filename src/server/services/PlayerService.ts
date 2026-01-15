@@ -70,7 +70,8 @@ export class PlayerService {
                         // For now, let's assume they are on the playerState object (we will ensure this in WorldRoom)
                         alignment: (playerState as any).alignment || 0,
                         academicPoints: (playerState as any).academicPoints || 0,
-                        detentionWork: (playerState as any).detentionWork || 0
+                        detentionWork: (playerState as any).detentionWork || 0,
+                        unconsciousUntil: BigInt((playerState as any).unconsciousUntil || 0)
                     }
                 });
 

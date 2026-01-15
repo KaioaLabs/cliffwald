@@ -10,5 +10,6 @@
  */
 export type * from './models/User'
 export type * from './models/Player'
+export type * from './models/WorldState'
 export type * from './models/InventoryItem'
 export type * from './commonInputTypes'
