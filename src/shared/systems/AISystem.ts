@@ -67,15 +67,8 @@ export const AISystem = (
             case 'attending_class':
                 // Echo stays put. 
                 input.analogDir = { x: 0, y: 0 };
-                
-                // Check if class is over based on schedule
-                const schedule = CONFIG.ACADEMIC_SCHEDULE.find((e: any) => currentHour >= e.start && currentHour < e.end);
-                const isClassNow = schedule?.activity === 'class';
-                
-                if (!isClassNow) {
-                    // Class Over -> Break "Hive Mind" with random delay
-                    // Assign a random reaction delay (0.5s to 3.0s) before moving
-                    ai.reactionDelay = ai.timer + (500 + Math.random() * 2500); 
+                // Class end logic
+                if (ai.timer > CONFIG.CLASS_DURATION_MS) {
                     ai.state = 'idle';
                     ai.timer = 0;
                 }

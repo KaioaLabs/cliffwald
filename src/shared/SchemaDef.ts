@@ -18,6 +18,7 @@ export class Player extends Schema {
     @type("number") gold: number = 0;
     @type("number") xp: number = 0; // Global Experience (Classes + Alignment)
     @type("number") academicPoints: number = 0; // PA (School Grades)
+    @type("number") alignment: number = 0; // -100 to 100
 
     // Duel Stats
     @type("number") duelScore: number = 0;

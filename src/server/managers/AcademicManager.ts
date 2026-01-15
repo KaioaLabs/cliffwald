@@ -112,7 +112,7 @@ export class AcademicManager {
     private startClass(sessionId: string, playerState: any) {
         console.log(`[CLASS] Player ${playerState.username} sat at desk. Starting Class...`);
         playerState.isAttendingClass = true;
-        playerState.classEndsAt = Date.now() + 180000; // 3 Minutes
+        playerState.classEndsAt = Date.now() + CONFIG.CLASS_DURATION_MS;
         
         // Find client (hacky, ideally passed or event emitted)
         // Since we don't have access to Room.clients here easily without passing it,
@@ -150,7 +150,7 @@ export class AcademicManager {
                     // Visual Sync
                     if (!playerState.isAttendingClass) {
                         playerState.isAttendingClass = true;
-                        playerState.classEndsAt = now + 180000; 
+                        playerState.classEndsAt = now + CONFIG.CLASS_DURATION_MS; 
                     }
             }
         }

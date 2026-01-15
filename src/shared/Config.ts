@@ -60,6 +60,7 @@ export const CONFIG = {
     CYCLES_PER_DAY: 1, // 1 Cycle = 1 Calendar Day
     DAYS_PER_WEEK: 7,
     WEEKS_PER_COURSE: 8, // 8 Real Weeks = 1 Course
+    CLASS_DURATION_MS: 180000, // 3 Minutes
 
     // Prefect Logic
     PREFECT_VISION_RADIUS: 150, // px

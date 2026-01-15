@@ -45,6 +45,9 @@ model Player {
   
   // Persistence for Status Effects
   unconsciousUntil BigInt @default(0) // Timestamp (ms) stored as BigInt
+  
+  // Body Claiming Persistence
+  echoId    String? @unique // The ID of the Echo this player possesses (e.g. "student_ignis_1")
 
   // Future proofing for Phase 2
   health    Int      @default(100)

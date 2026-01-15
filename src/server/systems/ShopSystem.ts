@@ -24,13 +24,15 @@ export class ShopSystem {
         const dx = pos.x - vendorLocation.x;
         const dy = pos.y - vendorLocation.y;
         if (dx*dx + dy*dy > 250000) { // 500px radius (generous for the Hall)
-            this.room.send(this.room.clients.getById(sessionId)!, "notification", "You are too far from the School Shop!");
+            const client = this.room.clients.find(c => c.sessionId === sessionId);
+            if (client) client.send("notification", "You are too far from the School Shop!");
             return;
         }
 
         const itemDef = ITEM_REGISTRY[itemId];
         if (!itemDef) {
-            this.room.send(this.room.clients.getById(sessionId)!, "notification", "Item not found.");
+            const client = this.room.clients.find(c => c.sessionId === sessionId);
+            if (client) client.send("notification", "Item not found.");
             return;
         }
 
@@ -41,7 +43,8 @@ export class ShopSystem {
 
         // 3. Check Funds
         if (player.gold < price) {
-            this.room.send(this.room.clients.getById(sessionId)!, "notification", `Not enough Gold! Need ${price}.`);
+            const client = this.room.clients.find(c => c.sessionId === sessionId);
+            if (client) client.send("notification", `Not enough Gold! Need ${price}.`);
             return;
         }
 
@@ -64,7 +67,8 @@ export class ShopSystem {
             player.inventory.push(invItem);
         }
 
-        this.room.send(this.room.clients.getById(sessionId)!, "notification", `Bought ${itemDef.Name} for ${price} Gold.`);
+        const client = this.room.clients.find(c => c.sessionId === sessionId);
+        if (client) client.send("notification", `Bought ${itemDef.Name} for ${price} Gold.`);
         console.log(`[SHOP] ${player.username} bought ${itemId} for ${price}`);
     }
 
