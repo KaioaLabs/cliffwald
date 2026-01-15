@@ -72,7 +72,8 @@ export class UIManager {
         this.chatInput = document.getElementById('chat-input') as HTMLInputElement;
         this.btnAudio = document.getElementById('btn-audio') as HTMLElement;
         
-        this.albumModal = document.getElementById('album-modal') as HTMLElement;
+        // Changed to Overlay
+        this.albumModal = document.getElementById('album-overlay') as HTMLElement;
         this.timetableModal = document.getElementById('timetable-modal') as HTMLElement;
         this.loreModal = document.getElementById('card-lore-modal') as HTMLElement;
         this.inventoryModal = document.getElementById('inventory-modal') as HTMLElement;
@@ -143,6 +144,50 @@ export class UIManager {
             }
         });
 
+        // Album Overlay Click (Close on click outside)
+        if (this.albumModal) {
+            this.addListener(this.albumModal, 'click', (e: any) => {
+                // If the click target is the overlay itself (not the inner modal)
+                if (e.target === this.albumModal) {
+                    this.albumModal.classList.add('hidden');
+                }
+            });
+        }
+        
+        // Album Explicit Close Button
+        const btnAlbumCloseMain = document.getElementById('btn-album-close-main');
+        this.addListener(btnAlbumCloseMain, 'click', (e: any) => {
+             e.stopPropagation();
+             this.albumModal?.classList.add('hidden');
+        });
+
+        // Album Tabs
+        const albumTabs = document.querySelectorAll('.album-tab');
+        albumTabs.forEach(tab => {
+            this.addListener(tab, 'click', (e: any) => {
+                e.stopPropagation();
+                // Update UI state
+                albumTabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                // Update Logic
+                this.currentAlbumTab = (tab as HTMLElement).dataset.category || 'wizards';
+                
+                // Re-render
+                // Need access to ownedIds here.
+                // We'll fetch fresh from network state
+                const ownedIds: number[] = [];
+                const localSessionId = this.network.room?.sessionId;
+                if (localSessionId) {
+                    const localPlayer = this.network.room?.state.players.get(localSessionId);
+                    if (localPlayer && localPlayer.cardCollection) {
+                        localPlayer.cardCollection.forEach((cardId: number) => ownedIds.push(cardId));
+                    }
+                }
+                this.renderAlbum(ownedIds);
+            });
+        });
+
         // --- Timetable ---
         const btnTimetable = document.getElementById('btn-timetable');
         this.addListener(btnTimetable, 'click', (e: any) => { 
@@ -180,7 +225,15 @@ export class UIManager {
         document.querySelectorAll('.close-btn').forEach(btn => {
             this.addListener(btn, 'click', (e: any) => {
                 e.stopPropagation();
-                (e.target as HTMLElement).closest('.modal')?.classList.add('hidden');
+                const modal = (e.target as HTMLElement).closest('.modal');
+                if (modal) {
+                    const overlay = modal.closest('.modal-overlay');
+                    if (overlay) {
+                        overlay.classList.add('hidden');
+                    } else {
+                        modal.classList.add('hidden');
+                    }
+                }
             });
         });
 
@@ -228,6 +281,7 @@ export class UIManager {
     }
 
     private calendarView: 'week' | 'month' = 'week';
+    private currentAlbumTab: string = 'wizards'; // Default tab
 
     public renderInventory() {
         const grid = document.getElementById('inventory-grid');
@@ -364,6 +418,7 @@ export class UIManager {
         
         for (let h = startHour; h <= endHour; h++) {
             const tr = document.createElement('tr');
+            tr.setAttribute('data-hour', h.toString());
             
             // Time Col
             const tdTime = document.createElement('td');
@@ -513,11 +568,30 @@ export class UIManager {
         const clockDisplay = document.getElementById('clock-display');
         if (clockDisplay) clockDisplay.innerText = `${gameHour.toString().padStart(2, '0')}:00`;
 
-        // Highlight current hour in Week View
+        // Reset previous highlights
+        document.querySelectorAll('.current-hour-row').forEach(el => el.classList.remove('current-hour-row'));
+        document.querySelectorAll('.current-day-cell').forEach(el => el.classList.remove('current-day-cell'));
+
         if (this.calendarView === 'week') {
-            // Logic to highlight current row?
-            // Simple: just highlight text color or border
-            // Not critical for functionality
+            const hourInt = Math.floor(gameHour);
+            // Rows are startHour (6) to endHour (22). 
+            // We can find the row by index or data-hour
+            const row = document.querySelector(`tr[data-hour="${hourInt}"]`);
+            if (row) {
+                row.classList.add('current-hour-row');
+                
+                const state = this.network.room?.state;
+                if (state) {
+                    const day = state.currentDay || 1; 
+                    const dayOfWeek = (day - 1) % 7; // 0=Mon, 6=Sun
+                    const cells = row.querySelectorAll('td');
+                    // cells[0] is time, cells[1..7] are Mon..Sun
+                    const targetCell = cells[dayOfWeek + 1];
+                    if (targetCell) {
+                        targetCell.classList.add('current-day-cell');
+                    }
+                }
+            }
         }
     }
 
@@ -529,38 +603,123 @@ export class UIManager {
         if (!grid) return;
 
         grid.innerHTML = '';
+        // Change grid display to flex column for rows
+        grid.style.display = 'flex';
+        grid.style.flexDirection = 'column';
+        grid.style.alignItems = 'center';
+        grid.style.paddingTop = '20px';
+
         const allCards = GET_ALL_CARDS();
-
-        allCards.forEach((cardData) => {
-            const numericId = parseInt(cardData.ID.split('_')[1]);
-            const isOwned = ownedCardIds.includes(numericId);
-            const slot = document.createElement('div');
-            
-            // Rarity Frame Class
-            const rarityClass = `frame-${cardData.Rarity.toLowerCase()}`;
-            
-            slot.className = `card-slot ${isOwned ? 'owned' : 'locked'}`;
-            slot.setAttribute('data-name', isOwned ? cardData.Name : "???");
-            
-            // Layered Visuals
-            // We assume assets are at /ui/cards/card_X.png based on ID
-            slot.innerHTML = `
-                <img src="/ui/cards/${cardData.ID}.png" class="card-art" onerror="this.style.display='none'">
-                <div class="card-frame ${rarityClass}"></div>
-            `;
-            
-            if (isOwned) {
-                slot.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.openCardLore(cardData.ID);
-                });
-            }
-
-            grid.appendChild(slot);
+        
+        // 1. Filter by Category
+        const categoryCards = allCards.filter(card => {
+            const category = this.getCardCategory(card.ID);
+            return category === this.currentAlbumTab;
         });
 
-        if (countDisplay) countDisplay.innerText = `${ownedCardIds.length}/${allCards.length}`;
+        if (categoryCards.length === 0) {
+            grid.innerHTML = `<div style="color:#666; width:100%; text-align:center; margin-top:50px;">No cards in this section yet.</div>`;
+            return;
+        }
+
+        // 2. Buckets by Rarity
+        const tiers: Record<string, any[]> = {
+            'mythic': [],
+            'legendary': [],
+            'rare': [],
+            'common': []
+        };
+
+        categoryCards.forEach(card => {
+            const r = card.Rarity.toLowerCase();
+            if (tiers[r]) tiers[r].push(card);
+            else tiers['common'].push(card); // Fallback
+        });
+
+        // 3. Render Rows (Top to Bottom)
+        const renderRow = (cards: any[]) => {
+            if (cards.length === 0) return;
+            
+            const row = document.createElement('div');
+            row.className = 'album-tier-row';
+            
+            cards.forEach(cardData => {
+                let numericId = -1;
+                const parts = cardData.ID.split('_');
+                if (parts.length > 1 && !isNaN(parseInt(parts[1]))) {
+                    numericId = parseInt(parts[1]);
+                }
+                
+                const isOwned = (numericId !== -1 && ownedCardIds.includes(numericId));
+                
+                const slot = document.createElement('div');
+                const rarityClass = `frame-${cardData.Rarity.toLowerCase()}`;
+                
+                slot.className = `card-slot ${isOwned ? 'owned' : 'locked'}`;
+                slot.setAttribute('data-name', isOwned ? cardData.Name : "???");
+                
+                slot.innerHTML = `
+                    <img src="/ui/cards/${cardData.ID}.png" class="card-art" onerror="this.style.display='none'">
+                    <div class="card-frame ${rarityClass}"></div>
+                `;
+                
+                if (isOwned) {
+                    slot.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.openCardLore(cardData.ID);
+                    });
+                }
+                row.appendChild(slot);
+            });
+            grid.appendChild(row);
+        };
+
+        renderRow(tiers['mythic']);
+        renderRow(tiers['legendary']);
+        renderRow(tiers['rare']);
+        renderRow(tiers['common']);
+
+        // Update Total Count
+        const totalOwned = ownedCardIds.length;
+        const totalCards = allCards.length;
+        if (countDisplay) countDisplay.innerText = `${totalOwned}/${totalCards}`;
     }
+
+    private getCardCategory(id: string): string {
+        // Heuristic Mapping
+        if (id.startsWith('card_')) {
+            const suffix = id.replace('card_', '');
+            
+            // Creatures List
+            const creatures = ['cyclops', 'goliath', 'dragon', 'giant', 'vampire', 'imp', 'pixie', 'gnome', 'unicorn', 'griffin'];
+            if (creatures.includes(suffix)) return 'creatures';
+
+            // Personalities (Famous Named Non-Deities or Specific Historical)
+            // We'll put the specific named people here if they aren't "Wizards"
+            const personalities = ['agrippa', 'flamel', 'paracelsus', 'faust', 'solomon', 'scot'];
+            if (personalities.includes(suffix)) return 'personalities';
+            
+            // Check numeric IDs for generic mapping
+            const num = parseInt(suffix);
+            if (!isNaN(num)) {
+                // IDs 1-16. 
+                // Let's split them arbitrarily or logic.
+                // 1-8: Wizards/Gods -> Wizards
+                // 9-16: Personalities?
+                // For simplicity, let's put ALL numeric into 'wizards' for now unless specified.
+                return 'wizards';
+            }
+        }
+        
+        // Default fallbacks
+        if (id.includes('spell')) return 'spells';
+        if (id.includes('place') || id.includes('location')) return 'places';
+        if (id.includes('artifact') || id.includes('relic') || id.includes('object')) return 'artifacts';
+        if (id.includes('plant') || id.includes('herb') || id.includes('nature') || id.includes('ingredient')) return 'nature';
+        
+        return 'wizards'; // Default catch-all
+    }
+
 
     private openCardLore(itemId: string) {
         if (!this.loreModal) return;
@@ -577,7 +736,10 @@ export class UIManager {
         if (rarity) {
             const r = item.Rarity.toLowerCase();
             rarity.innerText = r.toUpperCase();
-            rarity.style.color = r === 'legendary' ? '#f0c040' : (r === 'rare' ? '#40c0f0' : '#fff');
+            if (r === 'legendary') rarity.style.color = '#f0c040';
+            else if (r === 'rare') rarity.style.color = '#40c0f0';
+            else if (r === 'mythic') rarity.style.color = '#d0f'; // Purple
+            else rarity.style.color = '#fff';
         }
 
         this.loreModal.classList.remove('hidden');
@@ -594,7 +756,7 @@ export class UIManager {
         }
         
         if (dateEl) {
-            dateEl.innerText = `DAY ${day} - ${month}`;
+            dateEl.innerText = `DAY ${day} - ${month.toUpperCase()}`;
         }
     }
 
@@ -677,6 +839,33 @@ PING: ${latency}ms`);
         const el = document.getElementById('class-minigame-ui');
         if (el) el.remove();
         if ((window as any)._classInterval) clearInterval((window as any)._classInterval);
+    }
+
+    public showZoneNotification(name: string) {
+        const el = document.createElement('div');
+        el.style.position = 'absolute';
+        el.style.top = '20%';
+        el.style.left = '50%';
+        el.style.transform = 'translate(-50%, -50%)';
+        el.style.color = '#fff';
+        el.style.fontFamily = 'Cinzel, serif'; // Fantasy font if available, or serif
+        el.style.fontSize = '32px';
+        el.style.textShadow = '0 0 10px #000';
+        el.style.opacity = '0';
+        el.style.transition = 'opacity 0.5s ease-in-out';
+        el.style.pointerEvents = 'none';
+        el.innerHTML = `<span>${name}</span><div style="width:100%; height:2px; background:linear-gradient(90deg, transparent, #fff, transparent); margin-top:5px;"></div>`;
+        
+        document.body.appendChild(el);
+        
+        // Fade In
+        requestAnimationFrame(() => el.style.opacity = '1');
+        
+        // Fade Out & Remove
+        setTimeout(() => {
+            el.style.opacity = '0';
+            setTimeout(() => el.remove(), 500);
+        }, 2500);
     }
 
     public showNotification(message: string) {

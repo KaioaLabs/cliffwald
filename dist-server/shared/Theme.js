@@ -7,7 +7,8 @@ exports.THEME = {
         IGNIS: 0xff7777,
         AXIOM: 0x7777ff,
         VESPER: 0xaa00ff,
-        DEFAULT: 0x8888ff
+        DEFAULT: 0x8888ff,
+        PREFECT: 0x4a148c // Dark Purple / Indigo
     },
     // UI Colors
     UI: {

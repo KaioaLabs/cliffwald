@@ -42,14 +42,14 @@ export class Pathfinding {
             if (!current) break;
             
             if (current.x === endX && current.y === endY) {
-                return this.reconstructPath(current);
+                const rawPath = this.reconstructPath(current);
+                return this.smoothPath(rawPath);
             }
 
             const currentKey = current.y * this.width + current.x;
             closedSet.add(currentKey);
 
             // Neighbors (8 directions)
-            // Directions: Right, Left, Down, Up, DR, DL, UR, UL
             const dirs = [
                 { x: 1, y: 0, cost: 1 }, { x: -1, y: 0, cost: 1 },
                 { x: 0, y: 1, cost: 1 }, { x: 0, y: -1, cost: 1 },
@@ -91,8 +91,89 @@ export class Pathfinding {
         return null;
     }
 
+    // --- STRING PULLING LOGIC ---
+    private smoothPath(path: Point[]): Point[] {
+        if (path.length <= 2) return path;
+
+        const smoothed: Point[] = [path[0]];
+        let current = 0;
+
+        while (current < path.length - 1) {
+            let next = current + 1;
+            // Check as far ahead as possible
+            for (let i = current + 2; i < path.length; i++) {
+                if (this.lineOfSight(path[current], path[i])) {
+                    next = i;
+                }
+            }
+            smoothed.push(path[next]);
+            current = next;
+        }
+
+        return smoothed;
+    }
+
+    private lineOfSight(p1: Point, p2: Point): boolean {
+        // Bresenham's Line Algorithm (Grid Check)
+        let x0 = Math.floor(p1.x / 32);
+        let y0 = Math.floor(p1.y / 32);
+        let x1 = Math.floor(p2.x / 32);
+        let y1 = Math.floor(p2.y / 32);
+
+        const dx = Math.abs(x1 - x0);
+        const dy = Math.abs(y1 - y0);
+        const sx = (x0 < x1) ? 1 : -1;
+        const sy = (y0 < y1) ? 1 : -1;
+        let err = dx - dy;
+
+        // Inflate Safety Buffer (Check 1 tile around line to prevent corner cutting)
+        // Simple approach: Check neighbors of current tile
+        const checkSafety = (x: number, y: number) => {
+            // Check cross pattern to ensure width
+            const neighbors = [
+                {x:0, y:0}, {x:1,y:0}, {x:-1,y:0}, {x:0,y:1}, {x:0,y:-1}
+            ];
+            // Just check the tile itself for obstruction? 
+            // String Pulling needs to be conservative.
+            // If the line passes through a wall, return false.
+            if (x < 0 || x >= this.width || y < 0 || y >= this.height) return false;
+            return this.grid[y][x] === 0;
+        };
+
+        while (true) {
+            // Check obstruction
+            if (this.grid[y0][x0] === 1) return false;
+            
+            if (x0 === x1 && y0 === y1) break;
+            
+            const e2 = 2 * err;
+            let movedX = false;
+            let movedY = false;
+
+            if (e2 > -dy) { 
+                err -= dy; 
+                x0 += sx; 
+                movedX = true;
+            }
+            if (e2 < dx) { 
+                err += dx; 
+                y0 += sy; 
+                movedY = true;
+            }
+
+            // CORNER CHECK: If moved diagonally, check adjacent cardinal neighbors
+            if (movedX && movedY) {
+                // We moved from (prevX, prevY) to (x0, y0).
+                // Neighbors are (x0, prevY) and (prevX, y0).
+                // Since x0 = prevX + sx, prevX = x0 - sx.
+                if (this.grid[y0][x0 - sx] === 1 || this.grid[y0 - sy][x0] === 1) return false;
+            }
+        }
+
+        return true;
+    }
+
     private dist(x1: number, y1: number, x2: number, y2: number): number {
-        // Octile Distance (Better for 8-way movement)
         const dx = Math.abs(x1 - x2);
         const dy = Math.abs(y1 - y2);
         const D = 1;
@@ -104,8 +185,12 @@ export class Pathfinding {
         const path: Point[] = [];
         let curr: Node | undefined = node;
         while (curr) {
-            // Convert back to world coords (center of 32px tile)
-            path.push({ x: curr.x * 32 + 16, y: curr.y * 32 + 16 });
+            // Add slight random offset to waypoint to reduce "robot line"
+            // +/- 8px (Quarter tile)
+            const offsetX = (Math.random() - 0.5) * 16;
+            const offsetY = (Math.random() - 0.5) * 16;
+            
+            path.push({ x: curr.x * 32 + 16 + offsetX, y: curr.y * 32 + 16 + offsetY });
             curr = curr.parent;
         }
         return path.reverse();
@@ -188,7 +273,7 @@ class BinaryHeap<T> {
             const child2N = (n + 1) << 1;
             const child1N = child2N - 1;
             let swap: number | null = null;
-            let child1Score: T; // Hacky typing, just need ref
+            let child1Score: T; 
 
             if (child1N < length) {
                 const child1 = this.content[child1N];

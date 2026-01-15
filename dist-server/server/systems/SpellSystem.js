@@ -136,8 +136,8 @@ class SpellSystem {
                 };
                 stopAI(attackerId);
                 stopAI(victimId);
-                // Award Prestige to Winner (DISABLED)
-                // this.room.prestigeSystem.addPrestige(attackerId, 20);
+                // Award Prestige to Winner
+                this.room.prestigeSystem.addPrestige(attackerId, 20);
             }
         }
     }

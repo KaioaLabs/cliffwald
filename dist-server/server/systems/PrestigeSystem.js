@@ -9,12 +9,33 @@ class PrestigeSystem {
      * Adds prestige points to a student and their house.
      */
     addPrestige(sessionId, amount) {
-        // SYSTEM PAUSED: No points awarded until official GDD update.
-        return;
-        /*
         const playerState = this.room.state.players.get(sessionId);
-        // ... (Logic Disabled)
-        */
+        const entity = this.room.entities.get(sessionId);
+        if (!playerState || !entity)
+            return;
+        const house = playerState.house || this.getHouseBySkin(playerState.skin);
+        if (!house)
+            return;
+        // 1. Update Student Personal Balance
+        playerState.personalPrestige += amount;
+        // 2. Update House Total (Sum of all players/echoes)
+        if (house === 'ignis')
+            this.room.state.ignisPoints += amount;
+        else if (house === 'axiom')
+            this.room.state.axiomPoints += amount;
+        else if (house === 'vesper')
+            this.room.state.vesperPoints += amount;
+        console.log(`[PRESTIGE] ${playerState.username} (+${amount}) -> House ${house}`);
+    }
+    /**
+     * Awards gold to a player.
+     */
+    addGold(sessionId, amount) {
+        const playerState = this.room.state.players.get(sessionId);
+        if (!playerState)
+            return;
+        playerState.gold += amount;
+        console.log(`[ECONOMY] ${playerState.username} (+${amount} Gold)`);
     }
     /**
      * Removes prestige points, enforcing the ANTI-SABOTAGE rule.
@@ -25,7 +46,7 @@ class PrestigeSystem {
         const entity = this.room.entities.get(sessionId);
         if (!playerState || !entity)
             return;
-        const house = entity.ai?.house || this.getHouseBySkin(playerState.skin);
+        const house = playerState.house || this.getHouseBySkin(playerState.skin);
         if (!house)
             return;
         // ANTI-SABOTAGE: Limit reduction to current personal balance
@@ -48,7 +69,6 @@ class PrestigeSystem {
             return 'ignis';
         if (skin.includes('blue'))
             return 'axiom';
-        // Default/Demos
         return 'vesper';
     }
 }

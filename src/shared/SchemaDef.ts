@@ -13,8 +13,6 @@ export class Player extends Schema {
     @type("string") skin: string = "player_idle";
     @type("number") x: number = 0;
     @type("number") y: number = 0;
-    @type("number") vx: number = 0;
-    @type("number") vy: number = 0;
     
     @type("number") personalPrestige: number = 0;
     @type("number") gold: number = 0;
@@ -60,7 +58,6 @@ export class Projectile extends Schema {
     @type("number") vx: number = 0;
     @type("number") vy: number = 0;
     @type("string") ownerId: string = "";
-    @type("string") type: string = "circle"; // circle, square, triangle
     @type("number") creationTime: number = 0;
     @type("number") maxRange: number = 600;
 }
@@ -80,5 +77,6 @@ export class GameState extends Schema {
 
     // Academic Date
     @type("number") currentCourse: number = 1;
+    @type("number") currentDay: number = 1;
     @type("string") currentMonth: string = "November";
 }

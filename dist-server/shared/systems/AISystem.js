@@ -4,18 +4,80 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AISystem = void 0;
+const Config_1 = require("../Config");
 const rapier2d_compat_1 = __importDefault(require("@dimforge/rapier2d-compat"));
 const ScheduleUtils_1 = require("../utils/ScheduleUtils");
+const DialogueRegistry_1 = require("../data/DialogueRegistry");
 // Shared reuseable objects to reduce GC
 const SHARED_SEARCH_SHAPE = new rapier2d_compat_1.default.Ball(24);
 let frameCount = 0;
-const AISystem = (world, physicsWorld, dt, currentHour, pathfinder, castCallback, targetProvider) => {
+const AISystem = (world, physicsWorld, dt, currentHour, pathfinder, castCallback, targetProvider, chatCallback, jumpCallback, catchCallback) => {
     const entities = world.with("ai", "body", "input");
     frameCount++;
+    // Shared Prefect Vision Shape
+    const PREFECT_VISION = new rapier2d_compat_1.default.Ball(Config_1.CONFIG.PREFECT_VISION_RADIUS || 150);
     for (const entity of entities) {
         const { ai, body, input, id, facing } = entity;
         if (!ai)
             continue;
+        const numericId = typeof entity.id === 'number' ? entity.id : (parseInt(entity.id || "0") || 0);
+        // --- PREFECT AI LOGIC ---
+        // Identify Prefect by ID convention (> 1000) or a tag. 
+        // For now, let's use the ID range 1000+ established in SpawnManager.
+        const isPrefect = numericId >= 1000;
+        if (isPrefect) {
+            const isNight = currentHour >= 22 || currentHour < 5;
+            if (isNight) {
+                // 1. INSTANT DETECTION
+                // Only scan every 10 frames to save CPU
+                if (frameCount % 10 === 0 && catchCallback) {
+                    const currentPos = body.translation();
+                    physicsWorld.intersectionsWithShape(currentPos, 0, PREFECT_VISION, (collider) => {
+                        const victimBody = collider.parent();
+                        if (!victimBody)
+                            return true;
+                        const victimId = victimBody.userData?.sessionId;
+                        if (victimId && !victimId.startsWith('prefect_') && !victimId.startsWith('teacher_')) {
+                            const vPos = victimBody.translation();
+                            const dx = vPos.x - currentPos.x;
+                            const dy = vPos.y - currentPos.y;
+                            const dist = Math.sqrt(dx * dx + dy * dy);
+                            if (dist < 30) {
+                                // CAUGHT! (Too close for cover)
+                                catchCallback(entity.player?.sessionId || "", victimId);
+                                return false;
+                            }
+                            else {
+                                // LOS CHECK (Raycast)
+                                // Cast ray from Prefect to Victim to check for walls
+                                const rayDir = { x: dx / dist, y: dy / dist };
+                                const ray = new rapier2d_compat_1.default.Ray(currentPos, rayDir);
+                                // Filter: Ray Membership 1 (Arbitrary), Ray Filter 1 (Targeting Walls)
+                                // Walls have Membership 1 and Filter All.
+                                // Logic: (RayMem & WallFilter) != 0 -> (1 & All) OK.
+                                //        (RayFilter & WallMem) != 0 -> (1 & 1) OK.
+                                const interactionGroups = 0x00010001;
+                                const hit = physicsWorld.castRay(ray, dist - 5, true, interactionGroups);
+                                if (!hit) {
+                                    // No wall in the way -> INSTANT PARALYSIS
+                                    catchCallback(entity.player?.sessionId || "", victimId);
+                                    return false;
+                                }
+                                // Else: Wall blocked vision. Safe.
+                            }
+                        }
+                        return true;
+                    });
+                }
+                // Prefects just stand guard (or patrol if pathing is added later)
+                // For now, they are static sentries.
+                input.analogDir = { x: 0, y: 0 };
+                continue;
+            }
+            else {
+                ai.state = 'idle';
+            }
+        }
         // --- ARTIFICIAL REACTION DELAY ---
         // Only process AI logic if timer exceeds reaction delay
         if (ai.timer < (ai.reactionDelay || 0)) {
@@ -23,7 +85,23 @@ const AISystem = (world, physicsWorld, dt, currentHour, pathfinder, castCallback
         }
         ai.timer += dt;
         const currentPos = body.translation();
-        const numericId = typeof entity.id === 'number' ? entity.id : (parseInt(entity.id || "0") || 0);
+        // --- MMO "BUNNY HOPPING" ---
+        // Real players jump while running.
+        if (ai.state === 'routine' && Math.random() < 0.005) {
+            const vel = body.linvel();
+            // Apply a tiny upward (or random) boost to simulate a "jump" or "dash"
+            body.applyImpulse({ x: vel.x * 0.5, y: vel.y * 0.5 }, true);
+            // Notify Jump Event
+            if (jumpCallback)
+                jumpCallback(entity.player?.sessionId || "");
+        }
+        // --- MMO "CHATTER" ---
+        // 0.1% chance to say something per frame if others are around
+        if (chatCallback && Math.random() < 0.0005) {
+            const pool = (0, DialogueRegistry_1.getDialoguePool)(ai.archetype || 'SOCIALIZER');
+            const text = pool[Math.floor(Math.random() * pool.length)];
+            chatCallback(entity.player?.sessionId || "", text);
+        }
         // 0. DUEL STATE
         if (ai.state === 'duel' && ai.targetId && castCallback && targetProvider) {
             const targetPos = targetProvider(ai.targetId);
@@ -205,22 +283,38 @@ const AISystem = (world, physicsWorld, dt, currentHour, pathfinder, castCallback
                         finalX += sepX;
                         finalY += sepY;
                     }
-                    // --- HUMANIZATION: MOVEMENT NOISE ---
-                    // Achievers move in perfect lines. Socializers/Explorers weave a bit.
-                    if (ai.archetype !== 'ACHIEVER') {
-                        ai.noiseTimer = (ai.noiseTimer || 0) + dt;
-                        if (ai.noiseTimer > 1000) { // Change noise every second
-                            const noiseStrength = ai.archetype === 'SOCIALIZER' ? 0.3 : 0.6;
-                            ai.inputNoise = {
-                                x: (Math.random() - 0.5) * noiseStrength,
-                                y: (Math.random() - 0.5) * noiseStrength
-                            };
-                            ai.noiseTimer = 0;
+                    // --- HUMANIZATION: MMO PLAYER SIMULATION ---
+                    // 1. LAG / CHATTING SIMULATION
+                    // Socializers stop to "type" in chat. Explorers stop to "check map".
+                    // Achievers and Killers have better "internet" (less stops).
+                    if (ai.archetype === 'SOCIALIZER' || ai.archetype === 'EXPLORER') {
+                        // 1% chance per frame to stop for a bit (simulating a lag spike or typing)
+                        if (Math.random() < 0.01) {
+                            input.analogDir = { x: 0, y: 0 }; // Stop
+                            return; // Skip the rest of movement for this frame
                         }
-                        if (ai.inputNoise) {
-                            finalX += ai.inputNoise.x;
-                            finalY += ai.inputNoise.y;
-                        }
+                    }
+                    // 2. INPUT NOISE (The "Wiggle")
+                    // Real players rarely hold 'W' perfectly. They tap A/D or move mouse.
+                    ai.noiseTimer = (ai.noiseTimer || 0) + dt;
+                    if (ai.noiseTimer > 500) { // Update noise every 0.5s
+                        let noiseScale = 0;
+                        if (ai.archetype === 'SOCIALIZER')
+                            noiseScale = 0.4; // Casual weaving
+                        if (ai.archetype === 'EXPLORER')
+                            noiseScale = 0.8; // Looking around / drunk walk
+                        if (ai.archetype === 'KILLER')
+                            noiseScale = 0.2; // Twitchy correction
+                        // Achievers have 0 noise (perfect pathing)
+                        ai.inputNoise = {
+                            x: (Math.random() - 0.5) * noiseScale,
+                            y: (Math.random() - 0.5) * noiseScale
+                        };
+                        ai.noiseTimer = 0;
+                    }
+                    if (ai.inputNoise && ai.archetype !== 'ACHIEVER') {
+                        finalX += ai.inputNoise.x;
+                        finalY += ai.inputNoise.y;
                     }
                     // Normalize result
                     const finalLen = Math.sqrt(finalX * finalX + finalY * finalY);
@@ -255,9 +349,61 @@ const AISystem = (world, physicsWorld, dt, currentHour, pathfinder, castCallback
             input.right = false;
             input.up = false;
             input.down = false;
-            if (facing) {
-                facing.x = forceFacing.x;
-                facing.y = forceFacing.y;
+            // --- MMO IDLE BEHAVIORS ---
+            // Real players rarely stand perfectly still.
+            if (ai.archetype === 'SOCIALIZER') {
+                // "The Spinner" - Spins in circles while bored (20% chance if idle long enough)
+                if (ai.timer > 2000 && Math.floor(ai.timer / 1000) % 3 === 0) {
+                    const angle = (Date.now() / 300); // Fast spin
+                    if (facing) {
+                        facing.x = Math.cos(angle);
+                        facing.y = Math.sin(angle);
+                    }
+                }
+                else {
+                    // Otherwise look at "home" or force facing
+                    if (facing) {
+                        facing.x = forceFacing.x;
+                        facing.y = forceFacing.y;
+                    }
+                }
+            }
+            else if (ai.archetype === 'KILLER') {
+                // "The Spammer" - Randomly casts spells at walls (warmup)
+                // 1% chance per tick if idle
+                if (Math.random() < 0.01 && castCallback && ai.timer > 1000) {
+                    const spells = ['circle', 'square', 'triangle'];
+                    const spell = spells[Math.floor(Math.random() * spells.length)];
+                    // Cast in random direction
+                    const rx = (Math.random() - 0.5);
+                    const ry = (Math.random() - 0.5);
+                    castCallback(entity.player?.sessionId || "", spell, rx * 400, ry * 400);
+                    if (facing) {
+                        facing.x = rx;
+                        facing.y = ry;
+                    }
+                }
+                // Jittery looking around
+                if (Math.random() < 0.1 && facing) {
+                    facing.x += (Math.random() - 0.5);
+                    facing.y += (Math.random() - 0.5);
+                }
+            }
+            else if (ai.archetype === 'EXPLORER') {
+                // "The Pacer" - Takes random small steps
+                if (Math.random() < 0.02) {
+                    input.analogDir = {
+                        x: (Math.random() - 0.5),
+                        y: (Math.random() - 0.5)
+                    };
+                }
+            }
+            else {
+                // ACHIEVER: Stands perfectly still (Efficiency)
+                if (facing) {
+                    facing.x = forceFacing.x;
+                    facing.y = forceFacing.y;
+                }
             }
         }
     }

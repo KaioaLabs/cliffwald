@@ -1,5 +1,6 @@
 import { ECSWorld } from "../ecs/world";
 import { CONFIG } from "../Config";
+import { MathUtils } from "../utils/MathUtils";
 
 export const MovementSystem = (world: ECSWorld) => {
     // Iterate over all entities that HAVE a body AND input
@@ -20,8 +21,9 @@ export const MovementSystem = (world: ECSWorld) => {
             // SECURITY: Normalize analog input to prevent speed hacks
             const mag = Math.sqrt(ax * ax + ay * ay);
             if (mag > 1.0) {
-                ax /= mag;
-                ay /= mag;
+                const norm = MathUtils.normalize(ax, ay);
+                ax = norm.x;
+                ay = norm.y;
             }
 
             vx = ax * speed;
@@ -47,11 +49,10 @@ export const MovementSystem = (world: ECSWorld) => {
 
         // Update Facing
         if ((vx !== 0 || vy !== 0) && entity.facing) {
-            // Check length to avoid div/0
-            const len = Math.sqrt(vx*vx + vy*vy);
-            if (len > 0.001) {
-                entity.facing.x = vx / len;
-                entity.facing.y = vy / len;
+            const norm = MathUtils.normalize(vx, vy);
+            if (norm.x !== 0 || norm.y !== 0) {
+                entity.facing.x = norm.x;
+                entity.facing.y = norm.y;
             }
         }
     }

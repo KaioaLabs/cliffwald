@@ -22,6 +22,8 @@ import { LightManager } from './managers/LightManager';
 import { VisualProjectileManager } from './managers/VisualProjectileManager';
 import { LoginManager } from './managers/LoginManager';
 import { MinigameManager } from './managers/MinigameManager';
+import { LadderManager } from './managers/LadderManager';
+import { WorldBuilder } from './managers/WorldBuilder';
 
 export class GameScene extends Phaser.Scene {
     network: NetworkManager;
@@ -30,15 +32,9 @@ export class GameScene extends Phaser.Scene {
     projectileManager!: VisualProjectileManager;
     loginManager!: LoginManager;
     minigameManager!: MinigameManager;
+    ladderManager!: LadderManager;
+    worldBuilder!: WorldBuilder;
     
-    // Static World Props
-    staticProps: Phaser.GameObjects.GameObject[] = [];
-    
-    // Ladder State
-    ladderObj?: Phaser.GameObjects.Container;
-    ladderBounds?: { min: number, max: number };
-    climbingState?: { active: boolean, ladderX: number, climbHeight: number };
-
     room?: Colyseus.Room;
 
     playerController!: PlayerController;
@@ -63,6 +59,7 @@ export class GameScene extends Phaser.Scene {
         super('GameScene');
         this.network = new NetworkManager(this);
         this.minigameManager = new MinigameManager();
+        this.ladderManager = new LadderManager(this);
         this.setupRemoteLogging();
         
         window.addEventListener('unhandledrejection', (event) => {
@@ -100,7 +97,6 @@ export class GameScene extends Phaser.Scene {
     }
 
     itemVisuals = new Map<string, Phaser.GameObjects.GameObject>();
-    tableShadows: Phaser.GameObjects.Image[] = [];
 
     async create() {
         try {
@@ -115,238 +111,22 @@ export class GameScene extends Phaser.Scene {
             await RAPIER.init();
             this.physicsWorld = new RAPIER.World({ x: 0.0, y: 0.0 });
 
-            const map = this.make.tilemap({ key: 'map' });
-            
-            const tileset = map.addTilesetImage('placeholder_tiles', 'tiles');
-            const tilesetTable = map.addTilesetImage('table', 'table');
-            const tilesetFloor = map.addTilesetImage('floor_cobble', 'floor_cobble');
-
-            if (tileset && tilesetTable && tilesetFloor) {
-                const floorLayer = map.createLayer('floor_text', tilesetFloor, 0, 0);
-                if (floorLayer) {
-                    if (CONFIG.USE_LIGHTS) floorLayer.setPipeline('Light2D');
-                    floorLayer.setDepth(-101); 
-                }
-
-                const groundLayer = map.createLayer('Ground', tileset, 0, 0);
-                if (groundLayer) {
-                    if (CONFIG.USE_LIGHTS) groundLayer.setPipeline('Light2D');
-                    groundLayer.setDepth(-100); 
-                }
-
-                const furnitureLayer = map.createLayer('Furniture', tilesetTable, 0, 0);
-                if (furnitureLayer) {
-                    if (CONFIG.USE_LIGHTS) furnitureLayer.setPipeline('Light2D');
-                    furnitureLayer.setDepth(-99);
-
-                    // Create one shadow per table tile, respecting the tile's texture
-                    furnitureLayer.forEachTile((tile) => {
-                        if (tile.index !== -1) {
-                            // Find the tileset for this tile
-                            const tileset = tile.tileset;
-                            if (tileset) {
-                                const tileTexKey = tileset.image?.key; // Key of the texture (e.g., 'table')
-                                if (tileTexKey) {
-                                    const tx = tile.getCenterX();
-                                    const ty = tile.getBottom();
-                                    
-                                    // Create shadow using the ACTUAL tileset texture
-                                    const shadow = this.add.image(tx, ty, tileTexKey);
-                                    
-                                    // Calculate crop for the specific tile
-                                    // tile.index is global, subtract firstgid to get local index
-                                    const localId = tile.index - tileset.firstgid;
-                                    const row = Math.floor(localId / tileset.columns);
-                                    const col = localId % tileset.columns;
-                                    const cx = tileset.tileMargin + (col * (tileset.tileWidth + tileset.tileSpacing));
-                                    const cy = tileset.tileMargin + (row * (tileset.tileHeight + tileset.tileSpacing));
-                                    
-                                    shadow.setCrop(cx, cy, tileset.tileWidth, tileset.tileHeight);
-                                    
-                                    // We must set the frame size to match crop, otherwise origin calc is wrong
-                                    shadow.setSize(tileset.tileWidth, tileset.tileHeight);
-                                    // Update the display origin to match the new size (Feet anchor)
-                                    shadow.setOrigin(0.5, 1.0); 
-                                    
-                                    shadow.setTint(0x000000);
-                                    shadow.setAlpha(0.3);
-                                    shadow.setDepth(-99.5);
-                                    
-                                    shadow.setData('baseX', tx);
-                                    shadow.setData('baseY', ty);
-                                    shadow.setData('sourceScaleX', 1.0);
-                                    shadow.setData('sourceScaleY', 1.0);
-                                    shadow.setData('height', tileset.tileHeight); // Store height for shadow length calc
-
-                                    this.tableShadows.push(shadow);
-                                }
-                            }
-                        }
-                    });
-                }
-            } else {
-                console.error("Failed to load one or more tilesets:", { tileset, tilesetTable, tilesetFloor });
-            }
-
-            // --- DATA DRIVEN LOGIC EXTRACTION ---
-            const logicObjects = map.getObjectLayer("Logic")?.objects || [];
-            const getLoc = (name: string) => logicObjects.find(o => o.name === name) || { x: 0, y: 0 };
-            const getZones = (type: string) => logicObjects.filter(o => o.type === type);
-
-            // Shadow Management
-
-            buildPhysics(this.physicsWorld, this.cache.tilemap.get('map').data);
-
             try {
                 this.lightManager = new LightManager(this);
-                this.lightManager.initFromMap(map);
             } catch (e) {
                 console.error("[LIGHTS] Initialization Failed:", e);
             }
 
+            // Build World
+            this.worldBuilder = new WorldBuilder(this, this.physicsWorld, this.lightManager);
+            this.worldBuilder.build();
+
             this.projectileManager = new VisualProjectileManager(this);
 
-            // --- STATIC PROPS SYSTEM ---
-            const createProp = (x: number, y: number, w: number, h: number, color: number, label: string, isBed: boolean = false) => {
-                const container = this.add.container(x, y);
-                
-                // Base
-                const prop = this.add.rectangle(0, 0, w, h, color);
-                prop.setStrokeStyle(2, 0x3e2723, 1.0);
-                if (CONFIG.USE_LIGHTS) prop.setPipeline('Light2D');
-                container.add(prop);
-
-                if (isBed) {
-                    // Pillow
-                    const pillow = this.add.rectangle(0, -h/2 + 8, w - 8, 12, 0xeeeeee);
-                    if (CONFIG.USE_LIGHTS) pillow.setPipeline('Light2D');
-                    container.add(pillow);
-                }
-
-                container.setDepth(y - 10); // Dynamic depth based on Y
-                
-                // Add shadow using generic base, but SCALED to be the object's shape
-                const bottomY = y + h/2;
-                
-                const shadow = this.add.image(x, bottomY, 'shadow_base');
-                shadow.setTint(0x000000);
-                shadow.setOrigin(0.5, 1.0); // Feet anchor
-                shadow.setDepth(-99.5); // Below furniture
-                
-                const scaleX = w / 32;
-                const scaleY = h / 32;
-                
-                shadow.setData('baseX', x);
-                shadow.setData('baseY', bottomY);
-                shadow.setData('sourceScaleX', scaleX);
-                shadow.setData('sourceScaleY', scaleY);
-                shadow.setData('height', h);
-                
-                this.tableShadows.push(shadow);
-                
-                // Track globally
-                this.staticProps.push(container);
-                container.setData('label', label); // For debug/finding
-                
-                return container;
-            };
-
-            // Great Hall: 3 Tables
-            const gh = getLoc("GREAT_HALL");
-            if (gh.x !== 0) {
-                createProp(gh.x, gh.y - 80, 256, 48, 0x5d4037, "Ignis Table"); // Wider tables
-                createProp(gh.x, gh.y, 256, 48, 0x5d4037, "Axiom Table");
-                createProp(gh.x, gh.y + 80, 256, 48, 0x5d4037, "Vesper Table");
-            }
-
-            // Dorms: 8 Beds per house (Total 24)
-            const dormHouses: ('ignis' | 'axiom' | 'vesper')[] = ['ignis', 'axiom', 'vesper'];
-            dormHouses.forEach(house => {
-                const dormBase = getLoc(`DORM_${house.toUpperCase()}`);
-                if (dormBase.x !== 0) {
-                    for (let i = 0; i < 8; i++) {
-                        const row = Math.floor(i / 4);
-                        const col = i % 4;
-                        const bx = dormBase.x + (col * 64);
-                        const by = dormBase.y + (row * 96);
-                        createProp(bx, by, 34, 54, 0x4e342e, "Bed", true);
-                    }
-                }
-            });
-
-            // Spawn Infirmary Beds
-            getZones("infirmary_bed").forEach((pos) => {
-                createProp(pos.x, pos.y, 34, 54, 0xffffff, "Hospital Bed", true);
-            });
-
-            // --- LIBRARY VISUALS ---
-            const lib = getLoc("LIBRARY");
+            // --- LIBRARY LADDER ---
+            const lib = this.worldBuilder.getLocation("LIBRARY");
             if (lib.x !== 0) {
-                // Create Visual Shelf (Texture generated in AssetManager)
-                const shelf = this.add.image(lib.x, lib.y, 'grand_bookshelf_v2');
-                shelf.setOrigin(0.5, 1.0);
-                shelf.setDepth(lib.y - 50); // Behind ladder
-                
-                // Add Ladder Rail
-                const railY = lib.y - 280; // Top of ladder
-                const rail = this.add.rectangle(lib.x, railY, 500, 4, 0x111111);
-                rail.setDepth(lib.y + 1000); // Always on top? No, just high Z
-                
-                // --- LADDER LOGIC ---
-                // Create Ladder Container
-                const ladder = this.add.container(lib.x, lib.y);
-                ladder.setDepth(lib.y + 50); // Slightly in front of shelf base
-                
-                const ladderGfx = this.add.graphics();
-                ladderGfx.lineStyle(4, 0x5d4037);
-                ladderGfx.beginPath();
-                ladderGfx.moveTo(-15, 0); ladderGfx.lineTo(-15, -280); // Left rail
-                ladderGfx.moveTo(15, 0); ladderGfx.lineTo(15, -280);   // Right rail
-                for(let i=0; i<8; i++) {
-                    const ry = -20 - (i*35);
-                    ladderGfx.moveTo(-15, ry); ladderGfx.lineTo(15, ry); // Rungs
-                }
-                ladderGfx.strokePath();
-                ladder.add(ladderGfx);
-                
-                // Wheels
-                const wheelL = this.add.circle(-15, 0, 5, 0x000000);
-                const wheelR = this.add.circle(15, 0, 5, 0x000000);
-                ladder.add(wheelL); ladder.add(wheelR);
-                
-                // Interaction Zone (Visual only now)
-                const ladderZone = this.add.zone(0, -140, 60, 300);
-                ladder.add(ladderZone);
-                
-                let currentClimbY = 0;
-                const LADDER_MIN_X = lib.x - 230;
-                const LADDER_MAX_X = lib.x + 230;
-                
-                // Store reference for update loop
-                this.ladderObj = ladder;
-                this.ladderBounds = { min: LADDER_MIN_X, max: LADDER_MAX_X };
-
-                // Tables (Reduced to 2 to make room)
-                for (let i = 0; i < 2; i++) {
-                    const tx = lib.x + (i === 0 ? -150 : 150);
-                    const ty = lib.y + 100;
-                    createProp(tx, ty, 80, 32, 0x5d4037, "Study Table");
-                }
-            }
-
-            // --- DUNGEON VISUALS ---
-            const det = getLoc("DETENTION");
-            if (det.x !== 0) {
-                this.add.rectangle(det.x, det.y, 300, 300, 0x1a1a1a).setDepth(-101); // Dark Floor
-                this.add.text(det.x, det.y - 120, "DUNGEON", { fontSize: '32px', color: '#ff0000', alpha: 0.3 }).setOrigin(0.5).setDepth(-90);
-                
-                // Iron Bars
-                for (let i = -2; i <= 2; i++) {
-                    const bar = this.add.rectangle(det.x + (i * 60), det.y, 4, 280, 0x333333);
-                    if (CONFIG.USE_LIGHTS) bar.setPipeline('Light2D');
-                    bar.setDepth(det.y + 140);
-                    this.staticProps.push(bar); // Add to tracking
-                }
+                this.ladderManager.setup(lib.x, lib.y);
             }
             
             this.playerController = new PlayerController(this, this.physicsWorld);
@@ -357,40 +137,6 @@ export class GameScene extends Phaser.Scene {
             this.cameraTarget = this.add.image(1600, 1000, '').setVisible(false);
             this.cameras.main.startFollow(this.cameraTarget, true, 0.2, 0.2);
             this.cameras.main.centerOn(1600, 1000);
-
-            // --- VISUALS: DUEL ZONE (TATAMI) ---
-            getZones("duel_zone").forEach(zone => {
-                // Convert world bounds to tile coordinates
-                // Assuming 32x32 tiles
-                const tileX = Math.floor(zone.x / 32);
-                const tileY = Math.floor(zone.y / 32);
-                const tileW = Math.floor(zone.width / 32);
-                const tileH = Math.floor(zone.height / 32);
-                
-                // Paint Floor Tiles Red
-                if (floorLayer) {
-                    for (let y = 0; y < tileH; y++) {
-                        for (let x = 0; x < tileW; x++) {
-                            const tile = floorLayer.getTileAt(tileX + x, tileY + y);
-                            if (tile) {
-                                tile.tint = 0xff8888; // Reddish tint
-                            }
-                        }
-                    }
-                }
-
-                const cx = zone.x + (zone.width / 2);
-                const cy = zone.y + (zone.height / 2);
-                const zoneId = (zone as any).properties?.find((p: any) => p.name === 'zone_id')?.value ?? 0;
-                
-                // Ring Number
-                this.add.text(cx, cy, (zoneId + 1).toString(), {
-                    fontSize: '64px',
-                    color: '#ffffff',
-                    alpha: 0.15,
-                    fontStyle: 'bold'
-                }).setOrigin(0.5).setDepth(-90);
-            });
 
             this.gestureManager = new GestureManager(this, uiScene);
             this.gestureManager.onGestureRecognized = (id: string, score: number, centroid: {x: number, y: number}) => {
@@ -435,6 +181,7 @@ export class GameScene extends Phaser.Scene {
                 this.skin = skin;
 
                 this.uiManager = new UIManager(this, this.network);
+                (window as any).gameClient = this;
                 this.uiManager.create();
 
                 console.log("[DEBUG] Calling connect()...");
@@ -587,6 +334,10 @@ export class GameScene extends Phaser.Scene {
                 
                 this.room.onMessage("class_completed", (data: { grade: string, points: number }) => {
                     this.uiManager.showNotification(`Class Finished! Grade: ${data.grade} (+${data.points} PA)`);
+                });
+                
+                this.room.onMessage("zone_enter", (data: { name: string }) => {
+                    this.uiManager.showZoneNotification(data.name);
                 });
                 
                 this.setupItemSync();
@@ -784,6 +535,7 @@ export class GameScene extends Phaser.Scene {
         }
         
         this.playerController.updateVisuals();
+        this.projectileManager.update(delta);
         
         if (this.network.room) {
             const state = this.network.room.state;
@@ -806,7 +558,7 @@ export class GameScene extends Phaser.Scene {
         if (this.game.loop.frame % 10 === 0 && this.lightManager) {
             const sunPos = this.lightManager.getSunPosition();
             
-            this.tableShadows.forEach(shadow => {
+            this.worldBuilder.tableShadows.forEach(shadow => {
                 try {
                     const baseX = shadow.getData('baseX');
                     const baseY = shadow.getData('baseY');
@@ -851,7 +603,6 @@ export class GameScene extends Phaser.Scene {
                     this.uiManager.updateHUDTime(gameTime.hour, gameTime.minute, progress.currentDay, progress.currentMonth);
                 }
             }
-        }
 
         /* Legacy UIScene Time Update - REMOVED
         const uiScene = this.scene.get('UIScene') as UIScene;
@@ -928,7 +679,7 @@ export class GameScene extends Phaser.Scene {
         const player = this.playerController.players.get(localId);
 
         // --- LADDER INTERACTION ---
-        if (this.handleLadderInteraction(player)) {
+        if (this.ladderManager.handleInteraction(player, this.cursors, this.wasd)) {
             return { left: false, right: false, up: false, down: false }; // Consume input
         }
 
@@ -967,73 +718,6 @@ export class GameScene extends Phaser.Scene {
             this.lastInputState = { ...input };
         }
         return input;
-    }
-
-    handleLadderInteraction(player: any): boolean {
-        const climb = this.climbingState;
-        const ladder = this.ladderObj;
-        const bounds = this.ladderBounds;
-
-        if (ladder && player && player.visual?.sprite) {
-            // Check Mount
-            if (!climb?.active) {
-                const sprite = player.visual.sprite;
-                // Distance to Ladder Base
-                const dist = Phaser.Math.Distance.Between(sprite.x, sprite.y, ladder.x, ladder.y);
-                
-                // If pressing UP and near ladder (< 40px)
-                if (dist < 40 && (this.cursors?.up.isDown || this.wasd?.W.isDown)) {
-                    console.log("[LADDER] Mounting Ladder!");
-                    this.climbingState = {
-                        active: true,
-                        ladderX: ladder.x,
-                        climbHeight: 0
-                    };
-                    return true;
-                }
-            }
-        }
-
-        if (climb?.active && ladder && bounds && this.cursors && this.wasd) {
-            // console.log("[LADDER] Climbing... Height:", climb.climbHeight);
-            // --- LADDER MOVEMENT ---
-            const speed = 2.0; // Ladder slide speed
-            const climbSpeed = 2.0;
-
-            // Horizontal (Slide Ladder)
-            if (this.cursors.left.isDown || this.wasd.A.isDown) {
-                ladder.x = Math.max(bounds.min, ladder.x - speed);
-            } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
-                ladder.x = Math.min(bounds.max, ladder.x + speed);
-            }
-
-            // Vertical (Climb Player)
-            if (this.cursors.up.isDown || this.wasd.W.isDown) {
-                climb.climbHeight = Math.min(250, climb.climbHeight + climbSpeed);
-            } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
-                // Check Dismount
-                if (climb.climbHeight <= 0) {
-                    this.climbingState = { active: false, ladderX: 0, climbHeight: 0 };
-                    if (player) player.climbOffset = 0;
-                    return true;
-                }
-                climb.climbHeight = Math.max(0, climb.climbHeight - climbSpeed);
-            }
-
-            // Sync Player Visuals
-            if (player && player.visual?.sprite) {
-                // Force X to ladder X, Y to ladder Base Y
-                // Direct override:
-                player.visual.sprite.x = ladder.x;
-                player.visual.sprite.y = ladder.y; // Base
-                player.climbOffset = -climb.climbHeight; // Negative to go UP
-                player.visual.sprite.setDepth(ladder.y + 100);
-            }
-
-            return true;
-        }
-
-        return false;
     }
 }
 

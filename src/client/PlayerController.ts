@@ -247,15 +247,6 @@ export class PlayerController {
         // 2. Vertical Tween (Visual Height)
         // We move the sprite Y up and down, but we need to account for the shadow staying on the ground.
         // The shadow logic tracks sprite.x/y. If we move sprite.y, shadow will follow "up", which looks like floating.
-        // We need to offset the SHADOW calculation or the sprite rendering?
-        // Actually, ShadowUtils usually takes sprite.y.
-        // Let's tween the "displayOriginY" or just Y with a container? 
-        // Simpler: Tween Y, but tell ShadowUtils to use "groundY" stored separately?
-        // Or just let the shadow jump a bit too? No, shadow should stay or shrink.
-        
-        // Quick Hack: Just tween Y. The shadow following looks slightly weird (peter pan) but acceptable for 2D arcade.
-        // Better: PlayerController 'updateVisuals' constantly sets sprite position from server/interpolation.
-        // If we tween sprite.y, 'updateVisuals' will overwrite it next frame!
         
         // SOLUTION: Add a 'visualOffset' to ClientEntity
         entity.visualOffset = { x: 0, y: 0 };
@@ -288,12 +279,19 @@ export class PlayerController {
             let targetX = sprite.x;
             let targetY = sprite.y;
 
+            // --- UNIFIED INTERPOLATION LOGIC ---
+            // Local player also uses buffer for smoothing physics steps, 
+            // but we might snap if the deviation is small to feel "crisp".
+            // However, to fix jitter, treating everyone as interpolated targets is safer.
+            
             if (isLocal && entity.body) {
                 const pos = entity.body.translation();
-                targetX = pos.x; targetY = pos.y;
+                // Direct physics read for local to ensure 0 input lag
+                targetX = pos.x; 
+                targetY = pos.y;
             } else {
                 const buffer = entity.positionBuffer;
-                if (buffer?.length && buffer.length >= 2) {
+                if (buffer && buffer.length >= 2) {
                     while (buffer.length > 2 && buffer[1].timestamp <= renderTime) buffer.shift();
                     if (buffer[1].timestamp > renderTime) {
                         const t0 = buffer[0], t1 = buffer[1];
@@ -309,53 +307,48 @@ export class PlayerController {
                 }
             }
 
-            const dx = targetX - sprite.x; // Delta for animation before offset
-            const dy = targetY - sprite.y;
+            // --- SMOOTHING ---
+            const lerp = isLocal ? CONFIG.LERP_FACTOR_LOCAL : CONFIG.LERP_FACTOR_REMOTE;
             
-            // APPLY POSITION + VISUAL OFFSET (JUMP + CLIMB)
+            // Current "Base" position (feet)
+            const currentBaseX = sprite.x - (entity.visualOffset?.x || 0);
+            const currentBaseY = sprite.y - ((entity.visualOffset?.y || 0) + (entity.climbOffset || 0));
+
+            const smoothedX = Phaser.Math.Linear(currentBaseX, targetX, lerp);
+            const smoothedY = Phaser.Math.Linear(currentBaseY, targetY, lerp);
+
+            // --- APPLY OFFSETS (JUMP/CLIMB) ---
             const offsetX = entity.visualOffset?.x || 0;
             const offsetY = (entity.visualOffset?.y || 0) + (entity.climbOffset || 0);
             
-            const lerp = isLocal ? CONFIG.LERP_FACTOR_LOCAL : CONFIG.LERP_FACTOR_REMOTE;
-            const smoothedX = Phaser.Math.Linear(sprite.x - offsetX, targetX, lerp); // Lerp base pos
-            const smoothedY = Phaser.Math.Linear(sprite.y - offsetY, targetY, lerp); // Lerp base pos (offset applied after?)
-            
-            // Wait, previous logic was:
-            // sprite.setPosition(smoothedX + offsetX, smoothedY + offsetY);
-            // This applies interpolation to the "base" position, then adds the offset. Correct.
-            
-            // Re-calc with climb
             sprite.setPosition(smoothedX + offsetX, smoothedY + offsetY);
-            sprite.setDepth(smoothedY + 100); // Sort by FEET (base Y)
+            sprite.setDepth(smoothedY + 100); 
 
-            // Shadow Logic
+            // --- SHADOW LOGIC (FIXED) ---
+            // Shadow MUST follow the BASE position (smoothedX, smoothedY), not the sprite (jumping).
             const shadow = entity.shadow;
             if (shadow) {
-                // Use Global Sun Position
                 const gameScene = this.scene as any;
                 const sunPos = gameScene.lightManager?.getSunPosition() || { x: 0, y: 0 };
                 
                 shadow.setTexture(sprite.texture.key, sprite.frame.name);
                 shadow.setVisible(sprite.visible);
                 
-                let shadowY = smoothedY; // Use BASE Y for shadow
+                let shadowBaseY = smoothedY;
                 if (sprite.getData('isTeacher')) {
-                    shadowY -= (sprite.displayHeight || 64) * 0.15;
+                    shadowBaseY -= (sprite.displayHeight || 64) * 0.15;
                 }
 
-                // Scale shadow for Jump (visualOffset) but NOT for Climb
-                const jumpY = entity.visualOffset?.y || 0;
-                
-                const jumpScale = 1.0 + (jumpY / 30); 
-                const baseScaleX = sprite.scaleX * Math.max(0.5, jumpScale);
-                const baseScaleY = sprite.scaleY * Math.max(0.5, jumpScale);
+                // Scale shadow relative to jump height (visualOffset.y is negative when up)
+                const jumpHeight = Math.abs(entity.visualOffset?.y || 0);
+                const jumpScale = Math.max(0.5, 1.0 - (jumpHeight / 100)); // Shrink as you go up
 
                 ShadowUtils.updateShadow(
                     shadow, 
                     smoothedX, 
-                    shadowY, 
-                    baseScaleX, 
-                    baseScaleY, 
+                    shadowBaseY, 
+                    sprite.scaleX * jumpScale, 
+                    sprite.scaleY * jumpScale, 
                     sprite.depth, 
                     sprite.displayHeight || 40, 
                     sunPos.x, 
@@ -363,15 +356,19 @@ export class PlayerController {
                 );
             }
 
-            if (entity.nameTag) entity.nameTag.setPosition(sprite.x, sprite.y + CONFIG.NAME_TAG_Y_OFFSET).setDepth(sprite.y + 100);
+            // ... (Rest of UI updates) ...
+            const dx = targetX - currentBaseX;
+            const dy = targetY - currentBaseY;
+            
+            if (entity.nameTag) entity.nameTag.setPosition(smoothedX, smoothedY + CONFIG.NAME_TAG_Y_OFFSET).setDepth(smoothedY + 100);
 
             if (entity.prefectLight) {
-                entity.prefectLight.setPosition(sprite.x, sprite.y);
+                entity.prefectLight.setPosition(smoothedX, smoothedY);
             }
 
             // Update Class Timer
             if (entity.classTimerText && entity.classTimerText.visible) {
-                entity.classTimerText.setPosition(sprite.x, sprite.y - 60);
+                entity.classTimerText.setPosition(smoothedX, smoothedY - 60);
                 const endsAt = entity.classTimerText.getData('endsAt');
                 if (endsAt) {
                     const remaining = Math.max(0, Math.ceil((endsAt - now) / 1000));
@@ -383,11 +380,11 @@ export class PlayerController {
 
             // Handle Unconscious State
             if (entity.unconsciousUntil && entity.unconsciousUntil > now) {
-                sprite.setRotation(Math.PI / 2); // 90 degrees
-                sprite.setOrigin(0.5, 0.5); // Center pivot for rotation
+                sprite.setRotation(Math.PI / 2); 
+                sprite.setOrigin(0.5, 0.5); 
             } else {
                 sprite.setRotation(0);
-                sprite.setOrigin(0.5, 0.75); // Restore original pivot
+                sprite.setOrigin(0.5, 0.75); 
             }
 
             this.handleAnimation(entity, dx, dy);

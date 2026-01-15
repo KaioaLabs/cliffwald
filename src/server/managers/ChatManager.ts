@@ -3,6 +3,7 @@ import { GameState, ChatMessage } from "../../shared/SchemaDef";
 import { CONFIG, getGameTime } from "../../shared/Config";
 import { timeManager } from "../../shared/managers/TimeManager";
 import { getStudentScheduleTarget } from "../../shared/utils/ScheduleUtils";
+import { LevelRegistry } from "./LevelRegistry";
 
 export class ChatManager {
     private room: Room<GameState>;
@@ -20,7 +21,7 @@ export class ChatManager {
         let cleanText = text;
         this.badWords.forEach(word => {
             // Regex for case-insensitive whole word match
-            const regex = new RegExp(`\\b${word}\\b`, 'gi');
+            const regex = new RegExp(`\b${word}\b`, 'gi');
             cleanText = cleanText.replace(regex, '*'.repeat(word.length));
         });
         return cleanText;
@@ -29,14 +30,11 @@ export class ChatManager {
     public handleChat(clientSessionId: string, text: string) {
         const player = this.room.state.players.get(clientSessionId);
         
-        // Log request even if player not found (security audit)
         console.log(`[SERVER] Chat request from ${clientSessionId}. Player found: ${!!player}. Text: "${text}"`);
 
         if (!player || !text) return;
 
         let cleanText = text.slice(0, CONFIG.CHAT.MAX_LENGTH);
-        
-        // --- PROFANITY FILTER ---
         cleanText = this.filterText(cleanText);
 
         // --- COMMAND PARSING ---
@@ -55,24 +53,33 @@ export class ChatManager {
                         timeManager.setGameHour(hour);
                         this.broadcastSystemMessage(`Time Travel: Jumped to ${hour}:00 (Triggered by ${player.username})`);
                         
-                        // FORCE TELEPORT LOGIC
+                        // FORCE TELEPORT LOGIC (Refactored)
                         const worldRoom = this.room as any; 
                         if (worldRoom.entities) {
                             let teleportCount = 0;
+                            const registry = LevelRegistry.getInstance();
+                            
                             for (const [id, entity] of worldRoom.entities) {
                                 if (entity.ai && entity.body && entity.ai.routineSpots) {
                                     const isPlayer = entity.player?.sessionId?.startsWith('sess_');
                                     if (!isPlayer) {
-                                         const numericId = typeof entity.id === 'number' ? entity.id : (parseInt(entity.id || "0") || 0);
-                                         const schedule = getStudentScheduleTarget(numericId, hour, entity.ai.routineSpots);
-                                         entity.body.setTranslation(schedule.pos, true);
-                                         entity.ai.state = 'idle'; 
-                                         entity.ai.timer = 0;
-                                         teleportCount++;
+                                         // Use New Schedule Logic: Go to ZONE Center
+                                         const schedule = getStudentScheduleTarget(hour);
+                                         let zoneKey = schedule.targetZone;
+                                         if (zoneKey === "DORM") zoneKey = `DORM_${(entity.ai.house || 'ignis').toUpperCase()}`;
+                                         
+                                         const targetLoc = registry.getLocation(zoneKey);
+                                         
+                                         if (targetLoc && targetLoc.x !== 0) {
+                                             entity.body.setTranslation(targetLoc, true);
+                                             entity.ai.state = 'idle'; 
+                                             entity.ai.timer = 0;
+                                             teleportCount++;
+                                         }
                                     }
                                 }
                             }
-                            console.log(`[TIME] Teleported ${teleportCount} NPCs.`);
+                            console.log(`[TIME] Teleported ${teleportCount} NPCs to their zones.`);
                         }
                         return; 
                     }
@@ -120,7 +127,6 @@ export class ChatManager {
                     if (entity && entity.body) {
                         entity.body.setTranslation({ x, y }, true);
                         
-                        // Force state update immediately for rapid feedback
                         const pState = this.room.state.players.get(clientSessionId);
                         if (pState) {
                             pState.x = x;
@@ -152,11 +158,9 @@ export class ChatManager {
 
         msg.text = cleanText;
 
-        // 2. Format Sender Name (Visual Cue)
         if (channel === 'global') msg.sender = `[G] ${player.username}`;
         if (channel === 'house') msg.sender = `[${player.house.toUpperCase()}] ${player.username}`;
 
-        // 3. Distribution Logic
         if (channel === 'global') {
             this.room.broadcast("chat", msg);
         } else if (channel === 'house') {
@@ -167,13 +171,12 @@ export class ChatManager {
                 }
             });
         } else {
-            // LOCAL (Default) - AOI Check
-            // Always send to sender
+            // LOCAL
             const senderClient = this.room.clients.getById(clientSessionId);
             if (senderClient) senderClient.send("chat", msg);
 
             this.room.clients.forEach(client => {
-                if (client.sessionId === clientSessionId) return; // Already sent
+                if (client.sessionId === clientSessionId) return; 
                 
                 const targetPlayer = this.room.state.players.get(client.sessionId);
                 if (targetPlayer) {
@@ -185,8 +188,6 @@ export class ChatManager {
             });
         }
 
-        // 4. Persistence (Only Global/House? Or All?)
-        // Let's persist all for now in history, but marked.
         this.room.state.messages.push(msg);
         if (this.room.state.messages.length > CONFIG.CHAT.HISTORY_SIZE) {
             this.room.state.messages.shift();

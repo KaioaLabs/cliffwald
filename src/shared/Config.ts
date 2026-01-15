@@ -80,7 +80,11 @@ export const CONFIG = {
     // Collision & Physics Optimization
     COLLISION_CONFIG: {
         PROJECTILE_RADIUS_SQ: 900, // 30px * 30px
-        SWEEP_PRUNE_THRESHOLD: 30  // px
+        SWEEP_PRUNE_THRESHOLD: 30,  // px
+        // Physics Filter for Raycasting (Membership & Filter)
+        // Walls typically have Membership 0x0001. 
+        // We want a filter that checks against this.
+        WALL_CHECK: 0x00010001
     },
 
     // Database & Persistence

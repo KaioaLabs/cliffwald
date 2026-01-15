@@ -1,6 +1,9 @@
 import { test, expect, chromium, BrowserContext, Page } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
+import dotenv from 'dotenv';
+dotenv.config({ path: path.join(__dirname, '../.env') }); // Load root .env
+
 import { PrismaClient } from '../src/generated/client/client'; // Local path
 
 const prisma = new PrismaClient();
@@ -44,13 +47,18 @@ test.describe.serial('Auditoría Maestra: Ciclo de Vida MMO', () => {
         // Verificar Login Screen visible
         await expect(pageA.locator('#login-screen')).toBeVisible();
         
-        // Llenar formulario Custom
+        // Llenar formulario Login
         await pageA.fill('#login-username', 'Audit_Hero');
-        await pageA.selectOption('#login-house', 'vesper'); // Green
-        await pageA.click('#btn-login-custom');
+        await pageA.fill('#login-password', 'password123');
+        await pageA.click('#btn-login-action');
+        
+        // Wait for Registration Form (since user was deleted)
+        await expect(pageA.locator('#form-register')).toBeVisible();
+        await pageA.selectOption('#reg-house', 'vesper');
+        await pageA.click('#btn-register-action');
 
         // Esperar entrada al juego (HUD visible)
-        await expect(pageA.locator('#login-screen')).toBeHidden();
+        await expect(pageA.locator('#login-screen')).toBeHidden({ timeout: 10000 });
         await expect(pageA.locator('#quick-menu')).toBeVisible();
         console.log("✅ Login exitoso con usuario nuevo");
 
@@ -105,8 +113,8 @@ test.describe.serial('Auditoría Maestra: Ciclo de Vida MMO', () => {
         await pageA.goto('http://localhost:3000');
         
         await pageA.fill('#login-username', 'Audit_Hero');
-        // No importa la casa seleccionada en re-login, debería cargar la de DB
-        await pageA.click('#btn-login-custom'); 
+        await pageA.fill('#login-password', 'password123');
+        await pageA.click('#btn-login-action'); 
         
         await expect(pageA.locator('#quick-menu')).toBeVisible();
         console.log("✅ Re-login exitoso");
@@ -124,7 +132,8 @@ test.describe.serial('Auditoría Maestra: Ciclo de Vida MMO', () => {
 
         // Intentar entrar con EL MISMO usuario
         await pageB.fill('#login-username', 'Audit_Hero');
-        await pageB.click('#btn-login-custom');
+        await pageB.fill('#login-password', 'password123');
+        await pageB.click('#btn-login-action');
 
         // Comportamiento esperado:
         // Opción A: Server rechaza B.
@@ -156,11 +165,11 @@ test.describe.serial('Auditoría Maestra: Ciclo de Vida MMO', () => {
         const page = pageB; // Asumimos que el último entra
         
         await page.click('#btn-album');
-        await expect(page.locator('#album-modal')).toBeVisible();
+        await expect(page.locator('#album-overlay')).toBeVisible();
         await expect(page.locator('#collection-count')).toBeVisible();
         
-        await page.click('.close-btn >> nth=1'); // Cerrar album (hay varios close-btn)
-        // await expect(page.locator('#album-modal')).toBeHidden(); // Puede ser flacky por animación
+        // Wait for close button inside modal
+        await page.locator('#album-modal .close-btn').click();
         
         console.log("✅ UI Álbum verificada");
     });

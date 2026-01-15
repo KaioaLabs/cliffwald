@@ -2,6 +2,8 @@ export class MinigameManager {
     private container: HTMLElement;
     private active: boolean = false;
     private onComplete: (score: number) => void = () => {};
+    private currentListener: ((e: KeyboardEvent) => void) | null = null;
+    private currentInterval: any = null;
 
     constructor() {
         // Create container if it doesn't exist
@@ -37,10 +39,22 @@ export class MinigameManager {
         else if (type === 'history') this.startHistory(duration);
     }
 
-    private finish(score: number) {
+    public cleanup() {
         this.active = false;
+        if (this.currentListener) {
+            window.removeEventListener('keydown', this.currentListener);
+            this.currentListener = null;
+        }
+        if (this.currentInterval) {
+            clearInterval(this.currentInterval);
+            this.currentInterval = null;
+        }
         this.container.innerHTML = '';
         this.container.style.pointerEvents = 'none';
+    }
+
+    private finish(score: number) {
+        this.cleanup();
         this.onComplete(score);
     }
 
@@ -54,7 +68,7 @@ export class MinigameManager {
 
         const wrapper = this.createWrapper("CHARMS CLASS: Timing");
         
-        // Visuals
+        // ... (Visuals remain same) ...
         const circle = document.createElement('div');
         circle.style.width = '100px';
         circle.style.height = '100px';
@@ -91,20 +105,15 @@ export class MinigameManager {
         // Logic
         let angle = 0;
         const speed = 5; // deg per frame
-        const interval = setInterval(() => {
+        
+        this.currentInterval = setInterval(() => {
             angle = (angle + speed) % 360;
             cursor.style.transform = `rotate(${angle - 90}deg)`; // -90 to start top
         }, 16);
 
-        const listener = (e: KeyboardEvent) => {
+        this.currentListener = (e: KeyboardEvent) => {
             if (e.code === 'Space') {
                 attempts++;
-                // Target is at Top (approx 270 deg or -90 deg visual). 
-                // We rotate from right. 0 is Right. 270 is Top.
-                // Tolerance +/- 30 deg.
-                // Wait, visually -90deg is top. 
-                // Angle 0 = right. 270 = top.
-                // Check dist from 270.
                 const dist = Math.abs(angle - 270);
                 if (dist < 30) {
                     hits++;
@@ -116,8 +125,6 @@ export class MinigameManager {
                 }
 
                 if (attempts >= maxAttempts) {
-                    clearInterval(interval);
-                    window.removeEventListener('keydown', listener);
                     const finalScore = Math.floor((hits / maxAttempts) * 100);
                     setTimeout(() => this.finish(finalScore), 1000);
                 } else {
@@ -128,7 +135,7 @@ export class MinigameManager {
                 }
             }
         };
-        window.addEventListener('keydown', listener);
+        window.addEventListener('keydown', this.currentListener);
     }
 
     private startPotions(duration: number) {
@@ -174,14 +181,14 @@ export class MinigameManager {
         wrapper.appendChild(hint);
 
         // Logic
-        const listener = (e: KeyboardEvent) => {
+        this.currentListener = (e: KeyboardEvent) => {
             if (e.code === 'Space') {
                 heat = Math.min(100, heat + 15);
             }
         };
-        window.addEventListener('keydown', listener);
+        window.addEventListener('keydown', this.currentListener);
 
-        const interval = setInterval(() => {
+        this.currentInterval = setInterval(() => {
             heat = Math.max(0, heat - 2); // Cool down
             fill.style.height = `${heat}%`;
             
@@ -194,11 +201,9 @@ export class MinigameManager {
             }
             
             frames++;
-            if (frames >= 60 * 10) { // 10 seconds approx (assuming 60fps interval, actually 16ms interval is ~60fps)
-                clearInterval(interval);
-                window.removeEventListener('keydown', listener);
+            if (frames >= 60 * 10) { 
                 const maxPossible = 60 * 10;
-                const finalScore = Math.min(100, Math.floor((scoreAccumulator / maxPossible) * 200)); // Normalize
+                const finalScore = Math.min(100, Math.floor((scoreAccumulator / maxPossible) * 200)); 
                 this.finish(finalScore);
             }
         }, 16);
@@ -229,9 +234,9 @@ export class MinigameManager {
 
         // Play Sequence
         let i = 0;
-        const playInterval = setInterval(() => {
+        this.currentInterval = setInterval(() => {
             if (i >= sequence.length) {
-                clearInterval(playInterval);
+                if (this.currentInterval) clearInterval(this.currentInterval);
                 display.innerText = "_ _ _ _ _";
                 hint.innerText = "Repeat the sequence!";
                 startListening();
@@ -248,27 +253,24 @@ export class MinigameManager {
         }, 1000);
 
         const startListening = () => {
-            const listener = (e: KeyboardEvent) => {
+            this.currentListener = (e: KeyboardEvent) => {
                 if (e.code === sequence[inputIndex]) {
                     inputIndex++;
-                    // Visual feedback
                     const currentText = display.innerText.split(' ');
                     currentText[inputIndex - 1] = "✅";
                     display.innerText = currentText.join(' ');
 
                     if (inputIndex >= sequence.length) {
-                        window.removeEventListener('keydown', listener);
                         this.finish(100);
                     }
                 } else {
                     // Fail
-                    window.removeEventListener('keydown', listener);
                     hint.style.color = '#f00';
                     hint.innerText = "WRONG!";
                     setTimeout(() => this.finish(0), 1000);
                 }
             };
-            window.addEventListener('keydown', listener);
+            window.addEventListener('keydown', this.currentListener);
         };
     }
 

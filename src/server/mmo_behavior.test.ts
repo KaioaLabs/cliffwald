@@ -17,6 +17,8 @@ vi.mock("@dimforge/rapier2d-compat", async () => {
     };
 });
 
+import { LevelRegistry } from "./managers/LevelRegistry";
+
 describe("AISystem MMO Behaviors", () => {
     let world: ECSWorld;
     let physicsWorld: any;
@@ -38,13 +40,28 @@ describe("AISystem MMO Behaviors", () => {
                 timer: 0, // start with 0
                 home: { x: 0, y: 0 },
                 archetype: archetype,
-                reactionDelay: 0
+                reactionDelay: 0,
+                house: 'ignis' // Added default house
             },
             player: { sessionId: id }
         });
     };
 
     beforeEach(() => {
+        // Mock LevelRegistry
+        LevelRegistry.getInstance().setData({
+            locations: new Map([
+                ["DORM_IGNIS", { x: 500, y: 500, id: "DORM_IGNIS" }],
+                ["GREAT_HALL", { x: 1000, y: 1000, id: "GREAT_HALL" }],
+                ["CLASSROOM", { x: 800, y: 800, id: "CLASSROOM" }],
+                ["COURTYARD", { x: 600, y: 600, id: "COURTYARD" }]
+            ]),
+            duelZones: [],
+            infirmaryBeds: [],
+            infirmaryExit: { x: 0, y: 0 },
+            duelExits: new Map()
+        });
+
         world = createWorld();
         physicsWorld = new RAPIER.World({ x: 0, y: 0 });
         castCallback.mockClear();
@@ -103,7 +120,7 @@ describe("AISystem MMO Behaviors", () => {
 
         // Force Lag Check
         const realRandom = Math.random;
-        Math.random = () => 0.001; // < 0.01 (Trigger Lag)
+        Math.random = () => 0.0001; // < 0.001 (Trigger Lag)
 
         AISystem(world, physicsWorld, 16, 12, undefined, castCallback);
 

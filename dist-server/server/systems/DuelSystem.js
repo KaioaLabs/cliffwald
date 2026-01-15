@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.DuelSystem = void 0;
 const Config_1 = require("../../shared/Config");
 const SchemaDef_1 = require("../../shared/SchemaDef");
+const LevelRegistry_1 = require("../managers/LevelRegistry");
 class DuelSystem {
     constructor(room) {
         this.matches = new Map(); // zoneId -> Match
@@ -11,8 +12,10 @@ class DuelSystem {
     }
     update() {
         const now = Date.now();
-        // Iterate over all configured zones
-        Config_1.CONFIG.DUEL_ZONES.forEach(zone => {
+        const registry = LevelRegistry_1.LevelRegistry.getInstance();
+        // Iterate over all configured zones from Map Data
+        const zones = registry.getDuelZones();
+        zones.forEach(zone => {
             const match = this.matches.get(zone.id);
             const candidates = [];
             // 1. Scan Zone
@@ -171,7 +174,7 @@ class DuelSystem {
             p.duelScore = 0;
             if (eject) {
                 // Find Exit for this Zone
-                const exit = Config_1.CONFIG.DUEL_EXITS[match.zoneId];
+                const exit = LevelRegistry_1.LevelRegistry.getInstance().getDuelExit(match.zoneId);
                 if (exit) {
                     p.x = exit.x;
                     p.y = exit.y;
@@ -183,6 +186,11 @@ class DuelSystem {
                             ent.ai.targetId = undefined;
                         }
                     }
+                }
+                else {
+                    // Fallback if exit missing in map?
+                    // Maybe eject 300px away?
+                    console.warn(`[DUEL] No exit found for zone ${match.zoneId}`);
                 }
             }
         }

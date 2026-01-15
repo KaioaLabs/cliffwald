@@ -89,6 +89,7 @@ export const PlayerScalarFieldEnum = {
   xp: 'xp',
   alignment: 'alignment',
   academicPoints: 'academicPoints',
+  detentionWork: 'detentionWork',
   health: 'health',
   maxHealth: 'maxHealth'
 } as const

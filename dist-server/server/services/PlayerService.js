@@ -54,6 +54,7 @@ class PlayerService {
                         x: playerState.x,
                         y: playerState.y,
                         prestige: playerState.personalPrestige,
+                        gold: playerState.gold || 0,
                         skin: playerState.skin,
                         house: playerState.house,
                         xp: playerState.xp,

@@ -1,10 +1,30 @@
 import RAPIER from "@dimforge/rapier2d-compat";
 import { ECSWorld } from "../../shared/ecs/world";
 import { CONFIG } from "../../shared/Config";
-import { GameState, Player } from "../../shared/SchemaDef";
+import { GameState, Player, InventoryItem } from "../../shared/SchemaDef";
 import { Entity } from "../../shared/ecs/components";
 import { MapData, parseSeats, parseNPCs } from "../../shared/MapParser";
 import { LevelRegistry } from "./LevelRegistry";
+
+export interface CharacterSpawnData {
+    id: string; // SessionId or EchoId
+    numericId?: number;
+    username: string;
+    skin: string;
+    house: 'ignis' | 'axiom' | 'vesper';
+    x: number;
+    y: number;
+    // Optional stats
+    prestige?: number;
+    gold?: number;
+    xp?: number;
+    academicPoints?: number;
+    inventory?: InventoryItem[];
+    // AI Config
+    isAI: boolean;
+    routineSpots?: any; 
+    originalEchoId?: string; // To track which slot was taken
+}
 
 export class SpawnManager {
     private world: ECSWorld;
@@ -12,6 +32,9 @@ export class SpawnManager {
     private state: GameState;
     private entities: Map<string, Entity>;
     private readonly MAX_ECHOES = 50;
+
+    // Track "Souls" of possessed echoes
+    private possessedSlots = new Map<string, { numericId: number, routineSpots: any, house: string, originalId: string }>();
 
     public seats = {
         bed: new Map<number, {x: number, y: number}>(),
@@ -28,6 +51,183 @@ export class SpawnManager {
         this.entities = entities;
     }
 
+    // --- CORE FACTORY ---
+    public spawnCharacter(data: CharacterSpawnData): Entity {
+        // Cleanup existing
+        if (this.entities.has(data.id)) {
+            this.removeEntity(data.id);
+        }
+
+        // Physics
+        const bodyDesc = RAPIER.RigidBodyDesc.dynamic()
+            .setTranslation(data.x, data.y)
+            .setLinearDamping(10.0)
+            .lockRotations();
+        
+        const body = this.physicsWorld.createRigidBody(bodyDesc);
+        body.userData = { sessionId: data.id };
+        const colliderDesc = RAPIER.ColliderDesc.ball(CONFIG.PLAYER_RADIUS);
+        this.physicsWorld.createCollider(colliderDesc, body);
+
+        // ECS
+        let archetype: 'ACHIEVER' | 'SOCIALIZER' | 'EXPLORER' | 'KILLER' = 'SOCIALIZER';
+        if (data.isAI) {
+            const rand = Math.random();
+            if (rand < 0.25) archetype = 'ACHIEVER';
+            else if (rand < 0.50) archetype = 'SOCIALIZER';
+            else if (rand < 0.75) archetype = 'EXPLORER';
+            else archetype = 'KILLER';
+        }
+
+        const entity = this.world.add({
+            id: data.numericId || 0,
+            body: body,
+            input: { left: false, right: false, up: false, down: false },
+            facing: { x: 0, y: 1 },
+            player: { sessionId: data.id },
+            ai: data.isAI ? {
+                state: 'idle',
+                timer: Math.random() * 2000,
+                home: { x: data.x, y: data.y },
+                house: data.house as any,
+                routineSpots: data.routineSpots,
+                archetype: archetype,
+                reactionDelay: archetype === 'ACHIEVER' ? 50 : 500
+            } : undefined
+        });
+
+        // Store metadata if Player (to restore later)
+        if (!data.isAI && data.originalEchoId) {
+            this.possessedSlots.set(data.id, {
+                numericId: data.numericId || 0,
+                routineSpots: data.routineSpots,
+                house: data.house,
+                originalId: data.originalEchoId
+            });
+        }
+
+        this.entities.set(data.id, entity);
+
+        // Schema
+        const playerState = new Player();
+        playerState.id = data.id;
+        playerState.username = data.username;
+        playerState.x = data.x;
+        playerState.y = data.y;
+        playerState.skin = data.skin;
+        playerState.house = data.house;
+        playerState.personalPrestige = data.prestige || 0;
+        playerState.gold = data.gold || 0;
+        playerState.xp = data.xp || 0;
+        playerState.academicPoints = data.academicPoints || 0;
+        
+        if (data.inventory) {
+             data.inventory.forEach(item => playerState.inventory.push(item));
+        }
+
+        this.state.players.set(data.id, playerState);
+        return entity;
+    }
+
+    // --- POSSESSION SYSTEM ---
+
+    public findAvailableEcho(targetHouse?: string): { id: string, entity: Entity } | null {
+        for (const [id, ent] of this.entities) {
+            // Check if AI and NOT a possessed player (redundant check if map is correct)
+            if (ent.ai && id.startsWith('student_')) {
+                // If house matches or no preference
+                if (!targetHouse || ent.ai.house === targetHouse) {
+                    return { id, entity: ent };
+                }
+            }
+        }
+        return null;
+    }
+
+    public possessEcho(echoId: string, clientSessionId: string, playerData: Partial<CharacterSpawnData>): Entity | null {
+        const echoEnt = this.entities.get(echoId);
+        if (!echoEnt || !echoEnt.ai) return null;
+
+        const pos = echoEnt.body?.translation() || { x: 300, y: 300 };
+        const routineSpots = echoEnt.ai.routineSpots;
+        const numericId = typeof echoEnt.id === 'number' ? echoEnt.id : 0;
+        const house = echoEnt.ai.house || 'ignis';
+
+        // 1. Remove Echo
+        this.removeEntity(echoId);
+
+        // 2. Spawn Player
+        console.log(`[SPAWN] Player ${playerData.username} possessing ${echoId}`);
+        return this.spawnCharacter({
+            id: clientSessionId,
+            numericId: numericId,
+            username: playerData.username || "Unknown",
+            skin: playerData.skin || "player_idle",
+            house: house as any,
+            x: pos.x,
+            y: pos.y,
+            prestige: playerData.prestige,
+            gold: playerData.gold,
+            xp: playerData.xp,
+            academicPoints: playerData.academicPoints,
+            inventory: playerData.inventory,
+            isAI: false,
+            routineSpots: routineSpots,
+            originalEchoId: echoId
+        });
+    }
+
+    public restoreEcho(clientSessionId: string, finalState?: Player) {
+        // Retrieve "Soul"
+        const slotData = this.possessedSlots.get(clientSessionId);
+        const entity = this.entities.get(clientSessionId);
+        
+        // Default fallbacks
+        const pos = entity?.body?.translation() || { x: 300, y: 300 };
+        const house = slotData?.house || 'ignis';
+        const originalId = slotData?.originalId || `student_${house}_${Date.now()}`;
+        const numericId = slotData?.numericId;
+        const routineSpots = slotData?.routineSpots;
+
+        // Cleanup Player
+        this.removeEntity(clientSessionId);
+        this.possessedSlots.delete(clientSessionId);
+
+        // Spawn Echo
+        // NOTE: Echo inherits the stats?
+        // Usually Echoes reset stats or keep simple ones.
+        // For now, Echo keeps the "Prestige" it earned?
+        // Let's keep the NAME of the player as a "Ghost" or reset to "Student"?
+        // Original design: "Echo of [PlayerName]" if they were cool, or reset.
+        // Let's reset to "Student" to keep it anonymous for now, or use original logic.
+        
+        console.log(`[SPAWN] Restoring Echo ${originalId} at ${pos.x}, ${pos.y}`);
+        this.spawnCharacter({
+            id: originalId,
+            numericId: numericId,
+            username: `${house.charAt(0).toUpperCase() + house.slice(1)} Student`,
+            skin: house === 'ignis' ? "player_red" : (house === 'axiom' ? "player_blue" : "player_idle"),
+            house: house as any,
+            x: pos.x,
+            y: pos.y,
+            isAI: true,
+            routineSpots: routineSpots,
+            // Restore some base prestige?
+            prestige: finalState?.personalPrestige || 0
+        });
+    }
+
+    // --- UTILS ---
+    public removeEntity(id: string) {
+        const entity = this.entities.get(id);
+        if (entity) {
+            if (entity.body) this.physicsWorld.removeRigidBody(entity.body);
+            this.world.remove(entity);
+            this.entities.delete(id);
+        }
+        this.state.players.delete(id);
+    }
+
     public checkPrefectSpawns(isNight: boolean) {
         if (isNight && this.prefectIds.size === 0) {
             this.spawnPrefects();
@@ -37,355 +237,106 @@ export class SpawnManager {
     }
 
     private spawnPrefects() {
+        // ... (Keep existing logic or simplify) ...
+        // Re-implementing simply for safety in overwrite
         console.log("[SPAWN] Night has fallen. Spawning Prefects...");
-        // Use LevelRegistry for locations if available, or fallback to known spots
         const registry = LevelRegistry.getInstance();
-        const hallway = registry.hasData() ? registry.getLocation("ACADEMIC_WING") : { x: 1600, y: 1600 };
-        const courtyard = registry.hasData() ? registry.getLocation("COURTYARD") : { x: 1056, y: 1280 };
-        
-        // Dorm entrance is rough, using Ignis for now or a specific spot if we had it
-        const dorm = registry.hasData() ? registry.getLocation("DORM_IGNIS") : { x: 600, y: 1100 };
-
-        const locs = [
-            { x: hallway.x, y: hallway.y, name: "Hallway Prefect" }, 
-            { x: courtyard.x, y: courtyard.y, name: "Courtyard Prefect" }, 
-            { x: dorm.x, y: dorm.y, name: "Dorm Prefect" } 
+        const locations = [
+            registry.getLocation("ACADEMIC_WING") || { x: 1600, y: 1600 },
+            registry.getLocation("COURTYARD") || { x: 1056, y: 1280 },
+            registry.getLocation("DORM_IGNIS") || { x: 600, y: 1100 }
         ];
+        const names = ["Hallway Prefect", "Courtyard Prefect", "Dorm Prefect"];
 
-        locs.forEach((loc, i) => {
+        locations.forEach((loc, i) => {
             const id = `prefect_${i}`;
-            
-            // Physics
-            const bodyDesc = RAPIER.RigidBodyDesc.dynamic()
-                .setTranslation(loc.x, loc.y)
-                .setLinearDamping(10.0) 
-                .lockRotations(); 
-            const body = this.physicsWorld.createRigidBody(bodyDesc);
-            body.userData = { sessionId: id };
-            const colliderDesc = RAPIER.ColliderDesc.ball(CONFIG.PLAYER_RADIUS);
-            this.physicsWorld.createCollider(colliderDesc, body);
-
-            // ECS
-            const entity = this.world.add({
-                id: 1000 + i, // High ID for Prefects
-                body: body,
-                input: { left: false, right: false, up: false, down: false },
-                facing: { x: 0, y: 1 },
-                player: { sessionId: id },
-                ai: {
-                    state: 'patrol', // Default state for Prefect
-                    timer: 0,
-                    home: { x: loc.x, y: loc.y },
-                    archetype: 'KILLER', // Aggressive
-                    reactionDelay: 50
-                }
+            this.spawnCharacter({
+                id: id,
+                numericId: 1000 + i,
+                username: names[i],
+                skin: "player_idle",
+                house: "ignis",
+                x: loc.x,
+                y: loc.y,
+                isAI: true
             });
-            this.entities.set(id, entity);
-
-            // Schema
-            const playerState = new Player();
-            playerState.id = id;
-            playerState.username = loc.name;
-            playerState.x = loc.x;
-            playerState.y = loc.y;
-            playerState.skin = "player_idle"; // Reuse player sprite for now
-            playerState.house = "ignis"; // Default, but client will tint based on name/flag
-            // We need a way to tell client to tint this PREFECT color.
-            // Client checks name for "Student" or "Echo". 
-            // We'll update Client logic later to handle "Prefect" name or add a field.
-            
-            this.state.players.set(id, playerState);
             this.prefectIds.add(id);
         });
     }
 
     private despawnPrefects() {
-        console.log("[SPAWN] Morning has broken. Despawning Prefects...");
-        this.prefectIds.forEach(id => {
-            const entity = this.entities.get(id);
-            if (entity) {
-                if (entity.body) this.physicsWorld.removeRigidBody(entity.body);
-                this.world.remove(entity);
-                this.entities.delete(id);
-            }
-            this.state.players.delete(id);
-        });
+        this.prefectIds.forEach(id => this.removeEntity(id));
         this.prefectIds.clear();
     }
 
     public loadSeats(mapData: MapData) {
         this.seats = parseSeats(mapData);
-        console.log(`[SPAWN] Loaded ${this.seats.bed.size} beds, ${this.seats.class.size} class seats, ${this.seats.food.size} food seats.`);
-    }
-
-    private enforceEchoLimit() {
-        const echoKeys: string[] = [];
-        this.state.players.forEach((player, key) => {
-            if (key.startsWith("echo_")) {
-                echoKeys.push(key);
-            }
-        });
-
-        if (echoKeys.length >= this.MAX_ECHOES) {
-            const toRemoveCount = echoKeys.length - this.MAX_ECHOES + 1;
-            
-            for (let i = 0; i < toRemoveCount; i++) {
-                const keyToRemove = echoKeys[i];
-                const entity = this.entities.get(keyToRemove);
-                
-                if (entity) {
-                    if (entity.body) {
-                        this.physicsWorld.removeRigidBody(entity.body);
-                    }
-                    this.world.remove(entity);
-                    this.entities.delete(keyToRemove);
-                }
-                
-                this.state.players.delete(keyToRemove);
-                console.log(`[SPAWN] Echo Limit Reached. Removed ${keyToRemove}`);
-            }
-        }
     }
 
     public spawnEchoes(count: number, centerPos: { x: number, y: number }) {
         const houses: ('ignis' | 'axiom' | 'vesper')[] = ['ignis', 'axiom', 'vesper'];
-        console.log(`[SPAWN] Initializing magic school with 24 Fixed Student Slots (8 per house)...`);
-        
         let globalIdCounter = 1;
         const TILE_SIZE = 32;
 
         houses.forEach(house => {
             const registry = LevelRegistry.getInstance();
-            let dormPos = registry.getLocation("DORM_IGNIS");
-            if (house === 'axiom') dormPos = registry.getLocation("DORM_AXIOM");
-            if (house === 'vesper') dormPos = registry.getLocation("DORM_VESPER");
+            let dormPos = registry.getLocation(`DORM_${house.toUpperCase()}`) || registry.getLocation("DORM_IGNIS");
 
             const studentsPerHouse = Math.floor(count / 3);
             for (let i = 1; i <= studentsPerHouse; i++) {
                 const id = `student_${house}_${i}`;
                 const numericId = globalIdCounter++;
-                const studentIndex = i - 1; // 0-based
+                const studentIndex = i - 1;
                 const skin = house === 'ignis' ? "player_red" : (house === 'axiom' ? "player_blue" : "player_idle");
                 
-                // FIXED BED POSITION (Row of 8 beds)
-                const x = dormPos.x + (studentIndex - 3.5) * (TILE_SIZE * 2); 
-                const y = dormPos.y;
+                // Calculate Spots
+                const bedRow = Math.floor(studentIndex / 4);
+                const bedCol = studentIndex % 4;
+                const sleepPos = {
+                    x: dormPos.x + (bedCol * TILE_SIZE * 2),
+                    y: dormPos.y + (bedRow * TILE_SIZE * 3) + 20
+                };
                 
-                this.createEchoEntity(id, x, y, skin, `${house.charAt(0).toUpperCase() + house.slice(1)} Student ${i}`, house, numericId);
+                let tableOffsetY = house === 'ignis' ? -80 : (house === 'vesper' ? 80 : 0);
+                const tableRow = Math.floor(studentIndex / 4); 
+                const tableCol = studentIndex % 4; 
+                const gh = registry.getLocation("GREAT_HALL");
+                const eatPos = {
+                    x: gh.x + (tableCol * 64) - 96, 
+                    y: gh.y + tableOffsetY + (tableRow === 0 ? -40 : 40)
+                };
+
+                const seatId = numericId - 1;
+                const classPos = this.seats.class.get(seatId) || { x: 1440, y: 1312 };
+
+                this.spawnCharacter({
+                    id: id,
+                    numericId: numericId,
+                    username: `${house.charAt(0).toUpperCase() + house.slice(1)} Student ${i}`,
+                    skin: skin,
+                    house: house,
+                    x: sleepPos.x,
+                    y: sleepPos.y,
+                    isAI: true,
+                    routineSpots: { sleep: sleepPos, eat: eatPos, class: classPos }
+                });
             }
         });
-        
-        console.log(`[SPAWN] Population complete.`);
     }
 
     public spawnFromMap(mapData: MapData) {
         const npcs = parseNPCs(mapData);
-        
-        if (npcs.length > 0) {
-            console.log(`[SPAWN] Found NPC Layer with ${npcs.length} entities.`);
-            npcs.forEach(npc => {
-                 const id = `teacher_${npc.id}`; 
-                 const name = npc.name;
-                 const skin = npc.skin;
-
-                 this.createEchoEntity(id, npc.x, npc.y, skin, name, 'ignis', undefined);
-                 
-                 // Set AI to Static/Idle
-                 const entity = this.entities.get(id);
-                 if (entity && entity.ai) {
-                     entity.ai.routineSpots = undefined;
-                     entity.ai.home = { x: npc.x, y: npc.y };
-                     entity.ai.state = 'idle';
-                 }
-            });
-        } else {
-            console.log("[SPAWN] NPC Layer not found or empty. Using Legacy Hardcoded Spawns.");
-            this.spawnTeachers();
-        }
-    }
-
-    private spawnTeachers() {
-        const teachers = [
-            { x: 1584, y: 1250, name: "Professor Hecate", skin: "teacher" }, // Classroom
-            { x: 1600, y: 1600, name: "Headmaster Aris", skin: "teacher" },  // Hallway
-            { x: 1300, y: 1300, name: "Caretaker Filch", skin: "teacher" },  // Courtyard Entry
-            { x: 600,  y: 1000, name: "Matron Pomfrey", skin: "teacher" },   // Dorms
-            { x: 1600, y: 2880, name: "Baba Yaga", skin: "teacher" }         // Forest Witch
-        ];
-
-        teachers.forEach((t, i) => {
-            const id = `teacher_legacy_${i}`;
-            // Create teacher entity
-            this.createEchoEntity(id, t.x, t.y, t.skin, t.name, 'ignis', undefined);
-            
-            // Override AI to stay put (Static NPCs for now)
-            const entity = this.entities.get(id);
-            if (entity && entity.ai) {
-                entity.ai.routineSpots = undefined; 
-                entity.ai.home = { x: t.x, y: t.y };
-                entity.ai.state = 'idle';
-            }
+        npcs.forEach(npc => {
+             this.spawnCharacter({
+                 id: `teacher_${npc.id}`,
+                 username: npc.name,
+                 skin: npc.skin,
+                 house: 'ignis',
+                 x: npc.x,
+                 y: npc.y,
+                 isAI: true,
+                 numericId: 2000 + npc.id
+             });
         });
-    }
-
-    public createEchoEntity(id: string, x: number, y: number, skin: string, username: string, house?: 'ignis' | 'axiom' | 'vesper', numericId?: number) {
-        const TILE_SIZE = 32;
-        const studentIndex = (numericId !== undefined) ? ((numericId - 1) % 8) : 0;
-        const seatId = (numericId !== undefined) ? (numericId - 1) : 0;
-
-        // ... (Location logic remains) ...
-        const registry = LevelRegistry.getInstance();
-        
-        // Base Dorm Pos from Registry
-        let dormBase = registry.getLocation("DORM_IGNIS");
-        if (house === 'axiom') dormBase = registry.getLocation("DORM_AXIOM");
-        if (house === 'vesper') dormBase = registry.getLocation("DORM_VESPER");
-
-        const bedRow = Math.floor(studentIndex / 4); // 0 or 1
-        const bedCol = studentIndex % 4; // 0 to 3
-        const sleepPos = {
-            x: dormBase.x + (bedCol * TILE_SIZE * 2),
-            y: dormBase.y + (bedRow * TILE_SIZE * 3) + 20 // Offset +20 to spawn at foot of bed
-        };
-        
-        // 2. EAT POSITIONS (Great Hall: 3 Parallel Tables)
-        let tableOffsetY = 0;
-        if (house === 'ignis') tableOffsetY = -80;
-        if (house === 'vesper') tableOffsetY = 80;
-
-        const tableRow = Math.floor(studentIndex / 4); 
-        const tableCol = studentIndex % 4; 
-        
-        const gh = registry.getLocation("GREAT_HALL");
-        const eatPos = {
-            x: gh.x + (tableCol * 64) - 96, 
-            y: gh.y + tableOffsetY + (tableRow === 0 ? -40 : 40)
-        };
-
-        const classPos = this.seats.class.get(seatId) || (() => {
-            const seatRow = Math.floor((seatId % 24) / 8); 
-            const seatCol = Math.floor(((seatId % 24) % 8) / 2); 
-            const seatSide = seatId % 2; 
-            const tableX = 1440 + (seatCol * 96);
-            const tableY = 1312 + (seatRow * 64);
-            return { x: tableX + 16 + (seatSide * 32), y: tableY + 40 };
-        })();
-
-        // 2. Create Physics (DYNAMIC for authoritative collisions)
-        const spawnX = sleepPos.x;
-        const spawnY = sleepPos.y;
-
-        const bodyDesc = RAPIER.RigidBodyDesc.dynamic()
-            .setTranslation(spawnX, spawnY)
-            .setLinearDamping(10.0) 
-            .lockRotations(); 
-        
-        const body = this.physicsWorld.createRigidBody(bodyDesc);
-        body.userData = { sessionId: id };
-        const colliderDesc = RAPIER.ColliderDesc.ball(CONFIG.PLAYER_RADIUS);
-        this.physicsWorld.createCollider(colliderDesc, body);
-        
-        // ARCHETYPE SELECTION (Bartle Taxonomy for Gamers)
-        const rand = Math.random();
-        let archetype: 'ACHIEVER' | 'SOCIALIZER' | 'EXPLORER' | 'KILLER' = 'SOCIALIZER';
-        if (rand < 0.25) archetype = 'ACHIEVER';
-        else if (rand < 0.50) archetype = 'SOCIALIZER';
-        else if (rand < 0.75) archetype = 'EXPLORER';
-        else archetype = 'KILLER';
-
-        // 3. Create ECS Entity
-        const entity = this.world.add({
-            id: numericId,
-            body: body,
-            input: { left: false, right: false, up: false, down: false },
-            facing: { x: 0, y: 1 },
-            player: { sessionId: id },
-            ai: {
-                state: 'idle',
-                timer: Math.random() * 2,
-                home: { x: spawnX, y: spawnY },
-                house: house,
-                routineSpots: {
-                    sleep: sleepPos,
-                    class: classPos,
-                    eat: eatPos
-                },
-                archetype: archetype,
-                inputNoise: { x: 0, y: 0 },
-                noiseTimer: 0,
-                reactionDelay: archetype === 'ACHIEVER' ? 50 : (archetype === 'KILLER' ? 150 : 500)
-            }
-        });
-        this.entities.set(id, entity);
-        
-        // 4. Create Schema State
-        const playerState = new Player();
-        playerState.id = id;
-        playerState.username = username;
-        playerState.x = spawnX;
-        playerState.y = spawnY;
-        playerState.skin = skin;
-        playerState.house = house || 'ignis';
-        
-        this.state.players.set(id, playerState);
-    }
-
-    public convertToEcho(clientSessionId: string, dbId: number, entity: Entity) {
-        if (!entity.body) return;
-
-        this.enforceEchoLimit();
-
-        const pos = entity.body.translation();
-        const echoId = `echo_${dbId}_${Date.now()}`;
-        
-        console.log(`[SPAWN] Converting player ${clientSessionId} to Echo ${echoId}`);
-
-        // Random house for players until we have it in DB
-        const houses: ('ignis' | 'axiom' | 'vesper')[] = ['ignis', 'axiom', 'vesper'];
-        const house = houses[Math.floor(Math.random() * houses.length)];
-
-        // Remove from entities map (old session key)
-        this.entities.delete(clientSessionId);
-        
-        // Add AI Component
-        const rand = Math.random();
-        let archetype: 'ACHIEVER' | 'SOCIALIZER' | 'EXPLORER' | 'KILLER' = 'SOCIALIZER';
-        if (rand < 0.25) archetype = 'ACHIEVER';
-        else if (rand < 0.50) archetype = 'SOCIALIZER';
-        else if (rand < 0.75) archetype = 'EXPLORER';
-        else archetype = 'KILLER';
-
-        entity.ai = {
-            state: 'idle',
-            timer: 0,
-            home: pos,
-            house: house,
-            archetype: archetype,
-            inputNoise: { x: 0, y: 0 },
-            noiseTimer: 0,
-            reactionDelay: archetype === 'ACHIEVER' ? 50 : (archetype === 'KILLER' ? 150 : 500)
-        };
-        
-        // Reset Input
-        entity.input = { left: false, right: false, up: false, down: false };
-        
-        // Update Schema
-        const oldPlayerState = this.state.players.get(clientSessionId);
-        if (oldPlayerState) {
-            const echoState = oldPlayerState.clone();
-            echoState.username = `Echo of ${echoState.username}`;
-            echoState.id = echoId; 
-            echoState.house = house;
-            
-            this.state.players.set(echoId, echoState);
-            this.state.players.delete(clientSessionId);
-            
-            // Update Entity Map
-            if (entity.player) entity.player.sessionId = echoId;
-            this.entities.set(echoId, entity);
-            
-            // Update Physics UserData
-            entity.body.userData = { sessionId: echoId };
-        }
     }
 }

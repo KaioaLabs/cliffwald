@@ -41,6 +41,7 @@ model Player {
   xp             Int @default(0) // Personal Level
   alignment      Int @default(0) // -100 (Dark) to +100 (Light)
   academicPoints Int @default(0) // PA (School Grades)
+  detentionWork  Int @default(0) // Remaining punishment tasks
 
   // Future proofing for Phase 2
   health    Int      @default(100)

@@ -3,7 +3,7 @@ import { SPELL_REGISTRY } from '../../shared/items/SpellRegistry';
 
 export class VisualProjectileManager {
     private scene: Phaser.Scene;
-    private projectiles = new Map<string, Phaser.GameObjects.Shape>();
+    private projectiles = new Map<string, { sprite: Phaser.GameObjects.Shape, targetX: number, targetY: number }>();
 
     constructor(scene: Phaser.Scene) {
         this.scene = scene;
@@ -60,32 +60,36 @@ export class VisualProjectileManager {
     public addNetworkProjectile(id: string, data: any) {
         if (this.projectiles.has(id)) return;
         const visual = this.createProjectileSprite(data, data.creationTime);
-        this.projectiles.set(id, visual);
+        this.projectiles.set(id, { sprite: visual, targetX: data.x, targetY: data.y });
     }
 
     public removeNetworkProjectile(id: string) {
-        const visual = this.projectiles.get(id);
-        if (visual) {
-            visual.destroy();
+        const entry = this.projectiles.get(id);
+        if (entry) {
+            entry.sprite.destroy();
             this.projectiles.delete(id);
         }
     }
 
     public updateProjectile(id: string, x: number, y: number) {
-        const visual = this.projectiles.get(id);
-        if (visual) {
-            this.scene.tweens.add({
-                targets: visual,
-                x: x,
-                y: y,
-                duration: 50,
-                ease: 'Linear'
-            });
+        const entry = this.projectiles.get(id);
+        if (entry) {
+            entry.targetX = x;
+            entry.targetY = y;
         }
     }
 
+    public update(deltaTime: number) {
+        // Simple Lerp for projectiles to avoid thousands of tween objects
+        this.projectiles.forEach((entry) => {
+            const lerpFactor = 0.3; // Responsive enough for projectiles
+            entry.sprite.x = Phaser.Math.Linear(entry.sprite.x, entry.targetX, lerpFactor);
+            entry.sprite.y = Phaser.Math.Linear(entry.sprite.y, entry.targetY, lerpFactor);
+        });
+    }
+
     public clear() {
-        this.projectiles.forEach(p => p.destroy());
+        this.projectiles.forEach(p => p.sprite.destroy());
         this.projectiles.clear();
     }
 }

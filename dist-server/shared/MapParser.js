@@ -9,6 +9,7 @@ exports.getProperty = getProperty;
 exports.parseSeats = parseSeats;
 exports.parseNPCs = parseNPCs;
 exports.parseEntities = parseEntities;
+exports.parseLogic = parseLogic;
 exports.buildPhysics = buildPhysics;
 const rapier2d_compat_1 = __importDefault(require("@dimforge/rapier2d-compat"));
 // --- Helper Functions ---
@@ -34,8 +35,6 @@ function parseSeats(map) {
         const studentId = getProperty(obj, 'studentId');
         if (studentId === undefined)
             return;
-        // Correct coordinates: Tiled objects are top-left, we might want center or specific pivot
-        // Currently keeping as raw Tiled coordinates to match legacy logic
         const pos = { x: obj.x, y: obj.y };
         if (obj.type === 'bed')
             seats.bed.set(studentId, pos);
@@ -64,6 +63,58 @@ function parseEntities(map) {
         spawnPos: spawnObj ? { x: spawnObj.x, y: spawnObj.y } : { x: 256, y: 256 }
     };
 }
+function parseLogic(map) {
+    const logicData = {
+        locations: new Map(),
+        duelZones: [],
+        infirmaryBeds: [],
+        infirmaryExit: null,
+        duelExits: new Map()
+    };
+    const objects = getObjects(map, "Logic");
+    objects.forEach(obj => {
+        // Tiled Points have x,y at the point.
+        // Tiled Ellipses/Rects have x,y at Top-Left.
+        if (obj.type === 'location') {
+            // Assumed to be a Point
+            logicData.locations.set(obj.name || "unknown", {
+                id: obj.name || "unknown",
+                x: obj.x,
+                y: obj.y
+            });
+        }
+        else if (obj.type === 'duel_zone') {
+            // Assumed to be an Ellipse (Circle)
+            // Convert Top-Left to Center
+            const radius = obj.width / 2;
+            const centerX = obj.x + radius;
+            const centerY = obj.y + radius;
+            const zoneId = getProperty(obj, 'zone_id') ?? -1;
+            logicData.duelZones.push({
+                id: zoneId,
+                x: centerX,
+                y: centerY,
+                radius: radius
+            });
+        }
+        else if (obj.type === 'infirmary_bed') {
+            logicData.infirmaryBeds.push({ x: obj.x, y: obj.y });
+        }
+        else if (obj.type === 'exit' && obj.name === 'infirmary_exit') {
+            logicData.infirmaryExit = { x: obj.x, y: obj.y };
+        }
+        else if (obj.type === 'duel_exit') {
+            // parse id from name "duel_exit_N"
+            const parts = (obj.name || "").split('_');
+            const id = parseInt(parts[parts.length - 1]);
+            if (!isNaN(id)) {
+                logicData.duelExits.set(id, { x: obj.x, y: obj.y });
+            }
+        }
+    });
+    logicData.infirmaryBeds.sort((a, b) => (a.x - b.x)); // Basic sort for beds if needed
+    return logicData;
+}
 function buildPhysics(world, mapData) {
     if (!mapData || !Array.isArray(mapData.layers)) {
         console.error("[MapParser] Invalid map data format.");
@@ -73,22 +124,19 @@ function buildPhysics(world, mapData) {
     const mapH = mapData.height || 0;
     const tileW = mapData.tilewidth || 32;
     const tileH = mapData.tileheight || 32;
-    // Initialize navGrid with 0s
     const navGrid = Array.from({ length: mapH }, () => Array(mapW).fill(0));
     const collisionObjects = getObjects(mapData, "Collisions");
     collisionObjects.forEach((obj) => {
         if (typeof obj.x !== 'number' || typeof obj.y !== 'number' || typeof obj.width !== 'number' || typeof obj.height !== 'number') {
             return;
         }
-        // A. Rapier Physics (Fixed bodies)
-        // Tiled objects in pixels -> Rapier in pixels (Center origin)
         const cx = obj.x + obj.width / 2;
         const cy = obj.y + obj.height / 2;
         const rigidBodyDesc = rapier2d_compat_1.default.RigidBodyDesc.fixed().setTranslation(cx, cy);
         const body = world.createRigidBody(rigidBodyDesc);
         const colliderDesc = rapier2d_compat_1.default.ColliderDesc.cuboid(obj.width / 2, obj.height / 2);
+        colliderDesc.setCollisionGroups(0x0001FFFF);
         world.createCollider(colliderDesc, body);
-        // B. Navigation Grid (Mark blocked cells)
         const startX = Math.floor(obj.x / tileW);
         const startY = Math.floor(obj.y / tileH);
         const endX = Math.ceil((obj.x + obj.width) / tileW);

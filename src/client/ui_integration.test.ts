@@ -50,9 +50,8 @@ describe('UI Integration Audit', () => {
         document.body.innerHTML = `
             <div id="ui-layer">
                 <div id="calendar-widget">
-                    <div id="cal-season"></div>
-                    <div id="cal-day"></div>
-                    <div id="cal-phase"></div>
+                    <div id="hud-time"></div>
+                    <div id="hud-date"></div>
                 </div>
                 <div id="quick-menu">
                     <button id="btn-album">Album</button>
@@ -67,10 +66,12 @@ describe('UI Integration Audit', () => {
                 </div>
                 <button id="btn-audio">Audio</button>
                 
-                <div id="album-modal" class="hidden">
-                    <div id="album-grid"></div>
-                    <span id="collection-count"></span>
-                    <button class="close-btn">X</button>
+                <div id="album-overlay" class="modal-overlay hidden">
+                    <div id="album-modal" class="modal">
+                        <div id="album-grid"></div>
+                        <span id="collection-count"></span>
+                        <button class="close-btn">X</button>
+                    </div>
                 </div>
                 
                 <div id="timetable-modal" class="hidden">
@@ -142,22 +143,23 @@ describe('UI Integration Audit', () => {
         const btnAlbum = document.getElementById('btn-album');
         btnAlbum?.click(); 
 
-        const modal = document.getElementById('album-modal');
-        expect(modal?.classList.contains('hidden')).toBe(false);
+        const overlay = document.getElementById('album-overlay');
+        expect(overlay?.classList.contains('hidden')).toBe(false);
 
         const grid = document.getElementById('album-grid');
         expect(grid?.children.length).toBeGreaterThan(0);
         
         // Slot 0 (Card 1) should be owned
-        expect(grid?.children[0].classList.contains('owned')).toBe(true);
+        // grid -> row -> slot
+        const firstRow = grid?.children[0];
+        expect(firstRow?.children[0].classList.contains('owned')).toBe(true);
     });
 
     it('AUDIT 4: Calendar Tooltip & Widget', () => {
-        uiManager.updateCalendar("October", 2, 3, "Day");
+        uiManager.updateHUDTime(10, 0, 3, "October");
         
-        expect(document.getElementById('cal-season')?.innerText).toBe("October - SEMANA 2");
-        expect(document.getElementById('cal-day')?.innerText).toBe("DÍA 3");
-        expect(document.getElementById('cal-phase')?.innerText).toBe("DAY");
+        expect(document.getElementById('hud-time')?.innerText).toBe("10:00");
+        expect(document.getElementById('hud-date')?.innerText).toBe("DAY 3 - OCTOBER");
 
         const modal = document.getElementById('timetable-modal');
         if (modal) modal.classList.remove('hidden');

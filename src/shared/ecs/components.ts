@@ -36,10 +36,20 @@ export interface AIComponent {
     inputNoise?: { x: number, y: number }; // Deviation from perfect path
     noiseTimer?: number; // How often to change the noise
     reactionDelay?: number; // Artificial lag
+    
+    // Stuck Detection
+    stuckTimer?: number;
+    lastPos?: { x: number, y: number };
 }
 
 export interface VisualComponent {
     sprite: { x: number, y: number, depth: number, visible: boolean, flipX: boolean, destroy: Function } | any; // Reference to Phaser Sprite (Client only)
+}
+
+export interface MetadataComponent {
+    dbId?: number;
+    alignment?: number;
+    academicSession?: { startTime: number };
 }
 
 export interface Entity {
@@ -50,4 +60,5 @@ export interface Entity {
     player?: PlayerComponent;
     ai?: AIComponent;
     visual?: VisualComponent;
+    metadata?: MetadataComponent;
 }

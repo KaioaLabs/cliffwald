@@ -39,6 +39,7 @@ class Player extends schema_1.Schema {
         this.vx = 0;
         this.vy = 0;
         this.personalPrestige = 0;
+        this.gold = 0;
         this.xp = 0; // Global Experience (Classes + Alignment)
         this.academicPoints = 0; // PA (School Grades)
         // Duel Stats
@@ -50,6 +51,8 @@ class Player extends schema_1.Schema {
         // Class / Activity State
         this.isAttendingClass = false;
         this.classEndsAt = 0; // Timestamp when class finishes
+        // Discipline
+        this.detentionWork = 0; // Remaining 'work units' to be free
     }
 }
 exports.Player = Player;
@@ -92,6 +95,10 @@ __decorate([
 __decorate([
     (0, schema_1.type)("number"),
     __metadata("design:type", Number)
+], Player.prototype, "gold", void 0);
+__decorate([
+    (0, schema_1.type)("number"),
+    __metadata("design:type", Number)
 ], Player.prototype, "xp", void 0);
 __decorate([
     (0, schema_1.type)("number"),
@@ -121,6 +128,10 @@ __decorate([
     (0, schema_1.type)("number"),
     __metadata("design:type", Number)
 ], Player.prototype, "classEndsAt", void 0);
+__decorate([
+    (0, schema_1.type)("number"),
+    __metadata("design:type", Number)
+], Player.prototype, "detentionWork", void 0);
 class WorldItem extends schema_1.Schema {
     constructor() {
         super(...arguments);

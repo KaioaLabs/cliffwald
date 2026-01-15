@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { MathUtils } from '../shared/utils/MathUtils';
 
 interface Point { x: number; y: number; }
 
@@ -158,9 +159,7 @@ export class GestureManager {
     private compare(pts1: Point[], pts2: Point[]): number {
         let distance = 0;
         for (let i = 0; i < pts1.length; i++) {
-            const dx = pts1[i].x - pts2[i].x;
-            const dy = pts1[i].y - pts2[i].y;
-            distance += Math.sqrt(dx * dx + dy * dy);
+            distance += MathUtils.distance(pts1[i].x, pts1[i].y, pts2[i].x, pts2[i].y);
         }
         return Math.max(0, 1 - (distance / pts1.length) / 100);
     }
@@ -209,7 +208,7 @@ export class GestureManager {
         const newPoints = [{ ...points[0] }];
         const pts = [...points];
         for (let i = 1; i < pts.length; i++) {
-            const d = Math.sqrt(Math.pow(pts[i].x - pts[i - 1].x, 2) + Math.pow(pts[i].y - pts[i - 1].y, 2));
+            const d = MathUtils.distance(pts[i].x, pts[i].y, pts[i - 1].x, pts[i - 1].y);
             if (D + d >= I) {
                 const q = {
                     x: pts[i - 1].x + ((I - D) / d) * (pts[i].x - pts[i - 1].x),
@@ -229,7 +228,7 @@ export class GestureManager {
     private pathLength(points: Point[]): number {
         let d = 0;
         for (let i = 1; i < points.length; i++) {
-            d += Math.sqrt(Math.pow(points[i].x - points[i - 1].x, 2) + Math.pow(points[i].y - points[i - 1].y, 2));
+            d += MathUtils.distance(points[i].x, points[i].y, points[i - 1].x, points[i - 1].y);
         }
         return d;
     }

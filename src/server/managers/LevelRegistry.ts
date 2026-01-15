@@ -23,7 +23,7 @@ export class LevelRegistry {
         const loc = this.data.locations.get(id);
         if (!loc) {
             console.warn(`[LevelRegistry] Location '${id}' not found in map data. Returning fallback (0,0).`);
-            return { x: 0, y: 0, id: "MISSING" };
+            return { x: 0, y: 0, width: 0, height: 0, id: "MISSING" };
         }
         return loc;
     }

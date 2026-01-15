@@ -106,54 +106,10 @@ app.post("/api/logs", (req, res) => {
 // -----------------------
 
 import path from "path";
+import RAPIER from "@dimforge/rapier2d-compat";
 
 // ...
-
-// Serve Static Client (Production)
-if (process.env.NODE_ENV === "production") {
-    const fs = require('fs');
-    const path = require('path');
-
-    // DEBUG: Recursive List to find where the files are
-    console.log("--- DEBUG: FILE SYSTEM STRUCTURE ---");
-    console.log("CWD:", process.cwd());
-    console.log("__dirname:", __dirname);
-    console.log("------------------------------------");
-
-    // Robust path resolution using process.cwd()
-    // Priority 1: Standard Vite output at root/dist-client
-    const viteDist = path.join(process.cwd(), "dist-client");
-    // Priority 2: Legacy/Copied path at dist-server/public
-    const legacyDist = path.join(__dirname, "../public");
-
-    let clientDist = viteDist;
-    if (fs.existsSync(viteDist)) {
-        console.log(`[SERVER] Serving static from VITE build: ${clientDist}`);
-    } else if (fs.existsSync(legacyDist)) {
-        clientDist = legacyDist;
-        console.log(`[SERVER] Serving static from LEGACY build: ${clientDist}`);
-    } else {
-        console.error(`[SERVER] CRITICAL: No client build found at ${viteDist} or ${legacyDist}`);
-    }
-
-    app.use(express.static(clientDist));
-    
-    app.get(/.*/, (req, res) => {
-        if (req.path.startsWith("/api")) return res.status(404).send("API Not Found");
-        
-        const indexPath = path.join(clientDist, "index.html");
-        if (fs.existsSync(indexPath)) {
-            res.sendFile(indexPath);
-        } else {
-            res.status(404).send(`Client build not found. Checked: ${clientDist}`);
-        }
-    });
-} else {
-    // Basic health check for Dev
-    app.get("/", (req, res) => {
-        res.send("Cliffwald Server is running! (Use Client on Port 3000)");
-    });
-}
+// ...
 
 const server = createServer(app);
 
@@ -169,6 +125,7 @@ gameServer.define("world", WorldRoom);
 // Initialize DB then Start
 initDatabase().then(async () => {
     await seedAdmins();
+    await RAPIER.init();
     gameServer.listen(port).then(() => {
         console.log(`[GameServer] Listening on Port: ${port}`);
     });

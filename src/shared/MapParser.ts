@@ -44,6 +44,8 @@ export interface PhysicsResult {
 export interface GameLocation {
     x: number;
     y: number;
+    width: number;
+    height: number;
     id: string; // "DORM_IGNIS", etc.
 }
 
@@ -55,11 +57,11 @@ export interface DuelZone {
 }
 
 export interface LogicData {
-    locations: Map<string, GameLocation>; // "DORM_IGNIS" -> {x,y}
+    locations: Map<string, GameLocation>; 
     duelZones: DuelZone[];
     infirmaryBeds: {x: number, y: number}[];
     infirmaryExit: {x: number, y: number} | null;
-    duelExits: Map<number, {x: number, y: number}>; // ID -> Point
+    duelExits: Map<number, {x: number, y: number}>; 
 }
 
 // --- Helper Functions ---
@@ -137,11 +139,25 @@ export function parseLogic(map: MapData): LogicData {
         // Tiled Ellipses/Rects have x,y at Top-Left.
         
         if (obj.type === 'location') {
-            // Assumed to be a Point
+            // Check if it has dimensions (Rectangle) or just a Point
+            const w = obj.width || 0;
+            const h = obj.height || 0;
+            
+            // If it's a point, we might want a default radius later, but for sensors we need AABB
+            // If Tiled Object is a Point, w/h are 0.
+            
+            // We store center X/Y for points, or center X/Y for rects?
+            // Rapier expects half-extents.
+            
+            const centerX = obj.x + w / 2;
+            const centerY = obj.y + h / 2;
+
             logicData.locations.set(obj.name || "unknown", {
                 id: obj.name || "unknown",
-                x: obj.x,
-                y: obj.y
+                x: centerX,
+                y: centerY,
+                width: w,
+                height: h
             });
         } else if (obj.type === 'duel_zone') {
             // Assumed to be an Ellipse (Circle)

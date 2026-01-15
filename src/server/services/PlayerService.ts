@@ -69,7 +69,8 @@ export class PlayerService {
                         // Assuming playerState has them attached, or we need to pass them explicitly.
                         // For now, let's assume they are on the playerState object (we will ensure this in WorldRoom)
                         alignment: (playerState as any).alignment || 0,
-                        academicPoints: (playerState as any).academicPoints || 0
+                        academicPoints: (playerState as any).academicPoints || 0,
+                        detentionWork: (playerState as any).detentionWork || 0
                     }
                 });
 

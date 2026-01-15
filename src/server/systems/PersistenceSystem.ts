@@ -7,17 +7,14 @@ import { MapSchema } from "@colyseus/schema";
 export class PersistenceSystem {
     private entities: Map<string, Entity>;
     private playersState: MapSchema<Player> | Map<string, Player>;
-    private playerDbIds: Map<string, number>;
     private intervalId: any;
 
     constructor(
         entities: Map<string, Entity>, 
-        playersState: MapSchema<Player> | Map<string, Player>, 
-        playerDbIds: Map<string, number>
+        playersState: MapSchema<Player> | Map<string, Player>
     ) {
         this.entities = entities;
         this.playersState = playersState;
-        this.playerDbIds = playerDbIds;
     }
 
     public startAutoSave() {
@@ -35,27 +32,32 @@ export class PersistenceSystem {
     }
 
     public async saveAllPlayers() {
-        const activePlayersCount = this.playerDbIds.size;
-        if (activePlayersCount === 0) return;
-
-        console.log(`[DB] Auto-saving ${activePlayersCount} active players...`);
-        
         const saves: Promise<void>[] = [];
+        let count = 0;
 
-        this.playerDbIds.forEach((dbId, sessionId) => {
+        this.entities.forEach((entity, sessionId) => {
+            const dbId = entity.metadata?.dbId;
+            if (!dbId) return; // Skip non-persisted entities (Echoes/NPCs without active session)
+
             const playerState = this.playersState.get(sessionId);
-            const entity = this.entities.get(sessionId);
-
-            if (dbId && playerState && entity?.body) {
+            
+            if (playerState && entity.body) {
                 // Update state with latest physics pos before saving
                 const pos = entity.body.translation();
                 playerState.x = pos.x;
                 playerState.y = pos.y;
                 
+                // Inject metadata into state for saving if needed (Alignment)
+                (playerState as any).alignment = entity.metadata?.alignment || 0;
+
                 saves.push(PlayerService.saveSession(dbId, playerState));
+                count++;
             }
         });
 
-        await Promise.allSettled(saves);
+        if (count > 0) {
+            console.log(`[DB] Auto-saving ${count} active players...`);
+            await Promise.allSettled(saves);
+        }
     }
 }
