@@ -88,6 +88,14 @@ Para garantizar el acceso en un servidor con slots limitados (24), se aplica un 
     *   El cuerpo cambia instantáneamente al nombre y skin del nuevo jugador online.
     *   **Resultado:** Siempre se puede jugar mientras haya <24 jugadores humanos conectados simultáneamente.
 
+### 4.4. Gestión de Cuenta y Personaje (Account System)
+*   **Vinculación:** Un Personaje por Cuenta (1:1). Similar a Minecraft.
+*   **Creación:** Al registrarse por primera vez, el jugador debe completar el formulario de "Matrícula" (Nombre, Casa, Apariencia).
+*   **Acceso Directo:** Los logins subsiguientes omiten la creación y entran directo al mundo.
+*   **Gestión (Settings):**
+    *   **Renombrar:** Permitido 1 única vez por cuenta.
+    *   **Borrar (Expulsión):** Permite eliminar el personaje y reiniciar el progreso desde cero. Requiere confirmación explícita ("TYPE DELETE").
+
 ---
 
 ## 5. SISTEMA DE MAGIA Y COMBATE

@@ -41,6 +41,13 @@ Este plan prioriza la **Estabilidad Masiva** y la Automatización de Eventos.
     *   **Pathfinding Polish:** Implementado **Bresenham Corner Validation** y **String Pulling (Smooth Path)**.
     *   **Anti-Hive Mind:** Implementado **Stochastic Reaction Latency** y **Deterministic Lane Offsets**.
 
+## ✅ FASE 5.5: GESTIÓN DE CUENTAS (UX POLISH)
+*   **Estado:** COMPLETADO.
+*   **Logros:**
+    *   **Creación de Personaje:** Flujo de matrícula (Nombre/Casa) separado del registro.
+    *   **Gestión:** Renombrado (1 vez) y Borrado de personaje implementados.
+    *   **Body Snatching:** Sistema de prioridad de acceso en servidores llenos.
+
 ---
 
 ## 🚧 FASE 6: LIVE OPS & CLÍMAX (EN PROGRESO)
