@@ -54,6 +54,7 @@ export class SpawnManager {
 
     // --- CORE FACTORY ---
     public spawnCharacter(data: CharacterSpawnData): Entity {
+        console.log(`[DEBUG-SPAWN-CHAR] Spawning ${data.id} with Name: ${data.username}`);
         // Cleanup existing
         if (this.entities.has(data.id)) {
             this.removeEntity(data.id);
@@ -146,7 +147,11 @@ export class SpawnManager {
         return null;
     }
 
-    public possessEcho(echoId: string, clientSessionId: string, playerData: Partial<CharacterSpawnData>): Entity | null {
+import { PlayerService } from "../services/PlayerService";
+
+// ...
+
+    public async possessEcho(echoId: string, clientSessionId: string, playerData: Partial<CharacterSpawnData>): Promise<Entity | null> {
         const echoEnt = this.entities.get(echoId);
         if (!echoEnt || !echoEnt.ai) return null;
 
@@ -158,11 +163,22 @@ export class SpawnManager {
         // 1. Remove Echo
         this.removeEntity(echoId);
 
-        // 2. Spawn Player
+        // 2. Persist Claim (DB)
+        // Find player DB ID from metadata? Or passed in?
+        // possessEcho receives playerData which are VISUAL/Schema stats. Not DB ID.
+        // But WorldRoom calls possessEcho AFTER PlayerService.initializeSession.
+        // We need to pass the DB ID to possessEcho or handle it outside.
+        // Let's rely on WorldRoom saving it? 
+        // No, WorldRoom doesn't know the echoId unless we return it or save it here.
+        // Better: possessEcho logic is strictly ECS. The DB link should be in WorldRoom.
+        
+        // However, I need to return the entity to WorldRoom so it can set metadata.
+        
         console.log(`[SPAWN] Player ${playerData.username} possessing ${echoId}`);
         return this.spawnCharacter({
             id: clientSessionId,
             numericId: numericId,
+            // ...
             username: playerData.username || "Unknown",
             skin: playerData.skin || "player_idle",
             house: house as any,
@@ -180,96 +196,12 @@ export class SpawnManager {
         });
     }
 
-    public restoreEcho(clientSessionId: string, finalState?: Player) {
-        // Retrieve "Soul"
-        const slotData = this.possessedSlots.get(clientSessionId);
-        const entity = this.entities.get(clientSessionId);
-        
-        // Default fallbacks
-        const pos = entity?.body?.translation() || { x: 300, y: 300 };
-        const house = slotData?.house || 'ignis';
-        const originalId = slotData?.originalId || `student_${house}_${Date.now()}`;
-        const numericId = slotData?.numericId;
-        const routineSpots = slotData?.routineSpots;
+    // ...
 
-        // Cleanup Player
-        this.removeEntity(clientSessionId);
-        this.possessedSlots.delete(clientSessionId);
+    public async spawnEchoes(count: number, centerPos: { x: number, y: number }) {
+        const echoMap = await PlayerService.getEchoMap();
+        console.log(`[SPAWN] Loaded ${echoMap.size} persistent Echo identities.`);
 
-        // Spawn Echo
-        // NOTE: Echo inherits the stats?
-        // Usually Echoes reset stats or keep simple ones.
-        // For now, Echo keeps the "Prestige" it earned?
-        // Let's keep the NAME of the player as a "Ghost" or reset to "Student"?
-        // Original design: "Echo of [PlayerName]" if they were cool, or reset.
-        // Let's reset to "Student" to keep it anonymous for now, or use original logic.
-        
-        console.log(`[SPAWN] Restoring Echo ${originalId} at ${pos.x}, ${pos.y}`);
-        this.spawnCharacter({
-            id: originalId,
-            numericId: numericId,
-            username: `${house.charAt(0).toUpperCase() + house.slice(1)} Student`,
-            skin: house === 'ignis' ? "player_red" : (house === 'axiom' ? "player_blue" : "player_idle"),
-            house: house as any,
-            x: pos.x,
-            y: pos.y,
-            isAI: true,
-            routineSpots: routineSpots,
-            // Restore some base prestige?
-            prestige: finalState?.personalPrestige || 0
-        });
-    }
-
-    // --- UTILS ---
-    public removeEntity(id: string) {
-        const entity = this.entities.get(id);
-        if (entity) {
-            if (entity.body) this.physicsWorld.removeRigidBody(entity.body);
-            this.world.remove(entity);
-            this.entities.delete(id);
-        }
-        this.state.players.delete(id);
-    }
-
-    public checkPrefectSpawns(isNight: boolean) {
-        if (isNight && this.prefectIds.size === 0) {
-            this.spawnPrefects();
-        } else if (!isNight && this.prefectIds.size > 0) {
-            this.despawnPrefects();
-        }
-    }
-
-    private spawnPrefects() {
-        console.log("[SPAWN] Night has fallen. Spawning Hallway Prefect...");
-        const registry = LevelRegistry.getInstance();
-        
-        // Only one prefect in the Academic Wing (Hallway)
-        const hallwayPos = registry.getLocation("ACADEMIC_WING") || { x: 1600, y: 1600 };
-        
-        const id = `prefect_hallway`;
-        this.spawnCharacter({
-            id: id,
-            numericId: 1000,
-            username: "Hallway Prefect",
-            skin: "player_idle",
-            house: "ignis",
-            x: hallwayPos.x,
-            y: hallwayPos.y,
-            isAI: true
-        });
-        this.prefectIds.add(id);
-    }
-
-    private despawnPrefects() {
-        this.prefectIds.forEach(id => this.removeEntity(id));
-        this.prefectIds.clear();
-    }
-
-    public loadSeats(mapData: MapData) {
-        this.seats = parseSeats(mapData);
-    }
-
-    public spawnEchoes(count: number, centerPos: { x: number, y: number }) {
         const houses: ('ignis' | 'axiom' | 'vesper')[] = ['ignis', 'axiom', 'vesper'];
         let globalIdCounter = 1;
         const TILE_SIZE = 32;
@@ -283,16 +215,24 @@ export class SpawnManager {
                 const id = `student_${house}_${i}`;
                 const numericId = globalIdCounter++;
                 const studentIndex = i - 1;
-                const skin = house === 'ignis' ? "player_red" : (house === 'axiom' ? "player_blue" : "player_idle");
-                const seatId = numericId - 1; // 0-based for map lookup
+                const seatId = numericId - 1;
 
-                // --- ANCHOR SYSTEM MIGRATION ---
-                const registry = LevelRegistry.getInstance();
+                // PERSISTENCE CHECK
+                const persistentData = echoMap.get(id);
+                let username = `${house.charAt(0).toUpperCase() + house.slice(1)} Student ${i}`;
+                let skin = house === 'ignis' ? "player_red" : (house === 'axiom' ? "player_blue" : "player_idle");
+                let prestige = 0;
+
+                if (persistentData) {
+                    username = persistentData.username;
+                    skin = persistentData.skin;
+                    prestige = persistentData.prestige;
+                    // console.log(`[SPAWN] Restoring ${id} as ${username}`);
+                }
                 
-                // 1. SLEEP SPOT
+                // Calculate Spots (Anchors)
                 let sleepPos = registry.getAnchor(`seat_bed_${seatId}`);
                 if (!sleepPos) {
-                    // Fallback (Legacy Grid Math)
                     const bedRow = Math.floor(studentIndex / 4);
                     const bedCol = studentIndex % 4;
                     sleepPos = {
@@ -301,10 +241,8 @@ export class SpawnManager {
                     };
                 }
 
-                // 2. EAT SPOT
                 let eatPos = registry.getAnchor(`seat_food_${seatId}`);
                 if (!eatPos) {
-                    // Fallback
                     const gh = registry.getLocation("GREAT_HALL");
                     let tableOffsetY = house === 'ignis' ? -80 : (house === 'vesper' ? 80 : 0);
                     const tableRow = Math.floor(studentIndex / 4); 
@@ -315,7 +253,6 @@ export class SpawnManager {
                     };
                 }
 
-                // 3. CLASS SPOT
                 let classPos = registry.getAnchor(`seat_class_${seatId}`);
                 if (!classPos) {
                     classPos = this.seats.class.get(seatId) || { x: 1440, y: 1312 };
@@ -324,12 +261,13 @@ export class SpawnManager {
                 this.spawnCharacter({
                     id: id,
                     numericId: numericId,
-                    username: `${house.charAt(0).toUpperCase() + house.slice(1)} Student ${i}`,
+                    username: username,
                     skin: skin,
                     house: house,
                     x: sleepPos.x,
                     y: sleepPos.y,
                     isAI: true,
+                    prestige: prestige,
                     routineSpots: { sleep: sleepPos, eat: eatPos, class: classPos }
                 });
             }
