@@ -237,31 +237,24 @@ export class SpawnManager {
     }
 
     private spawnPrefects() {
-        // ... (Keep existing logic or simplify) ...
-        // Re-implementing simply for safety in overwrite
-        console.log("[SPAWN] Night has fallen. Spawning Prefects...");
+        console.log("[SPAWN] Night has fallen. Spawning Hallway Prefect...");
         const registry = LevelRegistry.getInstance();
-        const locations = [
-            registry.getLocation("ACADEMIC_WING") || { x: 1600, y: 1600 },
-            registry.getLocation("COURTYARD") || { x: 1056, y: 1280 },
-            registry.getLocation("DORM_IGNIS") || { x: 600, y: 1100 }
-        ];
-        const names = ["Hallway Prefect", "Courtyard Prefect", "Dorm Prefect"];
-
-        locations.forEach((loc, i) => {
-            const id = `prefect_${i}`;
-            this.spawnCharacter({
-                id: id,
-                numericId: 1000 + i,
-                username: names[i],
-                skin: "player_idle",
-                house: "ignis",
-                x: loc.x,
-                y: loc.y,
-                isAI: true
-            });
-            this.prefectIds.add(id);
+        
+        // Only one prefect in the Academic Wing (Hallway)
+        const hallwayPos = registry.getLocation("ACADEMIC_WING") || { x: 1600, y: 1600 };
+        
+        const id = `prefect_hallway`;
+        this.spawnCharacter({
+            id: id,
+            numericId: 1000,
+            username: "Hallway Prefect",
+            skin: "player_idle",
+            house: "ignis",
+            x: hallwayPos.x,
+            y: hallwayPos.y,
+            isAI: true
         });
+        this.prefectIds.add(id);
     }
 
     private despawnPrefects() {
@@ -288,26 +281,42 @@ export class SpawnManager {
                 const numericId = globalIdCounter++;
                 const studentIndex = i - 1;
                 const skin = house === 'ignis' ? "player_red" : (house === 'axiom' ? "player_blue" : "player_idle");
-                
-                // Calculate Spots
-                const bedRow = Math.floor(studentIndex / 4);
-                const bedCol = studentIndex % 4;
-                const sleepPos = {
-                    x: dormPos.x + (bedCol * TILE_SIZE * 2),
-                    y: dormPos.y + (bedRow * TILE_SIZE * 3) + 20
-                };
-                
-                let tableOffsetY = house === 'ignis' ? -80 : (house === 'vesper' ? 80 : 0);
-                const tableRow = Math.floor(studentIndex / 4); 
-                const tableCol = studentIndex % 4; 
-                const gh = registry.getLocation("GREAT_HALL");
-                const eatPos = {
-                    x: gh.x + (tableCol * 64) - 96, 
-                    y: gh.y + tableOffsetY + (tableRow === 0 ? -40 : 40)
-                };
+                const seatId = numericId - 1; // 0-based for map lookup
 
-                const seatId = numericId - 1;
-                const classPos = this.seats.class.get(seatId) || { x: 1440, y: 1312 };
+                // --- ANCHOR SYSTEM MIGRATION ---
+                const registry = LevelRegistry.getInstance();
+                
+                // 1. SLEEP SPOT
+                let sleepPos = registry.getAnchor(`seat_bed_${seatId}`);
+                if (!sleepPos) {
+                    // Fallback (Legacy Grid Math)
+                    const bedRow = Math.floor(studentIndex / 4);
+                    const bedCol = studentIndex % 4;
+                    sleepPos = {
+                        x: dormPos.x + (bedCol * TILE_SIZE * 2),
+                        y: dormPos.y + (bedRow * TILE_SIZE * 3) + 20
+                    };
+                }
+
+                // 2. EAT SPOT
+                let eatPos = registry.getAnchor(`seat_food_${seatId}`);
+                if (!eatPos) {
+                    // Fallback
+                    const gh = registry.getLocation("GREAT_HALL");
+                    let tableOffsetY = house === 'ignis' ? -80 : (house === 'vesper' ? 80 : 0);
+                    const tableRow = Math.floor(studentIndex / 4); 
+                    const tableCol = studentIndex % 4; 
+                    eatPos = {
+                        x: gh.x + (tableCol * 64) - 96, 
+                        y: gh.y + tableOffsetY + (tableRow === 0 ? -40 : 40)
+                    };
+                }
+
+                // 3. CLASS SPOT
+                let classPos = registry.getAnchor(`seat_class_${seatId}`);
+                if (!classPos) {
+                    classPos = this.seats.class.get(seatId) || { x: 1440, y: 1312 };
+                }
 
                 this.spawnCharacter({
                     id: id,
@@ -325,18 +334,32 @@ export class SpawnManager {
     }
 
     public spawnFromMap(mapData: MapData) {
-        const npcs = parseNPCs(mapData);
-        npcs.forEach(npc => {
-             this.spawnCharacter({
-                 id: `teacher_${npc.id}`,
-                 username: npc.name,
-                 skin: npc.skin,
-                 house: 'ignis',
-                 x: npc.x,
-                 y: npc.y,
-                 isAI: true,
-                 numericId: 2000 + npc.id
-             });
+        // --- SINGLE TEACHER (24/7) ---
+        const registry = LevelRegistry.getInstance();
+        
+        // Try to find anchor or fallback to Classroom center
+        let teacherPos = registry.getAnchor("spot_teacher_class");
+        
+        if (!teacherPos) {
+            const classroom = registry.getLocation("ACADEMIC_WING");
+            if (classroom && classroom.id !== "MISSING") {
+                teacherPos = { x: classroom.x, y: classroom.y };
+            } else {
+                teacherPos = { x: 1440, y: 1312 }; // Hard Fallback
+            }
+        }
+
+        this.spawnCharacter({
+             id: "npc_professor_merlin",
+             username: "Professor Merlin",
+             skin: "teacher",
+             house: 'ignis',
+             x: teacherPos.x,
+             y: teacherPos.y,
+             isAI: true,
+             numericId: 9000
         });
+        
+        console.log("[SPAWN] Single Teacher 'Professor Merlin' spawned.");
     }
 }
