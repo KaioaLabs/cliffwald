@@ -217,6 +217,13 @@ export class SpawnManager {
         console.log(`[SPAWN] Loaded ${echoMap.size} persistent Echo identities.`);
 
         const houses: ('ignis' | 'axiom' | 'vesper')[] = ['ignis', 'axiom', 'vesper'];
+        
+        const NAMES = {
+            ignis: ['Ivan', 'Isabella', 'Isaac', 'Ivy', 'Ian', 'Iris', 'Igor', 'Imogen', 'Ilya', 'Ingrid', 'Isaiah', 'Isla'],
+            axiom: ['Arthur', 'Alice', 'Aaron', 'Ava', 'Adam', 'Amelia', 'Alex', 'Audrey', 'Alan', 'Anna', 'Adrian', 'Aria'],
+            vesper: ['Victor', 'Victoria', 'Vincent', 'Violet', 'Vance', 'Vanessa', 'Vlad', 'Valerie', 'Vaughn', 'Vivian', 'Vernon', 'Veronica']
+        };
+
         let globalIdCounter = 1;
         const TILE_SIZE = 32;
 
@@ -233,7 +240,11 @@ export class SpawnManager {
 
                 // PERSISTENCE CHECK
                 const persistentData = echoMap.get(id);
-                let username = `${house.charAt(0).toUpperCase() + house.slice(1)} Student ${i}`;
+                // Assign a name from the list based on index
+                const nameList = NAMES[house];
+                const baseName = nameList[(i - 1) % nameList.length];
+                
+                let username = baseName;
                 let skin = house === 'ignis' ? "player_red" : (house === 'axiom' ? "player_blue" : "player_idle");
                 let prestige = 0;
 
