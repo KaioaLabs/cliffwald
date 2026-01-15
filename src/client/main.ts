@@ -126,7 +126,13 @@ export class GameScene extends Phaser.Scene {
             // --- LIBRARY LADDER ---
             const lib = this.worldBuilder.getLocation("LIBRARY");
             if (lib.x !== 0) {
-                this.ladderManager.setup(lib.x, lib.y);
+                // Fix: Move shelf to Top-Center of the zone (North Wall)
+                // lib.x/y is Top-Left. width/height is dimensions.
+                const cx = lib.x + (lib.width || 0) / 2;
+                const topY = lib.y; 
+                // We might need to push it slightly up/down depending on wall thickness?
+                // Assuming topY is the wall base line.
+                this.ladderManager.setup(cx, topY);
             }
             
             this.playerController = new PlayerController(this, this.physicsWorld);
