@@ -378,9 +378,8 @@ export class PlayerController {
                 }
             }
 
-            // Handle Unconscious State OR Sleep
-            const isSleeping = sprite.getData('isSleepingVisual');
-            if ((entity.unconsciousUntil && entity.unconsciousUntil > now) || isSleeping) {
+            // Handle Unconscious State
+            if (entity.unconsciousUntil && entity.unconsciousUntil > now) {
                 sprite.setRotation(Math.PI / 2); 
                 sprite.setOrigin(0.5, 0.5); 
             } else {
@@ -416,17 +415,14 @@ export class PlayerController {
                 const { isNight } = getGameTime(Date.now());
                 if (isNight && this.isInDorm(sprite.x, sprite.y)) {
                     if (!sprite.getData('isSleepingVisual')) {
-                        // Enter Sleep Mode: Freeze on random "lying down" frame
+                        // Enter Sleep Mode: Freeze on vertical frames (Up or Down)
                         sprite.stop();
                         
-                        // Frames: 0(D), 4(DR), 8(R), 12(UR), 16(U)
-                        const frames = [0, 4, 8, 12, 16];
+                        // Frames: 0(Down), 16(Up)
+                        const frames = [0, 16];
                         const randomFrame = frames[Math.floor(Math.random() * frames.length)];
-                        const randomFlip = Math.random() > 0.5;
                         
                         sprite.setFrame(randomFrame);
-                        sprite.setFlipX(randomFlip);
-                        
                         sprite.setData('isSleepingVisual', true);
                     }
                     return; // SKIP NORMAL ANIMATION
