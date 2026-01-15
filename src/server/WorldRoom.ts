@@ -320,12 +320,35 @@ export class WorldRoom extends Room<GameState> {
     }
 
     async onJoin(client: Client, options: JoinOptions) {
+        console.log(`[DEBUG-NET] Client ${client.sessionId} attempting join with options:`, options);
         try {
             const authUser = client.auth as { userId: number, username: string };
             const targetHouse = options.skin?.includes('red') ? 'ignis' : (options.skin?.includes('blue') ? 'axiom' : 'vesper');
             
-            // 1. Find Echo Slot
-            const echoSlot = this.spawnManager.findAvailableEcho(targetHouse);
+            // 2. Initialize Session
+            const session = await PlayerService.initializeSession(authUser.userId, authUser.username, { ...options, house: targetHouse });
+            const house = session.dbPlayer.house as 'ignis' | 'axiom' | 'vesper';
+
+            // 3. Find Echo Slot (Reclaim or New)
+            let echoSlot: { id: string, entity: Entity } | null = null;
+            
+            if (session.dbPlayer.echoId) {
+                const existingEcho = this.entities.get(session.dbPlayer.echoId);
+                if (existingEcho && existingEcho.ai) { // Ensure it's valid Echo
+                    echoSlot = { id: session.dbPlayer.echoId, entity: existingEcho };
+                    console.log(`[SPAWN] Player ${authUser.username} reclaiming existing Echo ${echoSlot.id}`);
+                } else {
+                    console.warn(`[SPAWN] Player has EchoID ${session.dbPlayer.echoId} but it's missing/invalid. Finding new slot.`);
+                }
+            }
+
+            if (!echoSlot) {
+                echoSlot = this.spawnManager.findAvailableEcho(house);
+                if (echoSlot) {
+                    // Save new association
+                    await PlayerService.setEchoId(session.dbPlayer.id, echoSlot.id);
+                }
+            }
             
             if (!echoSlot) {
                 console.error("[SERVER] No available student slots!");
@@ -333,13 +356,8 @@ export class WorldRoom extends Room<GameState> {
                 return;
             }
 
-            // 2. Initialize Session
-            const house = (echoSlot.entity.ai?.house || 'ignis') as 'ignis' | 'axiom' | 'vesper';
-            
-            const session = await PlayerService.initializeSession(authUser.userId, authUser.username, { ...options, house });
-
-            // 3. Possess
-            const playerEnt = this.spawnManager.possessEcho(echoSlot.id, client.sessionId, {
+            // 4. Possess
+            const playerEnt = await this.spawnManager.possessEcho(echoSlot.id, client.sessionId, {
                 username: authUser.username,
                 skin: options.skin || "player_idle",
                 house: house,
