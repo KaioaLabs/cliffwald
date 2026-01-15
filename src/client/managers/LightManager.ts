@@ -50,7 +50,7 @@ export class LightManager {
         // Fallback: Add 10 windows along the top wall (y=0 approx)
         const MAP_WIDTH = 3200; // Standard world size
         for (let x = 200; x < MAP_WIDTH; x += 400) {
-            this.addWindow(x, 100);
+            this.addWindow(x, 40); // Raised to wall height
         }
     }
 

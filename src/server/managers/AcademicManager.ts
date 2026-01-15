@@ -71,6 +71,24 @@ export class AcademicManager {
                     // Check completion
                     if (now > playerState.classEndsAt) {
                         this.completeClass(sessionId, playerState);
+                    } else {
+                        // Check if player moved away (Cancel Class)
+                        const pos = entity.body.translation();
+                        let nearAnyDesk = false;
+                        for (const seatPos of this.spawnManager.seats.class.values()) {
+                             const dx = pos.x - seatPos.x;
+                             const dy = pos.y - seatPos.y;
+                             if (dx*dx + dy*dy < 2500) { // 50px radius squared
+                                 nearAnyDesk = true;
+                                 break;
+                             }
+                        }
+                        
+                        if (!nearAnyDesk) {
+                            console.log(`[CLASS] Player ${playerState.username} left desk. Class Cancelled.`);
+                            playerState.isAttendingClass = false;
+                            playerState.classEndsAt = 0;
+                        }
                     }
                     return; 
                 }
