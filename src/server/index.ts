@@ -73,13 +73,63 @@ app.post("/api/login", async (req, res) => {
 
 app.post("/api/register", async (req, res) => {
     try {
-        const { username, password, skin, house } = req.body;
-        if (!username || !password || !skin || !house) return res.status(400).json({ error: "Missing fields" });
+        const { username, password } = req.body;
+        if (!username || !password) return res.status(400).json({ error: "Missing fields" });
         
-        const token = await AuthService.register(username, password, skin, house);
+        const token = await AuthService.register(username, password);
         res.json({ token });
     } catch (e: any) {
         console.error("[AUTH] Register Error:", e.message);
+        res.status(400).json({ error: e.message });
+    }
+});
+
+app.post("/api/character/create", async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        const token = authHeader && authHeader.split(' ')[1];
+        if (!token) return res.sendStatus(401);
+        
+        const userData = AuthService.verifyToken(token);
+        if (!userData) return res.sendStatus(403);
+
+        const { name, skin, house } = req.body;
+        await AuthService.createCharacter(userData.userId, name, skin, house);
+        res.json({ success: true });
+    } catch (e: any) {
+        res.status(400).json({ error: e.message });
+    }
+});
+
+app.post("/api/character/delete", async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        const token = authHeader && authHeader.split(' ')[1];
+        if (!token) return res.sendStatus(401);
+        
+        const userData = AuthService.verifyToken(token);
+        if (!userData) return res.sendStatus(403);
+
+        await AuthService.deleteCharacter(userData.userId);
+        res.json({ success: true });
+    } catch (e: any) {
+        res.status(400).json({ error: e.message });
+    }
+});
+
+app.post("/api/character/rename", async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        const token = authHeader && authHeader.split(' ')[1];
+        if (!token) return res.sendStatus(401);
+        
+        const userData = AuthService.verifyToken(token);
+        if (!userData) return res.sendStatus(403);
+
+        const { newName } = req.body;
+        await AuthService.renameCharacter(userData.userId, newName);
+        res.json({ success: true });
+    } catch (e: any) {
         res.status(400).json({ error: e.message });
     }
 });

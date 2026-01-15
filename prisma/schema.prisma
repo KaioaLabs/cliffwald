@@ -29,11 +29,17 @@ model Player {
   userId    Int      @unique
   user      User     @relation(fields: [userId], references: [id])
   
-  x         Float    @default(0)
-  y         Float    @default(0)
+  // Character Identity
+  isCreated Boolean  @default(false) // True only after character creation screen
+  username  String   // Character Name (can differ from login)
+  nameChangeCount Int @default(0) // Max 1
   
-  skin      String   @default("player_idle") // e.g. "player_red", "player_blue"
-  house     String   @default("ignis") // "ignis", "axiom", "vesper"
+  skin      String   @default("player_idle")
+  house     String   @default("ignis") // ignis, axiom, vesper
+  
+  // Persistence
+  x         Float    @default(300)
+  y         Float    @default(300)
   prestige  Int      @default(0)
   gold      Int      @default(0)
 

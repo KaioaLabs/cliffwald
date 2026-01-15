@@ -103,34 +103,34 @@ export class LoginManager {
                     // SUCCESS
                     const data = await res.json();
                     this.authToken = data.token;
-                    this.skin = data.skin; // Server tells us the skin!
                     this.username = cachedUser;
-                    this.finalizeLogin();
+                    
+                    if (data.hasCharacter) {
+                        this.skin = data.skin;
+                        this.finalizeLogin();
+                    } else {
+                        // Go to Character Creation
+                        if (status) status.innerText = "";
+                        this.showCharacterCreation();
+                    }
                 }
             } catch (e: any) {
                 if (status) status.innerText = e.message;
             }
         };
 
-        // --- REGISTER FLOW ---
+        // --- REGISTER FLOW (Create User Only) ---
         const handleRegister = async () => {
-            const house = selectHouse.value;
-            let skin = "player_idle";
-            if (house === 'ignis') skin = "player_red";
-            if (house === 'axiom') skin = "player_blue";
-            if (house === 'vesper') skin = "player_green";
-
-            if (status) status.innerText = "Enrolling...";
+            if (status) status.innerText = "Creating Account...";
 
             try {
+                // Register User (Player stub created by server)
                 const res = await fetch(this.getApiUrl("/api/register"), {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ 
                         username: cachedUser, 
-                        password: cachedPass, 
-                        skin, 
-                        house 
+                        password: cachedPass
                     })
                 });
 
@@ -141,9 +141,10 @@ export class LoginManager {
 
                 const data = await res.json();
                 this.authToken = data.token;
-                this.skin = skin;
                 this.username = cachedUser;
-                this.finalizeLogin();
+                
+                // New user always needs character creation
+                this.showCharacterCreation();
 
             } catch (e: any) {
                 if (status) status.innerText = e.message;
@@ -162,7 +163,7 @@ export class LoginManager {
         };
 
         replaceListener(btnLogin, handleLogin);
-        replaceListener(btnRegister, handleRegister);
+        replaceListener(btnRegister, handleRegister); // "ENROLL" button now just registers User
         replaceListener(btnBack, () => {
             if (formRegister) formRegister.classList.add('hidden');
             if (formLogin) formLogin.classList.remove('hidden');
@@ -180,6 +181,76 @@ export class LoginManager {
             input.addEventListener('keyup', stopProp);
             input.addEventListener('keypress', stopProp);
         });
+    }
+
+    private showCharacterCreation() {
+        const formLogin = document.getElementById('form-login');
+        const formRegister = document.getElementById('form-register');
+        const formCreation = document.getElementById('form-character-creation');
+        const display = document.getElementById('creation-username-display');
+        const status = document.getElementById('login-status');
+
+        if (formLogin) formLogin.classList.add('hidden');
+        if (formRegister) formRegister.classList.add('hidden');
+        if (formCreation) formCreation.classList.remove('hidden');
+        
+        if (display) display.innerText = this.username;
+        if (status) status.innerText = "";
+
+        const btnCreate = document.getElementById('btn-create-character');
+        const nameInput = document.getElementById('char-name') as HTMLInputElement;
+        const houseSelect = document.getElementById('char-house') as HTMLSelectElement;
+        const skinSelect = document.getElementById('char-skin') as HTMLSelectElement;
+
+        // Auto-fill default name
+        if (nameInput) nameInput.value = this.username;
+
+        const handleCreation = async () => {
+            const name = nameInput.value.trim();
+            const house = houseSelect.value;
+            const skin = skinSelect.value;
+
+            if (!name) {
+                if (status) status.innerText = "Character Name required.";
+                return;
+            }
+
+            if (status) status.innerText = "Finalizing...";
+
+            try {
+                const res = await fetch(this.getApiUrl("/api/character/create"), {
+                    method: "POST",
+                    headers: { 
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${this.authToken}`
+                    },
+                    body: JSON.stringify({ name, house, skin })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || "Creation Failed");
+                }
+
+                this.skin = skin;
+                this.finalizeLogin();
+
+            } catch (e: any) {
+                if (status) status.innerText = e.message;
+            }
+        };
+
+        const replaceListener = (el: HTMLElement | null, fn: () => void) => {
+            if (!el) return;
+            const newEl = el.cloneNode(true);
+            el.parentNode?.replaceChild(newEl, el);
+            newEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                fn();
+            });
+        };
+
+        replaceListener(btnCreate, handleCreation);
     }
 
 

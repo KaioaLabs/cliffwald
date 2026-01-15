@@ -245,6 +245,52 @@ export class UIManager {
                 this.btnAudio.style.borderColor = this.scene.sound.mute ? "#f00" : "#0f0";
             }
         });
+        
+        // Character Management
+        const btnRename = document.getElementById('btn-rename-char');
+        this.addListener(btnRename, 'click', async (e: any) => {
+            e.stopPropagation();
+            const newName = prompt("Enter new character name (1-time change):");
+            if (newName && newName.trim().length > 0) {
+                try {
+                    const token = (window as any).gameClient?.authToken;
+                    const res = await fetch("/api/character/rename", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                        body: JSON.stringify({ newName })
+                    });
+                    if (res.ok) {
+                        alert("Name changed successfully! Please relogin.");
+                        window.location.reload();
+                    } else {
+                        const err = await res.json();
+                        alert("Error: " + err.error);
+                    }
+                } catch (e) { alert("Request failed"); }
+            }
+        });
+
+        const btnDelete = document.getElementById('btn-delete-char');
+        this.addListener(btnDelete, 'click', async (e: any) => {
+            e.stopPropagation();
+            const confirm1 = prompt("Type DELETE to confirm character deletion. This is irreversible.");
+            if (confirm1 === "DELETE") {
+                try {
+                    const token = (window as any).gameClient?.authToken;
+                    const res = await fetch("/api/character/delete", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }
+                    });
+                    if (res.ok) {
+                        alert("Character deleted. Returning to login...");
+                        window.location.reload();
+                    } else {
+                        const err = await res.json();
+                        alert("Error: " + err.error);
+                    }
+                } catch (e) { alert("Request failed"); }
+            }
+        });
 
         this.scene.input.keyboard?.on('keydown-ESC', () => {
             // Priority: Close Menus first
