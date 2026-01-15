@@ -142,6 +142,15 @@ export class GameScene extends Phaser.Scene {
 
             this.cameraTarget = this.add.image(1600, 1000, '').setVisible(false);
             this.cameras.main.startFollow(this.cameraTarget, true, 0.2, 0.2);
+            
+            // Mobile Zoom Adjustment
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            if (isMobile) {
+                this.cameras.main.setZoom(1.5); // 960/640 = 1.5
+            } else {
+                this.cameras.main.setZoom(1.0);
+            }
+            
             this.cameras.main.centerOn(1600, 1000);
 
             this.gestureManager = new GestureManager(this, uiScene);
@@ -727,13 +736,15 @@ export class GameScene extends Phaser.Scene {
     }
 }
 
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
 const config: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
     scale: { 
         mode: Phaser.Scale.FIT, 
         autoCenter: Phaser.Scale.CENTER_BOTH,
-        width: 640, 
-        height: 360 
+        width: isMobile ? 960 : 640, 
+        height: isMobile ? 540 : 360 
     },
     parent: 'app',
     pixelArt: true,
