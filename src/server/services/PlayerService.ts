@@ -1,4 +1,5 @@
 import { db } from "../db";
+import { Player, InventoryItem } from "../../shared/SchemaDef";
 
 export interface SessionData {
     dbPlayer: any;
@@ -17,7 +18,6 @@ export class PlayerService {
         });
 
         if (!dbPlayer) {
-            // Self-healing: If user exists but player record missing (rare edge case)
             console.warn(`[DB] Player record missing for user ${userId}, creating fallback.`);
             dbPlayer = await db.player.create({
                 data: {
@@ -35,10 +35,7 @@ export class PlayerService {
             });
         }
 
-        // 2. Enforce Permanent Identity (Do NOT update skin/house on login)
-        // The Sorting Hat's choice is final.
         if (dbPlayer) {
-            // Optional: Log if user tried to change skin but was ignored
             if (options.skin && options.skin !== dbPlayer.skin) {
                 console.log(`[AUTH] User ${username} tried to change skin/house to ${options.skin}, but identity is permanent.`);
             }
@@ -47,7 +44,7 @@ export class PlayerService {
         return { dbPlayer };
     }
 
-    static async saveSession(dbId: number, playerState: any) {
+    static async saveSession(dbId: number, playerState: Player) {
         if (!dbId || !playerState) return;
 
         try {
@@ -61,17 +58,14 @@ export class PlayerService {
                         x: playerState.x,
                         y: playerState.y,
                         prestige: playerState.personalPrestige,
-                        gold: (playerState as any).gold || 0,
+                        gold: playerState.gold,
                         skin: playerState.skin,
                         house: playerState.house,
                         xp: playerState.xp,
-                        // Note: alignment and academicPoints must be passed in playerState or handled separately
-                        // Assuming playerState has them attached, or we need to pass them explicitly.
-                        // For now, let's assume they are on the playerState object (we will ensure this in WorldRoom)
-                        alignment: (playerState as any).alignment || 0,
-                        academicPoints: (playerState as any).academicPoints || 0,
-                        detentionWork: (playerState as any).detentionWork || 0,
-                        unconsciousUntil: BigInt((playerState as any).unconsciousUntil || 0)
+                        alignment: playerState.alignment || 0,
+                        academicPoints: playerState.academicPoints || 0,
+                        detentionWork: playerState.detentionWork || 0,
+                        unconsciousUntil: BigInt(playerState.unconsciousUntil || 0)
                     }
                 });
 
@@ -82,9 +76,9 @@ export class PlayerService {
                         where: { playerId: dbId }
                     });
 
-                    const currentMap = new Map<string, any>();
+                    const currentMap = new Map<string, InventoryItem>();
                     // Map schema items for O(1) lookup
-                    playerState.inventory.forEach((item: any) => {
+                    playerState.inventory.forEach((item) => {
                         currentMap.set(item.itemId, item);
                     });
 
@@ -111,7 +105,7 @@ export class PlayerService {
                     }
 
                     // Identify Creations (remaining in map)
-                    const toCreate = Array.from(currentMap.values()).map((item: any) => ({
+                    const toCreate = Array.from(currentMap.values()).map((item) => ({
                         playerId: dbId,
                         itemId: item.itemId,
                         count: item.qty,
@@ -139,5 +133,42 @@ export class PlayerService {
         } catch (e) {
             console.error(`[DB] CRITICAL ERROR saving session for ${dbId}:`, e);
         }
+    }
+
+    static async setEchoId(dbId: number, echoId: string) {
+        try {
+            // First, clear this echoId from any other player to maintain uniqueness
+            await db.player.updateMany({
+                where: { echoId: echoId, NOT: { id: dbId } },
+                data: { echoId: null }
+            });
+
+            await db.player.update({
+                where: { id: dbId },
+                data: { echoId: echoId }
+            });
+        } catch (e) {
+            console.error(`[DB] Failed to set EchoID ${echoId} for Player ${dbId}:`, e);
+        }
+    }
+
+    static async getEchoMap(): Promise<Map<string, any>> {
+        const map = new Map<string, any>();
+        try {
+            const players = await db.player.findMany({
+                where: { echoId: { not: null } },
+                include: { user: true }
+            });
+            players.forEach(p => {
+                if (p.echoId) map.set(p.echoId, { 
+                    username: p.user.username, // Use User name as source of truth
+                    skin: p.skin,
+                    prestige: p.prestige 
+                });
+            });
+        } catch (e) {
+            console.error("[DB] Failed to load Echo Map:", e);
+        }
+        return map;
     }
 }

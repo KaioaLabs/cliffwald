@@ -5,6 +5,7 @@ import { GameState, Player, InventoryItem } from "../../shared/SchemaDef";
 import { Entity } from "../../shared/ecs/components";
 import { MapData, parseSeats, parseNPCs } from "../../shared/MapParser";
 import { LevelRegistry } from "./LevelRegistry";
+import { PlayerService } from "../services/PlayerService";
 
 export interface CharacterSpawnData {
     id: string; // SessionId or EchoId
@@ -36,6 +37,7 @@ export class SpawnManager {
 
     // Track "Souls" of possessed echoes
     private possessedSlots = new Map<string, { numericId: number, routineSpots: any, house: string, originalId: string }>();
+    private claimedEchoIds = new Set<string>();
 
     public seats = {
         bed: new Map<number, {x: number, y: number}>(),
@@ -134,21 +136,28 @@ export class SpawnManager {
     // --- POSSESSION SYSTEM ---
 
     public findAvailableEcho(targetHouse?: string): { id: string, entity: Entity } | null {
+        // Priority 1: Unclaimed Echos
         for (const [id, ent] of this.entities) {
-            // Check if AI and NOT a possessed player (redundant check if map is correct)
-            if (ent.ai && id.startsWith('student_')) {
-                // If house matches or no preference
+            if (ent.ai && id.startsWith('student_') && !this.claimedEchoIds.has(id)) {
                 if (!targetHouse || ent.ai.house === targetHouse) {
                     return { id, entity: ent };
                 }
             }
         }
+
+        // Priority 2: Claimed Echos (Body Snatching)
+        console.warn(`[SPAWN] No free slots for ${targetHouse}. Attempting to snatch a body...`);
+        for (const [id, ent] of this.entities) {
+            if (ent.ai && id.startsWith('student_')) {
+                // Must matches house
+                if (!targetHouse || ent.ai.house === targetHouse) {
+                    return { id, entity: ent };
+                }
+            }
+        }
+
         return null;
     }
-
-import { PlayerService } from "../services/PlayerService";
-
-// ...
 
     public async possessEcho(echoId: string, clientSessionId: string, playerData: Partial<CharacterSpawnData>): Promise<Entity | null> {
         const echoEnt = this.entities.get(echoId);
@@ -162,7 +171,10 @@ import { PlayerService } from "../services/PlayerService";
         // 1. Remove Echo
         this.removeEntity(echoId);
 
-        // 2. Persist Claim (DB)
+        // 2. Mark as claimed in memory
+        this.claimedEchoIds.add(echoId);
+
+        // 3. Spawn Player
         // Find player DB ID from metadata? Or passed in?
         // possessEcho receives playerData which are VISUAL/Schema stats. Not DB ID.
         // But WorldRoom calls possessEcho AFTER PlayerService.initializeSession.
@@ -199,6 +211,9 @@ import { PlayerService } from "../services/PlayerService";
 
     public async spawnEchoes(count: number, centerPos: { x: number, y: number }) {
         const echoMap = await PlayerService.getEchoMap();
+        this.claimedEchoIds.clear();
+        echoMap.forEach((_, id) => this.claimedEchoIds.add(id));
+        
         console.log(`[SPAWN] Loaded ${echoMap.size} persistent Echo identities.`);
 
         const houses: ('ignis' | 'axiom' | 'vesper')[] = ['ignis', 'axiom', 'vesper'];
@@ -301,5 +316,81 @@ import { PlayerService } from "../services/PlayerService";
         });
         
         console.log("[SPAWN] Single Teacher 'Professor Merlin' spawned.");
+    }
+
+    public restoreEcho(clientSessionId: string, finalState?: Player) {
+        const slotData = this.possessedSlots.get(clientSessionId);
+        const entity = this.entities.get(clientSessionId);
+        
+        const pos = entity?.body?.translation() || { x: 300, y: 300 };
+        const house = slotData?.house || 'ignis';
+        const originalId = slotData?.originalId || `student_${house}_${Date.now()}`;
+        const numericId = slotData?.numericId;
+        const routineSpots = slotData?.routineSpots;
+
+        this.removeEntity(clientSessionId);
+        this.possessedSlots.delete(clientSessionId);
+
+        const echoName = finalState?.username || `${house.charAt(0).toUpperCase() + house.slice(1)} Student`;
+        
+        console.log(`[SPAWN] Restoring Echo ${originalId} (${echoName}) at ${pos.x}, ${pos.y}`);
+        this.spawnCharacter({
+            id: originalId,
+            numericId: numericId,
+            username: echoName,
+            skin: house === 'ignis' ? "player_red" : (house === 'axiom' ? "player_blue" : "player_idle"),
+            house: house as any,
+            x: pos.x,
+            y: pos.y,
+            isAI: true,
+            routineSpots: routineSpots,
+            prestige: finalState?.personalPrestige || 0
+        });
+    }
+
+    public removeEntity(id: string) {
+        const entity = this.entities.get(id);
+        if (entity) {
+            if (entity.body) this.physicsWorld.removeRigidBody(entity.body);
+            this.world.remove(entity);
+            this.entities.delete(id);
+        }
+        this.state.players.delete(id);
+    }
+
+    public checkPrefectSpawns(isNight: boolean) {
+        if (isNight && this.prefectIds.size === 0) {
+            this.spawnPrefects();
+        } else if (!isNight && this.prefectIds.size > 0) {
+            this.despawnPrefects();
+        }
+    }
+
+    private spawnPrefects() {
+        console.log("[SPAWN] Night has fallen. Spawning Hallway Prefect...");
+        const registry = LevelRegistry.getInstance();
+        const hallwayPos = registry.getLocation("ACADEMIC_WING") || { x: 1600, y: 1600 };
+        
+        const id = `prefect_hallway`;
+        this.spawnCharacter({
+            id: id,
+            numericId: 1000,
+            username: "Hallway Prefect",
+            skin: "player_idle",
+            house: "ignis",
+            x: hallwayPos.x,
+            y: hallwayPos.y,
+            isAI: true
+        });
+        this.prefectIds.add(id);
+    }
+
+    private despawnPrefects() {
+        this.prefectIds.forEach(id => this.removeEntity(id));
+        this.prefectIds.clear();
+    }
+
+    public loadSeats(mapData: MapData) {
+        this.seats = parseSeats(mapData);
     }
 }
