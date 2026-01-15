@@ -36,8 +36,11 @@ export const AISystem = (
         // Update Timer
         ai.timer += dt;
 
+        // THROTTLE: Interleave AI logic (10Hz) for CPU savings
+        const numericId = typeof id === 'number' ? id : (parseInt(id.replace(/\D/g, "") || "0") || 0);
+        if ((frameCount + numericId) % 3 !== 0) continue;
+
         // --- PREFECT LOGIC (Special Case) ---
-        const numericId = typeof id === 'number' ? id : (parseInt(id || "0") || 0);
         const isPrefect = numericId >= 1000;
         
         if (isPrefect) {

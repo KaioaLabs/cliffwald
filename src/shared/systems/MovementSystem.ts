@@ -21,9 +21,8 @@ export const MovementSystem = (world: ECSWorld) => {
             // SECURITY: Normalize analog input to prevent speed hacks
             const mag = Math.sqrt(ax * ax + ay * ay);
             if (mag > 1.0) {
-                const norm = MathUtils.normalize(ax, ay);
-                ax = norm.x;
-                ay = norm.y;
+                ax = ax / mag;
+                ay = ay / mag;
             }
 
             vx = ax * speed;
@@ -49,10 +48,10 @@ export const MovementSystem = (world: ECSWorld) => {
 
         // Update Facing
         if ((vx !== 0 || vy !== 0) && entity.facing) {
-            const norm = MathUtils.normalize(vx, vy);
-            if (norm.x !== 0 || norm.y !== 0) {
-                entity.facing.x = norm.x;
-                entity.facing.y = norm.y;
+            const mag = Math.sqrt(vx * vx + vy * vy);
+            if (mag > 0) {
+                entity.facing.x = vx / mag;
+                entity.facing.y = vy / mag;
             }
         }
     }

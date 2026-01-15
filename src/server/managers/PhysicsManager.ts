@@ -19,7 +19,7 @@ export class PhysicsManager {
 
     // Sync Optimization
     private syncTimer = 0;
-    private readonly SYNC_RATE = 50; 
+    private readonly SYNC_RATE = 100; // 10Hz sync (Client interpolates)
 
     constructor(state: GameState, entities: Map<string, Entity>) {
         this.state = state;
