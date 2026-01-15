@@ -572,6 +572,11 @@ export class GameScene extends Phaser.Scene {
         // Update Static Object Shadows (Tables) - THROTTLED & SUN-BASED
         if (this.game.loop.frame % 10 === 0 && this.lightManager) {
             const sunPos = this.lightManager.getSunPosition();
+            // Calculate Sun Height locally or fetch from LightManager if cached?
+            // Re-calc is cheap.
+            const timeInfo = getGameTime(Date.now() + (this.network.room?.state.timeOffset || 0));
+            const dHour = timeInfo.hour + (timeInfo.minute / 60);
+            const sunHeight = this.lightManager.getSunHeight(dHour);
             
             this.worldBuilder.tableShadows.forEach(shadow => {
                 try {
@@ -590,7 +595,8 @@ export class GameScene extends Phaser.Scene {
                         -99,  
                         h,   
                         sunPos.x,
-                        sunPos.y
+                        sunPos.y,
+                        sunHeight
                     );
                 } catch (e) { }
             });

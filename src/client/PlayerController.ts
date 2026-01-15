@@ -234,13 +234,17 @@ export class PlayerController {
         // Teachers don't have jump sprites yet, ignore or just tween
         if (!isTeacher) {
             const animKey = `jump-${dir}`;
+            // console.log(`[DEBUG-JUMP] Playing ${animKey} for ${sessionId}`);
             if (sprite.anims.exists(animKey)) {
                 sprite.play(animKey, true);
                 // Lock animation for duration of jump
                 sprite.setData('isJumping', true);
                 sprite.once('animationcomplete', () => {
+                    // console.log(`[DEBUG-JUMP] Complete ${animKey}`);
                     sprite.setData('isJumping', false);
                 });
+            } else {
+                console.warn(`[DEBUG-JUMP] Animation missing: ${animKey}`);
             }
         }
 
@@ -331,6 +335,13 @@ export class PlayerController {
                 const gameScene = this.scene as any;
                 const sunPos = gameScene.lightManager?.getSunPosition() || { x: 0, y: 0 };
                 
+                let sunHeight = 0.5;
+                if (gameScene.lightManager?.getSunHeight) {
+                     const timeInfo = getGameTime(Date.now());
+                     const decimalHour = timeInfo.hour + (timeInfo.minute / 60);
+                     sunHeight = gameScene.lightManager.getSunHeight(decimalHour);
+                }
+                
                 shadow.setTexture(sprite.texture.key, sprite.frame.name);
                 shadow.setVisible(sprite.visible);
                 
@@ -352,7 +363,8 @@ export class PlayerController {
                     sprite.depth, 
                     sprite.displayHeight || 40, 
                     sunPos.x, 
-                    sunPos.y
+                    sunPos.y,
+                    sunHeight
                 );
             }
 

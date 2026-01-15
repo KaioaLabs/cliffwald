@@ -77,6 +77,16 @@ export class LightManager {
         return this.sunPosition;
     }
 
+    public getSunHeight(hour: number): number {
+        // Simple Sine Wave approximation for Day Phase (5 to 19)
+        // 5:00 = 0, 12:00 = 1, 19:00 = 0
+        if (hour < 5 || hour >= 19) return 0; 
+        
+        const dayDuration = 14;
+        const progress = (hour - 5) / dayDuration;
+        return Math.sin(progress * Math.PI);
+    }
+
     public update(gameHour: number) {
         const hour = gameHour;
         
