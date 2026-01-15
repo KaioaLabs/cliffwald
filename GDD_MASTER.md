@@ -80,6 +80,14 @@ Implementación avanzada de comportamiento humano ("Anti-Hive Mind"):
     *   **Achiever:** Heurística de prioridad alta para asistencia a clase.
     *   **Explorer:** Patrones de deambulación Browniana en zonas perimetrales.
 
+### 4.3. Gestión de Población (Body Snatching Priority)
+Para garantizar el acceso en un servidor con slots limitados (24), se aplica un sistema de prioridad estricta:
+1.  **Prioridad 1 (Espacio Libre):** El jugador nuevo recibe un Echo genérico ("Ignis Student").
+2.  **Prioridad 2 (Robo de Cuerpo):** Si no hay libres, el sistema "exorciza" a un Echo ocupado por un jugador offline.
+    *   La identidad del jugador offline se desvincula de la base de datos.
+    *   El cuerpo cambia instantáneamente al nombre y skin del nuevo jugador online.
+    *   **Resultado:** Siempre se puede jugar mientras haya <24 jugadores humanos conectados simultáneamente.
+
 ---
 
 ## 5. SISTEMA DE MAGIA Y COMBATE
