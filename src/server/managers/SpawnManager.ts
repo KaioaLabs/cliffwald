@@ -54,7 +54,6 @@ export class SpawnManager {
 
     // --- CORE FACTORY ---
     public spawnCharacter(data: CharacterSpawnData): Entity {
-        console.log(`[DEBUG-SPAWN-CHAR] Spawning ${data.id} with Name: ${data.username}`);
         // Cleanup existing
         if (this.entities.has(data.id)) {
             this.removeEntity(data.id);

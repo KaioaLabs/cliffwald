@@ -320,7 +320,6 @@ export class WorldRoom extends Room<GameState> {
     }
 
     async onJoin(client: Client, options: JoinOptions) {
-        console.log(`[DEBUG-NET] Client ${client.sessionId} attempting join with options:`, options);
         try {
             const authUser = client.auth as { userId: number, username: string };
             const targetHouse = options.skin?.includes('red') ? 'ignis' : (options.skin?.includes('blue') ? 'axiom' : 'vesper');
