@@ -148,7 +148,7 @@ export class PlayerController {
             if (entity.visual?.sprite) entity.visual.sprite.destroy();
             if (entity.shadow) entity.shadow.destroy();
             if (entity.nameTag) entity.nameTag.destroy();
-            if (entity.prefectLight) entity.prefectLight.destroy(); // CLEANUP
+            if (entity.prefectLight) this.scene.lights.removeLight(entity.prefectLight);
             
             if (entity.body && this.physicsWorld) {
                 this.physicsWorld.removeRigidBody(entity.body);
