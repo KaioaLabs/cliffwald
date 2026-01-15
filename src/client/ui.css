@@ -348,14 +348,20 @@
     box-shadow: 0 0 10px #d0f;
 }
 
-/* Album Rows */
-.album-tier-row {
-    display: flex;
-    justify-content: center;
+/* Album Rows (Grid) */
+.album-tier-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 64px); /* 3 cards wide */
     gap: 15px;
     margin-bottom: 25px;
+    justify-content: start; /* Align Left */
+}
+
+/* Mythic Exception: Centered, Single Column (or Flex Center) */
+.album-tier-grid.mythic {
+    display: flex;
+    justify-content: center;
     width: 100%;
-    flex-wrap: wrap;
 }
 
 /* Tooltip for Owned */

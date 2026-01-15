@@ -637,11 +637,11 @@ export class UIManager {
         });
 
         // 3. Render Rows (Top to Bottom)
-        const renderRow = (cards: any[]) => {
+        const renderRow = (cards: any[], tierName: string) => {
             if (cards.length === 0) return;
             
             const row = document.createElement('div');
-            row.className = 'album-tier-row';
+            row.className = `album-tier-grid ${tierName}`;
             
             cards.forEach(cardData => {
                 let numericId = -1;
@@ -674,10 +674,10 @@ export class UIManager {
             grid.appendChild(row);
         };
 
-        renderRow(tiers['mythic']);
-        renderRow(tiers['legendary']);
-        renderRow(tiers['rare']);
-        renderRow(tiers['common']);
+        renderRow(tiers['mythic'], 'mythic');
+        renderRow(tiers['legendary'], 'legendary');
+        renderRow(tiers['rare'], 'rare');
+        renderRow(tiers['common'], 'common');
 
         // Update Total Count
         const totalOwned = ownedCardIds.length;
