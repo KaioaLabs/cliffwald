@@ -378,8 +378,9 @@ export class PlayerController {
                 }
             }
 
-            // Handle Unconscious State
-            if (entity.unconsciousUntil && entity.unconsciousUntil > now) {
+            // Handle Unconscious State OR Sleep
+            const isSleeping = sprite.getData('isSleepingVisual');
+            if ((entity.unconsciousUntil && entity.unconsciousUntil > now) || isSleeping) {
                 sprite.setRotation(Math.PI / 2); 
                 sprite.setOrigin(0.5, 0.5); 
             } else {
