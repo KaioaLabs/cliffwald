@@ -108,8 +108,44 @@ app.post("/api/logs", (req, res) => {
 import path from "path";
 import RAPIER from "@dimforge/rapier2d-compat";
 
-// ...
-// ...
+// Serve Static Client (Production)
+if (process.env.NODE_ENV === "production") {
+    const fs = require('fs');
+    
+    // DEBUG: Recursive List to find where the files are
+    console.log("--- DEBUG: FILE SYSTEM STRUCTURE ---");
+    console.log("CWD:", process.cwd());
+    console.log("__dirname:", __dirname);
+    console.log("------------------------------------");
+
+    // Robust path resolution using process.cwd()
+    // Priority 1: Standard Vite output at root/dist-client
+    const viteDist = path.join(process.cwd(), "dist-client");
+    
+    if (fs.existsSync(viteDist)) {
+        console.log(`[SERVER] Serving static from VITE build: ${viteDist}`);
+        app.use(express.static(viteDist));
+        
+        app.get(/.*/, (req, res) => {
+            if (req.path.startsWith("/api")) return res.status(404).send("API Not Found");
+            
+            const indexPath = path.join(viteDist, "index.html");
+            if (fs.existsSync(indexPath)) {
+                res.sendFile(indexPath);
+            } else {
+                res.status(404).send(`Client build not found (index.html missing). Checked: ${viteDist}`);
+            }
+        });
+    } else {
+        console.error(`[SERVER] CRITICAL: No client build found at ${viteDist}`);
+        app.get("/", (req, res) => res.send("Server Error: Client build missing."));
+    }
+} else {
+    // Basic health check for Dev
+    app.get("/", (req, res) => {
+        res.send("Cliffwald Server is running! (Use Client on Port 3000)");
+    });
+}
 
 const server = createServer(app);
 
