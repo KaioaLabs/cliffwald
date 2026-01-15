@@ -108,13 +108,18 @@ export class LightManager {
         this.sunPosition.y = centerY + Math.sin(angle) * orbitRadius;
 
         // 3. Global Light Logic for Windows
-        let rotation = 0;
+        // Sync Ray with Sun: Ray points opposite to Sun.
+        // Sprite points DOWN (PI/2). To point Opposite-Sun, we rotate.
+        // RayAngle = SunAngle + PI. 
+        // Rotation = RayAngle - PI/2 = SunAngle + PI/2.
+        let rotation = angle + Math.PI / 2;
+        
         let rayAlpha = 0;
         let lightColor = 0xffffff;
 
         if (hour >= 5 && hour < 19) {
             // DAY PHASE
-            rotation = Phaser.Math.DegToRad(-70 + ((hour - 5) / 14) * 140);
+            // rotation is calculated dynamically above
             rayAlpha = 0.45;
             if (hour < 7 || hour > 17) rayAlpha = 0.15;
 
