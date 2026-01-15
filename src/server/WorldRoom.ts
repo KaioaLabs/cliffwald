@@ -29,7 +29,35 @@ import { PhysicsManager } from "./managers/PhysicsManager";
 import { WorldService } from "./services/WorldService";
 
 export class WorldRoom extends Room<GameState> {
-    // ...
+    world!: ECSWorld;
+    
+    // Managers
+    physicsManager!: PhysicsManager;
+    academicManager!: AcademicManager;
+    spawnManager!: SpawnManager;
+    chatManager!: ChatManager;
+    
+    // Systems
+    pathfinder?: Pathfinding;
+    spellSystem!: SpellSystem;
+    prestigeSystem!: PrestigeSystem;
+    duelSystem!: DuelSystem;
+    itemSystem!: ItemSystem;
+    shopSystem!: ShopSystem;
+    persistenceSystem!: PersistenceSystem;
+    healthSystem!: HealthSystem;
+    
+    entities = new Map<string, Entity>();
+    
+    // Security: Cooldown Tracking
+    lastCastTimes = new Map<string, number>();
+
+    async onAuth(client: Client, options: JoinOptions, request: any) {
+        if (!options.token) return false;
+        const userData = AuthService.verifyToken(options.token);
+        if (!userData) return false;
+        return userData;
+    }
 
     async onCreate(options: JoinOptions) {
         this.setMetadata({ name: "Cliffwald World" });
