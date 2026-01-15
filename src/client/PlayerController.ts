@@ -64,7 +64,6 @@ export class PlayerController {
                 prefectLight = this.scene.lights.addLight(x, y, 150, THEME.HOUSES.PREFECT, 2.0);
             }
         } else if (isEcho) {
-            sprite.setAlpha(0.6);
             const echoTints: Record<string, number> = { 'ignis': THEME.HOUSES.IGNIS, 'axiom': THEME.HOUSES.AXIOM, 'vesper': THEME.HOUSES.VESPER };
             sprite.setTint(echoTints[house] || THEME.HOUSES.DEFAULT);
         } else if (skin === "player_red") {
