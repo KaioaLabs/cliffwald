@@ -30,9 +30,9 @@ model Player {
   user      User     @relation(fields: [userId], references: [id])
   
   // Character Identity
-  isCreated Boolean  @default(false) // True only after character creation screen
-  username  String   // Character Name (can differ from login)
-  nameChangeCount Int @default(0) // Max 1
+    isCreated       Boolean @default(false) // True only after character creation screen
+    username        String  @default("Traveler") // Character Name (can differ from login)
+    nameChangeCount Int     @default(0) // Max 1
   
   skin      String   @default("player_idle")
   house     String   @default("ignis") // ignis, axiom, vesper
