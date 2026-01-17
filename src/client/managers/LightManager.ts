@@ -156,7 +156,6 @@ export class LightManager {
         }
 
         // 4. Update Windows with CULLING
-        const camera = this.scene.cameras.main;
         const viewRect = camera.worldView;
         // Expand cull rect slightly to avoid pop-in
         const cullRect = new Phaser.Geom.Rectangle(viewRect.x - 200, viewRect.y - 200, viewRect.width + 400, viewRect.height + 400);
