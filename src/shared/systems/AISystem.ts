@@ -19,6 +19,7 @@ export const AISystem = (
     pathfinder?: Pathfinding,
     castCallback?: (id: string, spellId: string, vx: number, vy: number) => void,
     targetProvider?: (id: string) => { x: number, y: number } | null,
+    floorProvider?: (id: string) => number, // New provider
     chatCallback?: (id: string, text: string) => void,
     jumpCallback?: (id: string) => void,
     catchCallback?: (prefectId: string, victimId: string) => void
@@ -32,12 +33,16 @@ export const AISystem = (
     for (const entity of entities) {
         const { ai, body, input, id } = entity;
         if (!ai) continue; 
+        
+        // Get Floor
+        const floor = floorProvider ? floorProvider(entity.player?.sessionId || "") : 0;
 
         // Update Timer
         ai.timer += dt;
 
         // THROTTLE: Interleave AI logic (10Hz) for CPU savings
-        const numericId = typeof id === 'number' ? id : (parseInt(id.replace(/\D/g, "") || "0") || 0);
+        const safeId = String(id || "0");
+        const numericId = typeof id === 'number' ? id : (parseInt(safeId.replace(/\D/g, "") || "0") || 0);
         if ((frameCount + numericId) % 3 !== 0) continue;
 
         // --- PREFECT LOGIC (Special Case) ---
@@ -62,15 +67,17 @@ export const AISystem = (
                 IdleState.update(entity, dt, currentHour, castCallback);
                 break;
             case 'routine':
-                RoutineState.update(entity, dt, currentHour, pathfinder, physicsWorld, frameCount);
+                RoutineState.update(entity, dt, currentHour, pathfinder, physicsWorld, frameCount, floor);
                 break;
             case 'duel':
                 DuelState.update(entity, dt, castCallback!, targetProvider!);
                 break;
             case 'attending_class':
-                // Echo stays put. 
-                input.analogDir = { x: 0, y: 0 };
-                // Class end logic
+                // Players in class are focused on their minigame screen.
+                // Avatar stays perfectly still, facing North (Teacher).
+                input.analogDir = { x: 0, y: 0 }; 
+                if (entity.facing) { entity.facing.x = 0; entity.facing.y = -1; }
+                
                 if (ai.timer > CONFIG.CLASS_DURATION_MS) {
                     ai.state = 'idle';
                     ai.timer = 0;
@@ -81,19 +88,12 @@ export const AISystem = (
                 break;
         }
 
-        // --- GLOBAL FLAVOR (Chat, Jump) ---
-        // Jump occasionally while moving
+        // --- GLOBAL FLAVOR ---
+        // Jump occasionally while moving (Humans do this for fun)
         if ((input.analogDir?.x !== 0 || input.analogDir?.y !== 0) && Math.random() < 0.005) {
              const vel = body.linvel();
              body.applyImpulse({ x: vel.x * 0.5, y: vel.y * 0.5 }, true);
              if (jumpCallback) jumpCallback(entity.player?.sessionId || "");
-        }
-        
-        // Chat
-        if (chatCallback && Math.random() < 0.0005) {
-             const phrases = ["Did you study?", "I'm tired.", "Nice robe!", "Where is the library?"];
-             const text = phrases[Math.floor(Math.random() * phrases.length)];
-             chatCallback(entity.player?.sessionId || "", text);
         }
     }
 };

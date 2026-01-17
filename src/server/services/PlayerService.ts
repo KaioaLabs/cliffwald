@@ -19,13 +19,14 @@ export class PlayerService {
 
         if (!dbPlayer) {
             console.warn(`[DB] Player record missing for user ${userId}, creating fallback.`);
+            // Create if not exists (Should be handled by Auth, but fallback)
             dbPlayer = await db.player.create({
                 data: {
-                    userId: userId,
-                    x: 300, 
-                    y: 300,
-                    skin: options.skin || "player_idle",
-                    house: options.house || "ignis",
+                    userId,
+                    x: 300, y: 300,
+                    username: "Wanderer",
+                    skin: "player_idle",
+                    house: "ignis",
                     prestige: 0,
                     xp: 0,
                     alignment: 0,

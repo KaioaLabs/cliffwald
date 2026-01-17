@@ -52,8 +52,14 @@ describe("MMO AI Schedule Verification", () => {
         expect(target.targetZone).toBe("ACADEMIC_WING"); 
     });
 
-    it("11:00 -> Should be Free (Courtyard)", () => {
+    it("11:00 -> Should STILL be in Class (Extended Morning)", () => {
         const target = getStudentScheduleTarget(11);
+        expect(target.activity).toBe("class");
+        expect(target.targetZone).toBe("ACADEMIC_WING");
+    });
+
+    it("15:00 -> Should be Free (Courtyard)", () => {
+        const target = getStudentScheduleTarget(15);
         expect(target.activity).toBe("free");
         expect(target.targetZone).toBe("COURTYARD");
     });

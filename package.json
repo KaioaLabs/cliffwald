@@ -6,9 +6,10 @@
   "scripts": {
     "dev": "npx prisma db push && concurrently -k -n \"SERVER,CLIENT,LAUNCH,LOGS\" -c \"blue,green,magenta,yellow\" \"npm run dev:server\" \"npm run dev:client\" \"node tools/dev_launcher.js\" \"powershell -File tools/log_aggregator.ps1\"",
     "dev:client": "vite --host --port 3000 --strictPort > logs_client.txt 2>&1",
-    "dev:server": "nodemon --watch src/server --watch src/shared -e ts,json --exec \"ts-node src/server/index.ts\" > logs_server.txt 2>&1",
+    "dev:server": "nodemon --watch src/server --watch src/shared --watch assets/data -e ts,json --exec \"ts-node src/server/index.ts\" > logs_server.txt 2>&1",
     "predev": "npx kill-port 2567 2568 3000",
-    "map": "start ./Tiled/tiled.exe ./assets/maps/world.json",
+    "map": "start ./vendor/Tiled/tiled.exe ./assets/maps/world.json",
+    "kaioa:update": "node tools/deploy_kaioa.js",
     "test": "vitest run",
     "build": "npx prisma generate && npm run build:server && npm run build:client",
     "build:prod": "node tools/switch_to_postgres.js && npx prisma generate && npm run build:server && npm run build:client",
@@ -59,5 +60,8 @@
     "pngjs": "^7.0.0",
     "vitest": "^4.0.16",
     "ws": "^8.18.3"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
   }
 }

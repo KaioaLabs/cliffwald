@@ -15,23 +15,30 @@ export class LightManager {
     private windows: WindowObject[] = [];
     private sunPosition: { x: number, y: number } = { x: 0, y: 0 };
     
-    // Cycle Colors
-    private readonly COLORS = {
-        NIGHT: { r: 40, g: 50, b: 100 }, 
-        DAWN: { r: 255, g: 180, b: 100 }, 
-        DAY: { r: 255, g: 255, b: 230 }, 
-        DUSK: { r: 255, g: 255, b: 150 }    
-    };
+    // Override
+    private overrideEnabled: boolean = false;
 
     constructor(scene: Phaser.Scene) {
         this.scene = scene;
         if (CONFIG.USE_LIGHTS) {
             this.scene.lights.enable();
-            this.scene.lights.setAmbientColor(0x222222); 
+            // Start with a Neutral Grey (Day-ish) to avoid "Black World" on load
+            this.scene.lights.setAmbientColor(0x888888); 
         }
     }
 
+    public setLightingOverride(enabled: boolean) {
+        this.overrideEnabled = enabled;
+    }
+
+    private hexToColor(hex: string | number): number {
+        if (typeof hex === 'number') return hex;
+        const clean = hex.toString().replace('#', '');
+        return parseInt(clean.substring(clean.length - 6), 16);
+    }
+
     public initFromMap(map: Phaser.Tilemaps.Tilemap) {
+        // 1. Logic Layer (Windows)
         const logicObjects = map.getObjectLayer("Logic")?.objects || [];
         const windowLocs = logicObjects.filter(o => o.type === 'window' || o.name?.toLowerCase().includes('window'));
 
@@ -40,17 +47,29 @@ export class LightManager {
             windowLocs.forEach(loc => {
                 this.addWindow(loc.x, loc.y);
             });
-        } else {
-            console.warn("[LIGHTS] No window objects found in 'Logic' layer. Using procedural fallback.");
-            this.populateWindows();
         }
-    }
 
-    private populateWindows() {
-        // Fallback: Add 10 windows along the top wall (y=0 approx)
-        const MAP_WIDTH = 3200; // Standard world size
-        for (let x = 200; x < MAP_WIDTH; x += 400) {
-            this.addWindow(x, 40); // Raised to wall height
+        // 2. Lights Layer (Generic Lights)
+        const lightObjects = map.getObjectLayer("Lights")?.objects || [];
+        if (lightObjects.length > 0) {
+            console.log(`[LIGHTS] Found ${lightObjects.length} generic lights in 'Lights' layer.`);
+            lightObjects.forEach(obj => {
+                const x = obj.x || 0;
+                const y = obj.y || 0;
+                
+                let color = 0xffffff;
+                let intensity = 1.0;
+                let radius = 200;
+
+                if (obj.properties) {
+                    obj.properties.forEach((p: any) => {
+                        if (p.name === 'color') color = this.hexToColor(p.value);
+                        if (p.name === 'intensity') intensity = p.value;
+                        if (p.name === 'radius') radius = p.value;
+                    });
+                }
+                this.scene.lights.addLight(x, y, radius, color, intensity);
+            });
         }
     }
 
@@ -60,10 +79,10 @@ export class LightManager {
         frame.setDepth(-50); 
         if (CONFIG.USE_LIGHTS) frame.setPipeline('Light2D');
 
-        // 2. Real 2D Light (Affects Normal Maps)
-        const light = this.scene.lights.addLight(x, y, 300, 0xffffff, 0);
+        // 2. Real 2D Light
+        const light = this.scene.lights.addLight(x, y, CONFIG.LIGHTING_CONFIG.WINDOW_LIGHT_RADIUS, 0xffffff, 0);
 
-        // 3. Volumetric Ray (Visual Atmospheric effect)
+        // 3. Volumetric Ray
         const ray = this.scene.add.image(x, y + 16, 'window_light_ray');
         ray.setOrigin(0.5, 0.0);
         ray.setDepth(150);
@@ -78,71 +97,62 @@ export class LightManager {
     }
 
     public getSunHeight(hour: number): number {
-        // Simple Sine Wave approximation for Day Phase (5 to 19)
-        // 5:00 = 0, 12:00 = 1, 19:00 = 0
-        if (hour < 5 || hour >= 19) return 0; 
+        const trans = CONFIG.LIGHTING_CONFIG.TRANSITIONS;
+        if (hour < trans.DAWN_START || hour >= trans.NIGHT_START) return 0; 
         
-        const dayDuration = 14;
-        const progress = (hour - 5) / dayDuration;
+        const dayDuration = trans.NIGHT_START - trans.DAWN_START;
+        const progress = (hour - trans.DAWN_START) / dayDuration;
         return Math.sin(progress * Math.PI);
     }
 
     public update(gameHour: number) {
+        // --- UNIFIED OVERRIDE LOGIC ---
+        if (this.overrideEnabled) {
+            this.scene.lights.setAmbientColor(0xffffff);
+            this.scene.lights.lights.forEach(light => light.setVisible(false));
+            this.windows.forEach(w => w.ray.setVisible(false));
+            return;
+        }
+
         const hour = gameHour;
         
         // 1. Calculate Ambient Color
         const { color: ambientColor } = this.calculateCycleState(hour);
         this.scene.lights.setAmbientColor(ambientColor);
 
-        // 2. Calculate Global Light Source (Sun/Moon Orbit)
-        // Assume center of map is around 1600, 1600
-        const centerX = 1600;
-        const centerY = 1600;
-        const orbitRadius = 2000;
-        
-        // Dawn (5am) to Dusk (19pm) = 14 hours
-        // Angle: 0 at Noon (Top), -90 Dawn (Right?), 90 Dusk (Left?)
-        // Let's make Sun rise East (Right) and set West (Left) standard 2D
-        // 0 degrees is Right in Phaser. -90 is Top.
-        // Noon (12:00) -> Top (-90 deg)
-        // 6:00 -> Right (0 deg) ?? No, conventionally East is Right.
-        
-        // Simplified Orbit:
-        // Hour 6 -> 0 rad (Right)
-        // Hour 12 -> -PI/2 (Top)
-        // Hour 18 -> -PI (Left)
-        // Hour 24 -> -3PI/2 (Bottom)
+        // 2. Calculate Global Light Source (Dynamic Center)
+        const camera = this.scene.cameras.main;
+        const centerX = camera.scrollX + camera.width / 2;
+        const centerY = camera.scrollY + camera.height / 2;
+        const orbitRadius = CONFIG.LIGHTING_CONFIG.ORBIT_RADIUS;
         
         const angle = ((hour - 6) / 24) * (Math.PI * 2); 
         this.sunPosition.x = centerX + Math.cos(angle) * orbitRadius;
         this.sunPosition.y = centerY + Math.sin(angle) * orbitRadius;
 
         // 3. Global Light Logic for Windows
-        // Sync Ray with Sun: Ray points opposite to Sun.
-        // Sprite points DOWN (PI/2). To point Opposite-Sun, we rotate.
-        // RayAngle = SunAngle + PI. 
-        // Rotation = RayAngle - PI/2 = SunAngle + PI/2.
         let rotation = angle + Math.PI / 2;
-        
         let rayAlpha = 0;
         let lightColor = 0xffffff;
 
-        if (hour >= 5 && hour < 19) {
-            // DAY PHASE
-            // rotation is calculated dynamically above
-            rayAlpha = 0.45;
-            if (hour < 7 || hour > 17) rayAlpha = 0.15;
+        const trans = CONFIG.LIGHTING_CONFIG.TRANSITIONS;
+        const palette = CONFIG.LIGHTING_CONFIG.PALETTE;
 
-            if (hour < 8) lightColor = this.colorToInt(this.COLORS.DAWN);
-            else if (hour > 16) lightColor = this.colorToInt(this.COLORS.DUSK);
-            else lightColor = this.colorToInt(this.COLORS.DAY);
+        if (hour >= trans.DAWN_START && hour < trans.NIGHT_START) {
+            // DAY PHASE
+            rayAlpha = CONFIG.LIGHTING_CONFIG.WINDOW_RAY_ALPHA;
+            if (hour < (trans.DAWN_START + 2) || hour > (trans.NIGHT_START - 2)) rayAlpha *= 0.3;
+
+            if (hour < trans.DAY_START) lightColor = this.colorToInt(palette.DAWN);
+            else if (hour > trans.DUSK_START) lightColor = this.colorToInt(palette.DUSK);
+            else lightColor = this.colorToInt(palette.DAY);
 
         } else {
             // NIGHT PHASE
-            const nightHour = (hour >= 19) ? hour : hour + 24;
-            rotation = Phaser.Math.DegToRad(-40 + ((nightHour - 19) / 10) * 80);
+            const nightHour = (hour >= trans.NIGHT_START) ? hour : hour + 24;
+            rotation = Phaser.Math.DegToRad(-40 + ((nightHour - trans.NIGHT_START) / 10) * 80);
             rayAlpha = 0.15; 
-            lightColor = this.colorToInt(this.COLORS.NIGHT);
+            lightColor = this.colorToInt(palette.NIGHT);
         }
 
         // 4. Update Windows with CULLING
@@ -175,18 +185,20 @@ export class LightManager {
     }
 
     private calculateCycleState(hour: number): { color: number, intensity: number } {
+        const trans = CONFIG.LIGHTING_CONFIG.TRANSITIONS;
+        const palette = CONFIG.LIGHTING_CONFIG.PALETTE;
         let c1, c2, t;
         
-        if (hour < 5) { // Deep Night
-            return { color: this.colorToInt(this.COLORS.NIGHT), intensity: 0.3 };
-        } else if (hour < 8) { // Dawn
-            c1 = this.COLORS.NIGHT; c2 = this.COLORS.DAWN; t = (hour - 5) / 3;
-        } else if (hour < 16) { // Day
-            c1 = this.COLORS.DAWN; c2 = this.COLORS.DAY; t = (hour - 8) / 8;
-        } else if (hour < 20) { // Dusk
-            c1 = this.COLORS.DAY; c2 = this.COLORS.DUSK; t = (hour - 16) / 4;
+        if (hour < trans.DAWN_START) { // Deep Night
+            return { color: this.colorToInt(palette.NIGHT), intensity: palette.NIGHT.ambient };
+        } else if (hour < trans.DAY_START) { // Dawn
+            c1 = palette.NIGHT; c2 = palette.DAWN; t = (hour - trans.DAWN_START) / (trans.DAY_START - trans.DAWN_START);
+        } else if (hour < trans.DUSK_START) { // Day
+            c1 = palette.DAWN; c2 = palette.DAY; t = (hour - trans.DAY_START) / (trans.DUSK_START - trans.DAY_START);
+        } else if (hour < trans.NIGHT_START) { // Dusk
+            c1 = palette.DAY; c2 = palette.DUSK; t = (hour - trans.DUSK_START) / (trans.NIGHT_START - trans.DUSK_START);
         } else { // Night
-            c1 = this.COLORS.DUSK; c2 = this.COLORS.NIGHT; t = (hour - 20) / 4;
+            c1 = palette.DUSK; c2 = palette.NIGHT; t = (hour - trans.NIGHT_START) / (24 - trans.NIGHT_START + trans.DAWN_START);
         }
 
         return { color: this.lerpColor(c1, c2, t), intensity: 1.0 };

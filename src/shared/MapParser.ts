@@ -1,4 +1,7 @@
 import RAPIER from "@dimforge/rapier2d-compat";
+import { CONFIG } from "./Config";
+import { ZONE_DATA } from "./data/ZoneRegistry";
+import * as zlib from "zlib";
 
 // --- Types ---
 
@@ -12,15 +15,17 @@ export interface MapObject {
     height: number;
     rotation?: number;
     properties?: { name: string; type: string; value: any }[];
-    ellipse?: boolean; // Tiled ellipse marker
-    point?: boolean;   // Tiled point marker
+    ellipse?: boolean; 
+    point?: boolean;   
 }
 
 export interface MapLayer {
     name: string;
-    type: string; // "objectgroup", "tilelayer", etc.
+    type: string; 
     objects?: MapObject[];
-    data?: number[]; // For tile layers
+    data?: number[] | string; 
+    encoding?: string; 
+    compression?: string; 
 }
 
 export interface MapData {
@@ -32,7 +37,7 @@ export interface MapData {
 }
 
 export interface PhysicsResult {
-    navGrid: number[][]; // 0 = Walkable, 1 = Wall
+    navGrids: Map<number, number[][]>; 
     gridWidth: number;
     gridHeight: number;
     tileWidth: number;
@@ -46,13 +51,14 @@ export interface GameLocation {
     y: number;
     width: number;
     height: number;
-    id: string; // "DORM_IGNIS", etc.
+    id: string; 
+    isSanctuary?: boolean;
 }
 
 export interface DuelZone {
     id: number;
-    x: number; // Center X
-    y: number; // Center Y
+    x: number; 
+    y: number; 
     radius: number;
 }
 
@@ -63,6 +69,7 @@ export interface LogicData {
     infirmaryExit: {x: number, y: number} | null;
     duelExits: Map<number, {x: number, y: number}>;
     anchors: Map<string, {x: number, y: number}>;
+    itemSpawns: {x: number, y: number}[];
 }
 
 // --- Helper Functions ---
@@ -80,6 +87,14 @@ export function getProperty(obj: MapObject, propName: string): any {
     return obj.properties?.find(p => p.name === propName)?.value;
 }
 
+function getCustomProp(entity: any, propName: string): any {
+    if (!entity.properties) return undefined;
+    if (Array.isArray(entity.properties)) {
+        return entity.properties.find((p: any) => p.name === propName)?.value;
+    }
+    return entity.properties[propName];
+}
+
 // --- Parsing Logic ---
 
 export function parseSeats(map: MapData) {
@@ -89,16 +104,26 @@ export function parseSeats(map: MapData) {
         food: new Map<number, {x: number, y: number}>()
     };
 
-    const objects = getObjects(map, "FixedSeats");
-    objects.forEach(obj => {
-        const studentId = getProperty(obj, 'studentId');
-        if (studentId === undefined) return;
+    const seatObjects = getObjects(map, "FixedSeats");
+    seatObjects.forEach(obj => {
+        const parts = (obj.name || "").split('_');
+        const idStr = parts[parts.length - 1];
+        const studentId = parseInt(idStr);
 
-        const pos = { x: obj.x, y: obj.y };
+        if (!isNaN(studentId)) {
+            // Adjust to 0-indexed for registry
+            const seatId = studentId - 1;
+            let type = obj.type;
+            if (!type && obj.name) {
+                if (obj.name.startsWith("bed")) type = 'bed';
+                else if (obj.name.startsWith("seat_class")) type = 'class';
+                else if (obj.name.startsWith("seat_food")) type = 'food';
+            }
 
-        if (obj.type === 'bed') seats.bed.set(studentId, pos);
-        else if (obj.type === 'seat_class') seats.class.set(studentId, pos);
-        else if (obj.type === 'seat_food') seats.food.set(studentId, pos);
+            if (type === 'bed') seats.bed.set(seatId, { x: obj.x, y: obj.y });
+            else if (type === 'class') seats.class.set(seatId, { x: obj.x, y: obj.y });
+            else if (type === 'food') seats.food.set(seatId, { x: obj.x, y: obj.y });
+        }
     });
 
     return seats;
@@ -131,50 +156,38 @@ export function parseLogic(map: MapData): LogicData {
         infirmaryBeds: [],
         infirmaryExit: null,
         duelExits: new Map(),
-        anchors: new Map()
+        anchors: new Map(),
+        itemSpawns: []
     };
 
     const objects = getObjects(map, "Logic");
-    const seatObjects = getObjects(map, "FixedSeats");
+    const anchorObjects = getObjects(map, "Anchors");
 
-    seatObjects.forEach(obj => {
-        const studentId = getProperty(obj, 'studentId');
-        if (studentId !== undefined) {
-            // Map studentId to generic keys
-            if (obj.type === 'bed') logicData.anchors.set(`seat_bed_${studentId}`, { x: obj.x, y: obj.y });
-            else if (obj.type === 'seat_class') logicData.anchors.set(`seat_class_${studentId}`, { x: obj.x, y: obj.y });
-            else if (obj.type === 'seat_food') logicData.anchors.set(`seat_food_${studentId}`, { x: obj.x, y: obj.y });
-        }
+    // 1. Process Anchors
+    anchorObjects.forEach(obj => {
+        if (obj.name) logicData.anchors.set(obj.name, { x: obj.x, y: obj.y });
     });
     
+    // 2. Process Logic
     objects.forEach(obj => {
-        // Tiled Points have x,y at the point.
-        // Tiled Ellipses/Rects have x,y at Top-Left.
-        
-        if (obj.type === 'location') {
-            // Check if it has dimensions (Rectangle) or just a Point
+        if (obj.type === 'location' || obj.type === 'zone') {
             const w = obj.width || 0;
             const h = obj.height || 0;
-            
-            // If it's a point, we might want a default radius later, but for sensors we need AABB
-            // If Tiled Object is a Point, w/h are 0.
-            
-            // We store center X/Y for points, or center X/Y for rects?
-            // Rapier expects half-extents.
-            
             const centerX = obj.x + w / 2;
             const centerY = obj.y + h / 2;
 
-            logicData.locations.set(obj.name || "unknown", {
-                id: obj.name || "unknown",
+            const name = obj.name || "unknown";
+            const zoneDef = ZONE_DATA[name];
+
+            logicData.locations.set(name, {
+                id: name,
                 x: centerX,
                 y: centerY,
                 width: w,
-                height: h
+                height: h,
+                isSanctuary: zoneDef?.isSanctuary
             });
         } else if (obj.type === 'duel_zone') {
-            // Assumed to be an Ellipse (Circle)
-            // Convert Top-Left to Center
             const radius = obj.width / 2;
             const centerX = obj.x + radius;
             const centerY = obj.y + radius;
@@ -191,24 +204,27 @@ export function parseLogic(map: MapData): LogicData {
         } else if (obj.type === 'exit' && obj.name === 'infirmary_exit') {
             logicData.infirmaryExit = { x: obj.x, y: obj.y };
         } else if (obj.type === 'duel_exit') {
-            // parse id from name "duel_exit_N"
             const parts = (obj.name || "").split('_');
             const id = parseInt(parts[parts.length - 1]);
             if (!isNaN(id)) {
                 logicData.duelExits.set(id, { x: obj.x, y: obj.y });
             }
+        } else if (obj.type === 'item_spawn') {
+            logicData.itemSpawns.push({ 
+                x: obj.x + (obj.width ? obj.width/2 : 0), 
+                y: obj.y + (obj.height ? obj.height/2 : 0)
+            });
         }
     });
 
-    logicData.infirmaryBeds.sort((a: any, b: any) => (a.x - b.x)); // Basic sort for beds if needed
-    
+    logicData.infirmaryBeds.sort((a: any, b: any) => (a.x - b.x)); 
     return logicData;
 }
 
 export function buildPhysics(world: RAPIER.World, mapData: MapData): PhysicsResult {
     if (!mapData || !Array.isArray(mapData.layers)) {
         console.error("[MapParser] Invalid map data format.");
-        return { navGrid: [], gridWidth: 0, gridHeight: 0, tileWidth: 0, tileHeight: 0 };
+        return { navGrids: new Map(), gridWidth: 0, gridHeight: 0, tileWidth: 0, tileHeight: 0 };
     }
 
     const mapW = mapData.width || 0;
@@ -216,42 +232,65 @@ export function buildPhysics(world: RAPIER.World, mapData: MapData): PhysicsResu
     const tileW = mapData.tilewidth || 32;
     const tileH = mapData.tileheight || 32;
 
-    const navGrid: number[][] = Array.from({ length: mapH }, () => Array(mapW).fill(0));
+    const navGrids = new Map<number, number[][]>();
+    navGrids.set(0, Array.from({ length: mapH }, () => Array(mapW).fill(0)));
 
-    const collisionObjects = getObjects(mapData, "Collisions");
-    
-    collisionObjects.forEach((obj) => {
-        if (typeof obj.x !== 'number' || typeof obj.y !== 'number' || typeof obj.width !== 'number' || typeof obj.height !== 'number') {
-            return;
+    mapData.layers.forEach(layer => {
+        if (layer.type !== "objectgroup") return;
+        const lowerName = layer.name.toLowerCase();
+        
+        // Filter out other floors
+        if (lowerName.includes("floor1") || lowerName.includes("f1_") || 
+            lowerName.includes("floor2") || lowerName.includes("f2_") ||
+            lowerName.includes("basement") || lowerName.includes("base_")) {
+            return; 
         }
 
-        const cx = obj.x + obj.width / 2;
-        const cy = obj.y + obj.height / 2;
-        
-        const rigidBodyDesc = RAPIER.RigidBodyDesc.fixed().setTranslation(cx, cy);
-        const body = world.createRigidBody(rigidBodyDesc);
-        const colliderDesc = RAPIER.ColliderDesc.cuboid(obj.width / 2, obj.height / 2);
-        
-        colliderDesc.setCollisionGroups(0x0001FFFF);
+        if (!lowerName.includes("collision") && !lowerName.includes("global") && !lowerName.includes("floor0") && !lowerName.includes("f0")) {
+            if (!lowerName.includes("collision")) return;
+        }
 
-        world.createCollider(colliderDesc, body);
+        const interactionGroup = (CONFIG.COLLISION_GROUPS.GLOBAL << 16) | CONFIG.COLLISION_GROUPS.WALL_MASK;
 
-        const startX = Math.floor(obj.x / tileW);
-        const startY = Math.floor(obj.y / tileH);
-        const endX = Math.ceil((obj.x + obj.width) / tileW);
-        const endY = Math.ceil((obj.y + obj.height) / tileH);
+        if (!layer.objects) return;
 
-        for (let y = Math.max(0, startY); y < Math.min(mapH, endY); y++) {
-            for (let x = Math.max(0, startX); x < Math.min(mapW, endX); x++) {
-                if (navGrid[y] && navGrid[y][x] !== undefined) {
-                    navGrid[y][x] = 1;
+        layer.objects.forEach((obj) => {
+            if (typeof obj.x !== 'number' || typeof obj.y !== 'number' || typeof obj.width !== 'number' || typeof obj.height !== 'number') {
+                return;
+            }
+
+            const cx = obj.x + obj.width / 2;
+            const cy = obj.y + obj.height / 2;
+            
+            const rigidBodyDesc = RAPIER.RigidBodyDesc.fixed()
+                .setTranslation(cx, cy)
+                .setUserData({ type: 'static_wall' });
+
+            const body = world.createRigidBody(rigidBodyDesc);
+            const colliderDesc = RAPIER.ColliderDesc.cuboid(obj.width / 2, obj.height / 2);
+            colliderDesc.setCollisionGroups(interactionGroup);
+            world.createCollider(colliderDesc, body);
+
+            const startX = Math.floor(obj.x / tileW);
+            const startY = Math.floor(obj.y / tileH);
+            const endX = Math.ceil((obj.x + obj.width) / tileW);
+            const endY = Math.ceil((obj.y + obj.height) / tileH);
+
+            const grid = navGrids.get(0);
+            if (!grid) return;
+
+            for (let y = Math.max(0, startY); y < Math.min(mapH, endY); y++) {
+                for (let x = Math.max(0, startX); x < Math.min(mapW, endX); x++) {
+                    if (grid[y] && grid[y][x] !== undefined) {
+                        grid[y][x] = 1;
+                    }
                 }
             }
-        }
+        });
     });
     
     return {
-        navGrid,
+        navGrids,
         gridWidth: mapW,
         gridHeight: mapH,
         tileWidth: tileW,

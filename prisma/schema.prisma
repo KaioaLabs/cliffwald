@@ -38,9 +38,9 @@ model Player {
   house     String   @default("ignis") // ignis, axiom, vesper
   
   // Persistence
-  x         Float    @default(300)
-  y         Float    @default(300)
-  prestige  Int      @default(0)
+    x        Float @default(300)
+    y        Float @default(300)
+    prestige Int   @default(0)
   gold      Int      @default(0)
 
   // Progression & Alignment (Fable System)

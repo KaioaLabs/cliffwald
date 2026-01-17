@@ -412,10 +412,6 @@ export type InventoryItemUncheckedUpdateManyWithoutPlayerNestedInput = {
   deleteMany?: Prisma.InventoryItemScalarWhereInput | Prisma.InventoryItemScalarWhereInput[]
 }
 
-export type BoolFieldUpdateOperationsInput = {
-  set?: boolean
-}
-
 export type InventoryItemCreateWithoutPlayerInput = {
   itemId: string
   count?: number

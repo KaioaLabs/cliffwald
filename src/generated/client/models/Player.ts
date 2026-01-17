@@ -29,6 +29,7 @@ export type AggregatePlayer = {
 export type PlayerAvgAggregateOutputType = {
   id: number | null
   userId: number | null
+  nameChangeCount: number | null
   x: number | null
   y: number | null
   prestige: number | null
@@ -45,6 +46,7 @@ export type PlayerAvgAggregateOutputType = {
 export type PlayerSumAggregateOutputType = {
   id: number | null
   userId: number | null
+  nameChangeCount: number | null
   x: number | null
   y: number | null
   prestige: number | null
@@ -61,10 +63,13 @@ export type PlayerSumAggregateOutputType = {
 export type PlayerMinAggregateOutputType = {
   id: number | null
   userId: number | null
-  x: number | null
-  y: number | null
+  isCreated: boolean | null
+  username: string | null
+  nameChangeCount: number | null
   skin: string | null
   house: string | null
+  x: number | null
+  y: number | null
   prestige: number | null
   gold: number | null
   xp: number | null
@@ -80,10 +85,13 @@ export type PlayerMinAggregateOutputType = {
 export type PlayerMaxAggregateOutputType = {
   id: number | null
   userId: number | null
-  x: number | null
-  y: number | null
+  isCreated: boolean | null
+  username: string | null
+  nameChangeCount: number | null
   skin: string | null
   house: string | null
+  x: number | null
+  y: number | null
   prestige: number | null
   gold: number | null
   xp: number | null
@@ -99,10 +107,13 @@ export type PlayerMaxAggregateOutputType = {
 export type PlayerCountAggregateOutputType = {
   id: number
   userId: number
-  x: number
-  y: number
+  isCreated: number
+  username: number
+  nameChangeCount: number
   skin: number
   house: number
+  x: number
+  y: number
   prestige: number
   gold: number
   xp: number
@@ -120,6 +131,7 @@ export type PlayerCountAggregateOutputType = {
 export type PlayerAvgAggregateInputType = {
   id?: true
   userId?: true
+  nameChangeCount?: true
   x?: true
   y?: true
   prestige?: true
@@ -136,6 +148,7 @@ export type PlayerAvgAggregateInputType = {
 export type PlayerSumAggregateInputType = {
   id?: true
   userId?: true
+  nameChangeCount?: true
   x?: true
   y?: true
   prestige?: true
@@ -152,10 +165,13 @@ export type PlayerSumAggregateInputType = {
 export type PlayerMinAggregateInputType = {
   id?: true
   userId?: true
-  x?: true
-  y?: true
+  isCreated?: true
+  username?: true
+  nameChangeCount?: true
   skin?: true
   house?: true
+  x?: true
+  y?: true
   prestige?: true
   gold?: true
   xp?: true
@@ -171,10 +187,13 @@ export type PlayerMinAggregateInputType = {
 export type PlayerMaxAggregateInputType = {
   id?: true
   userId?: true
-  x?: true
-  y?: true
+  isCreated?: true
+  username?: true
+  nameChangeCount?: true
   skin?: true
   house?: true
+  x?: true
+  y?: true
   prestige?: true
   gold?: true
   xp?: true
@@ -190,10 +209,13 @@ export type PlayerMaxAggregateInputType = {
 export type PlayerCountAggregateInputType = {
   id?: true
   userId?: true
-  x?: true
-  y?: true
+  isCreated?: true
+  username?: true
+  nameChangeCount?: true
   skin?: true
   house?: true
+  x?: true
+  y?: true
   prestige?: true
   gold?: true
   xp?: true
@@ -296,10 +318,13 @@ export type PlayerGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalA
 export type PlayerGroupByOutputType = {
   id: number
   userId: number
-  x: number
-  y: number
+  isCreated: boolean
+  username: string
+  nameChangeCount: number
   skin: string
   house: string
+  x: number
+  y: number
   prestige: number
   gold: number
   xp: number
@@ -338,10 +363,13 @@ export type PlayerWhereInput = {
   NOT?: Prisma.PlayerWhereInput | Prisma.PlayerWhereInput[]
   id?: Prisma.IntFilter<"Player"> | number
   userId?: Prisma.IntFilter<"Player"> | number
-  x?: Prisma.FloatFilter<"Player"> | number
-  y?: Prisma.FloatFilter<"Player"> | number
+  isCreated?: Prisma.BoolFilter<"Player"> | boolean
+  username?: Prisma.StringFilter<"Player"> | string
+  nameChangeCount?: Prisma.IntFilter<"Player"> | number
   skin?: Prisma.StringFilter<"Player"> | string
   house?: Prisma.StringFilter<"Player"> | string
+  x?: Prisma.FloatFilter<"Player"> | number
+  y?: Prisma.FloatFilter<"Player"> | number
   prestige?: Prisma.IntFilter<"Player"> | number
   gold?: Prisma.IntFilter<"Player"> | number
   xp?: Prisma.IntFilter<"Player"> | number
@@ -359,10 +387,13 @@ export type PlayerWhereInput = {
 export type PlayerOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
-  x?: Prisma.SortOrder
-  y?: Prisma.SortOrder
+  isCreated?: Prisma.SortOrder
+  username?: Prisma.SortOrder
+  nameChangeCount?: Prisma.SortOrder
   skin?: Prisma.SortOrder
   house?: Prisma.SortOrder
+  x?: Prisma.SortOrder
+  y?: Prisma.SortOrder
   prestige?: Prisma.SortOrder
   gold?: Prisma.SortOrder
   xp?: Prisma.SortOrder
@@ -384,10 +415,13 @@ export type PlayerWhereUniqueInput = Prisma.AtLeast<{
   AND?: Prisma.PlayerWhereInput | Prisma.PlayerWhereInput[]
   OR?: Prisma.PlayerWhereInput[]
   NOT?: Prisma.PlayerWhereInput | Prisma.PlayerWhereInput[]
-  x?: Prisma.FloatFilter<"Player"> | number
-  y?: Prisma.FloatFilter<"Player"> | number
+  isCreated?: Prisma.BoolFilter<"Player"> | boolean
+  username?: Prisma.StringFilter<"Player"> | string
+  nameChangeCount?: Prisma.IntFilter<"Player"> | number
   skin?: Prisma.StringFilter<"Player"> | string
   house?: Prisma.StringFilter<"Player"> | string
+  x?: Prisma.FloatFilter<"Player"> | number
+  y?: Prisma.FloatFilter<"Player"> | number
   prestige?: Prisma.IntFilter<"Player"> | number
   gold?: Prisma.IntFilter<"Player"> | number
   xp?: Prisma.IntFilter<"Player"> | number
@@ -404,10 +438,13 @@ export type PlayerWhereUniqueInput = Prisma.AtLeast<{
 export type PlayerOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
-  x?: Prisma.SortOrder
-  y?: Prisma.SortOrder
+  isCreated?: Prisma.SortOrder
+  username?: Prisma.SortOrder
+  nameChangeCount?: Prisma.SortOrder
   skin?: Prisma.SortOrder
   house?: Prisma.SortOrder
+  x?: Prisma.SortOrder
+  y?: Prisma.SortOrder
   prestige?: Prisma.SortOrder
   gold?: Prisma.SortOrder
   xp?: Prisma.SortOrder
@@ -431,10 +468,13 @@ export type PlayerScalarWhereWithAggregatesInput = {
   NOT?: Prisma.PlayerScalarWhereWithAggregatesInput | Prisma.PlayerScalarWhereWithAggregatesInput[]
   id?: Prisma.IntWithAggregatesFilter<"Player"> | number
   userId?: Prisma.IntWithAggregatesFilter<"Player"> | number
-  x?: Prisma.FloatWithAggregatesFilter<"Player"> | number
-  y?: Prisma.FloatWithAggregatesFilter<"Player"> | number
+  isCreated?: Prisma.BoolWithAggregatesFilter<"Player"> | boolean
+  username?: Prisma.StringWithAggregatesFilter<"Player"> | string
+  nameChangeCount?: Prisma.IntWithAggregatesFilter<"Player"> | number
   skin?: Prisma.StringWithAggregatesFilter<"Player"> | string
   house?: Prisma.StringWithAggregatesFilter<"Player"> | string
+  x?: Prisma.FloatWithAggregatesFilter<"Player"> | number
+  y?: Prisma.FloatWithAggregatesFilter<"Player"> | number
   prestige?: Prisma.IntWithAggregatesFilter<"Player"> | number
   gold?: Prisma.IntWithAggregatesFilter<"Player"> | number
   xp?: Prisma.IntWithAggregatesFilter<"Player"> | number
@@ -448,10 +488,13 @@ export type PlayerScalarWhereWithAggregatesInput = {
 }
 
 export type PlayerCreateInput = {
-  x?: number
-  y?: number
+  isCreated?: boolean
+  username: string
+  nameChangeCount?: number
   skin?: string
   house?: string
+  x?: number
+  y?: number
   prestige?: number
   gold?: number
   xp?: number
@@ -469,10 +512,13 @@ export type PlayerCreateInput = {
 export type PlayerUncheckedCreateInput = {
   id?: number
   userId: number
-  x?: number
-  y?: number
+  isCreated?: boolean
+  username: string
+  nameChangeCount?: number
   skin?: string
   house?: string
+  x?: number
+  y?: number
   prestige?: number
   gold?: number
   xp?: number
@@ -487,10 +533,13 @@ export type PlayerUncheckedCreateInput = {
 }
 
 export type PlayerUpdateInput = {
-  x?: Prisma.FloatFieldUpdateOperationsInput | number
-  y?: Prisma.FloatFieldUpdateOperationsInput | number
+  isCreated?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  username?: Prisma.StringFieldUpdateOperationsInput | string
+  nameChangeCount?: Prisma.IntFieldUpdateOperationsInput | number
   skin?: Prisma.StringFieldUpdateOperationsInput | string
   house?: Prisma.StringFieldUpdateOperationsInput | string
+  x?: Prisma.FloatFieldUpdateOperationsInput | number
+  y?: Prisma.FloatFieldUpdateOperationsInput | number
   prestige?: Prisma.IntFieldUpdateOperationsInput | number
   gold?: Prisma.IntFieldUpdateOperationsInput | number
   xp?: Prisma.IntFieldUpdateOperationsInput | number
@@ -508,10 +557,13 @@ export type PlayerUpdateInput = {
 export type PlayerUncheckedUpdateInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   userId?: Prisma.IntFieldUpdateOperationsInput | number
-  x?: Prisma.FloatFieldUpdateOperationsInput | number
-  y?: Prisma.FloatFieldUpdateOperationsInput | number
+  isCreated?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  username?: Prisma.StringFieldUpdateOperationsInput | string
+  nameChangeCount?: Prisma.IntFieldUpdateOperationsInput | number
   skin?: Prisma.StringFieldUpdateOperationsInput | string
   house?: Prisma.StringFieldUpdateOperationsInput | string
+  x?: Prisma.FloatFieldUpdateOperationsInput | number
+  y?: Prisma.FloatFieldUpdateOperationsInput | number
   prestige?: Prisma.IntFieldUpdateOperationsInput | number
   gold?: Prisma.IntFieldUpdateOperationsInput | number
   xp?: Prisma.IntFieldUpdateOperationsInput | number
@@ -528,10 +580,13 @@ export type PlayerUncheckedUpdateInput = {
 export type PlayerCreateManyInput = {
   id?: number
   userId: number
-  x?: number
-  y?: number
+  isCreated?: boolean
+  username: string
+  nameChangeCount?: number
   skin?: string
   house?: string
+  x?: number
+  y?: number
   prestige?: number
   gold?: number
   xp?: number
@@ -545,10 +600,13 @@ export type PlayerCreateManyInput = {
 }
 
 export type PlayerUpdateManyMutationInput = {
-  x?: Prisma.FloatFieldUpdateOperationsInput | number
-  y?: Prisma.FloatFieldUpdateOperationsInput | number
+  isCreated?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  username?: Prisma.StringFieldUpdateOperationsInput | string
+  nameChangeCount?: Prisma.IntFieldUpdateOperationsInput | number
   skin?: Prisma.StringFieldUpdateOperationsInput | string
   house?: Prisma.StringFieldUpdateOperationsInput | string
+  x?: Prisma.FloatFieldUpdateOperationsInput | number
+  y?: Prisma.FloatFieldUpdateOperationsInput | number
   prestige?: Prisma.IntFieldUpdateOperationsInput | number
   gold?: Prisma.IntFieldUpdateOperationsInput | number
   xp?: Prisma.IntFieldUpdateOperationsInput | number
@@ -564,10 +622,13 @@ export type PlayerUpdateManyMutationInput = {
 export type PlayerUncheckedUpdateManyInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   userId?: Prisma.IntFieldUpdateOperationsInput | number
-  x?: Prisma.FloatFieldUpdateOperationsInput | number
-  y?: Prisma.FloatFieldUpdateOperationsInput | number
+  isCreated?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  username?: Prisma.StringFieldUpdateOperationsInput | string
+  nameChangeCount?: Prisma.IntFieldUpdateOperationsInput | number
   skin?: Prisma.StringFieldUpdateOperationsInput | string
   house?: Prisma.StringFieldUpdateOperationsInput | string
+  x?: Prisma.FloatFieldUpdateOperationsInput | number
+  y?: Prisma.FloatFieldUpdateOperationsInput | number
   prestige?: Prisma.IntFieldUpdateOperationsInput | number
   gold?: Prisma.IntFieldUpdateOperationsInput | number
   xp?: Prisma.IntFieldUpdateOperationsInput | number
@@ -588,10 +649,13 @@ export type PlayerNullableScalarRelationFilter = {
 export type PlayerCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
-  x?: Prisma.SortOrder
-  y?: Prisma.SortOrder
+  isCreated?: Prisma.SortOrder
+  username?: Prisma.SortOrder
+  nameChangeCount?: Prisma.SortOrder
   skin?: Prisma.SortOrder
   house?: Prisma.SortOrder
+  x?: Prisma.SortOrder
+  y?: Prisma.SortOrder
   prestige?: Prisma.SortOrder
   gold?: Prisma.SortOrder
   xp?: Prisma.SortOrder
@@ -607,6 +671,7 @@ export type PlayerCountOrderByAggregateInput = {
 export type PlayerAvgOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
+  nameChangeCount?: Prisma.SortOrder
   x?: Prisma.SortOrder
   y?: Prisma.SortOrder
   prestige?: Prisma.SortOrder
@@ -623,10 +688,13 @@ export type PlayerAvgOrderByAggregateInput = {
 export type PlayerMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
-  x?: Prisma.SortOrder
-  y?: Prisma.SortOrder
+  isCreated?: Prisma.SortOrder
+  username?: Prisma.SortOrder
+  nameChangeCount?: Prisma.SortOrder
   skin?: Prisma.SortOrder
   house?: Prisma.SortOrder
+  x?: Prisma.SortOrder
+  y?: Prisma.SortOrder
   prestige?: Prisma.SortOrder
   gold?: Prisma.SortOrder
   xp?: Prisma.SortOrder
@@ -642,10 +710,13 @@ export type PlayerMaxOrderByAggregateInput = {
 export type PlayerMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
-  x?: Prisma.SortOrder
-  y?: Prisma.SortOrder
+  isCreated?: Prisma.SortOrder
+  username?: Prisma.SortOrder
+  nameChangeCount?: Prisma.SortOrder
   skin?: Prisma.SortOrder
   house?: Prisma.SortOrder
+  x?: Prisma.SortOrder
+  y?: Prisma.SortOrder
   prestige?: Prisma.SortOrder
   gold?: Prisma.SortOrder
   xp?: Prisma.SortOrder
@@ -661,6 +732,7 @@ export type PlayerMinOrderByAggregateInput = {
 export type PlayerSumOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
+  nameChangeCount?: Prisma.SortOrder
   x?: Prisma.SortOrder
   y?: Prisma.SortOrder
   prestige?: Prisma.SortOrder
@@ -711,6 +783,10 @@ export type PlayerUncheckedUpdateOneWithoutUserNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.PlayerUpdateToOneWithWhereWithoutUserInput, Prisma.PlayerUpdateWithoutUserInput>, Prisma.PlayerUncheckedUpdateWithoutUserInput>
 }
 
+export type BoolFieldUpdateOperationsInput = {
+  set?: boolean
+}
+
 export type FloatFieldUpdateOperationsInput = {
   set?: number
   increment?: number
@@ -746,10 +822,13 @@ export type PlayerUpdateOneRequiredWithoutInventoryNestedInput = {
 }
 
 export type PlayerCreateWithoutUserInput = {
-  x?: number
-  y?: number
+  isCreated?: boolean
+  username: string
+  nameChangeCount?: number
   skin?: string
   house?: string
+  x?: number
+  y?: number
   prestige?: number
   gold?: number
   xp?: number
@@ -765,10 +844,13 @@ export type PlayerCreateWithoutUserInput = {
 
 export type PlayerUncheckedCreateWithoutUserInput = {
   id?: number
-  x?: number
-  y?: number
+  isCreated?: boolean
+  username: string
+  nameChangeCount?: number
   skin?: string
   house?: string
+  x?: number
+  y?: number
   prestige?: number
   gold?: number
   xp?: number
@@ -799,10 +881,13 @@ export type PlayerUpdateToOneWithWhereWithoutUserInput = {
 }
 
 export type PlayerUpdateWithoutUserInput = {
-  x?: Prisma.FloatFieldUpdateOperationsInput | number
-  y?: Prisma.FloatFieldUpdateOperationsInput | number
+  isCreated?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  username?: Prisma.StringFieldUpdateOperationsInput | string
+  nameChangeCount?: Prisma.IntFieldUpdateOperationsInput | number
   skin?: Prisma.StringFieldUpdateOperationsInput | string
   house?: Prisma.StringFieldUpdateOperationsInput | string
+  x?: Prisma.FloatFieldUpdateOperationsInput | number
+  y?: Prisma.FloatFieldUpdateOperationsInput | number
   prestige?: Prisma.IntFieldUpdateOperationsInput | number
   gold?: Prisma.IntFieldUpdateOperationsInput | number
   xp?: Prisma.IntFieldUpdateOperationsInput | number
@@ -818,10 +903,13 @@ export type PlayerUpdateWithoutUserInput = {
 
 export type PlayerUncheckedUpdateWithoutUserInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
-  x?: Prisma.FloatFieldUpdateOperationsInput | number
-  y?: Prisma.FloatFieldUpdateOperationsInput | number
+  isCreated?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  username?: Prisma.StringFieldUpdateOperationsInput | string
+  nameChangeCount?: Prisma.IntFieldUpdateOperationsInput | number
   skin?: Prisma.StringFieldUpdateOperationsInput | string
   house?: Prisma.StringFieldUpdateOperationsInput | string
+  x?: Prisma.FloatFieldUpdateOperationsInput | number
+  y?: Prisma.FloatFieldUpdateOperationsInput | number
   prestige?: Prisma.IntFieldUpdateOperationsInput | number
   gold?: Prisma.IntFieldUpdateOperationsInput | number
   xp?: Prisma.IntFieldUpdateOperationsInput | number
@@ -836,10 +924,13 @@ export type PlayerUncheckedUpdateWithoutUserInput = {
 }
 
 export type PlayerCreateWithoutInventoryInput = {
-  x?: number
-  y?: number
+  isCreated?: boolean
+  username: string
+  nameChangeCount?: number
   skin?: string
   house?: string
+  x?: number
+  y?: number
   prestige?: number
   gold?: number
   xp?: number
@@ -856,10 +947,13 @@ export type PlayerCreateWithoutInventoryInput = {
 export type PlayerUncheckedCreateWithoutInventoryInput = {
   id?: number
   userId: number
-  x?: number
-  y?: number
+  isCreated?: boolean
+  username: string
+  nameChangeCount?: number
   skin?: string
   house?: string
+  x?: number
+  y?: number
   prestige?: number
   gold?: number
   xp?: number
@@ -889,10 +983,13 @@ export type PlayerUpdateToOneWithWhereWithoutInventoryInput = {
 }
 
 export type PlayerUpdateWithoutInventoryInput = {
-  x?: Prisma.FloatFieldUpdateOperationsInput | number
-  y?: Prisma.FloatFieldUpdateOperationsInput | number
+  isCreated?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  username?: Prisma.StringFieldUpdateOperationsInput | string
+  nameChangeCount?: Prisma.IntFieldUpdateOperationsInput | number
   skin?: Prisma.StringFieldUpdateOperationsInput | string
   house?: Prisma.StringFieldUpdateOperationsInput | string
+  x?: Prisma.FloatFieldUpdateOperationsInput | number
+  y?: Prisma.FloatFieldUpdateOperationsInput | number
   prestige?: Prisma.IntFieldUpdateOperationsInput | number
   gold?: Prisma.IntFieldUpdateOperationsInput | number
   xp?: Prisma.IntFieldUpdateOperationsInput | number
@@ -909,10 +1006,13 @@ export type PlayerUpdateWithoutInventoryInput = {
 export type PlayerUncheckedUpdateWithoutInventoryInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   userId?: Prisma.IntFieldUpdateOperationsInput | number
-  x?: Prisma.FloatFieldUpdateOperationsInput | number
-  y?: Prisma.FloatFieldUpdateOperationsInput | number
+  isCreated?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  username?: Prisma.StringFieldUpdateOperationsInput | string
+  nameChangeCount?: Prisma.IntFieldUpdateOperationsInput | number
   skin?: Prisma.StringFieldUpdateOperationsInput | string
   house?: Prisma.StringFieldUpdateOperationsInput | string
+  x?: Prisma.FloatFieldUpdateOperationsInput | number
+  y?: Prisma.FloatFieldUpdateOperationsInput | number
   prestige?: Prisma.IntFieldUpdateOperationsInput | number
   gold?: Prisma.IntFieldUpdateOperationsInput | number
   xp?: Prisma.IntFieldUpdateOperationsInput | number
@@ -959,10 +1059,13 @@ export type PlayerCountOutputTypeCountInventoryArgs<ExtArgs extends runtime.Type
 export type PlayerSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   userId?: boolean
-  x?: boolean
-  y?: boolean
+  isCreated?: boolean
+  username?: boolean
+  nameChangeCount?: boolean
   skin?: boolean
   house?: boolean
+  x?: boolean
+  y?: boolean
   prestige?: boolean
   gold?: boolean
   xp?: boolean
@@ -981,10 +1084,13 @@ export type PlayerSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs =
 export type PlayerSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   userId?: boolean
-  x?: boolean
-  y?: boolean
+  isCreated?: boolean
+  username?: boolean
+  nameChangeCount?: boolean
   skin?: boolean
   house?: boolean
+  x?: boolean
+  y?: boolean
   prestige?: boolean
   gold?: boolean
   xp?: boolean
@@ -1001,10 +1107,13 @@ export type PlayerSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extens
 export type PlayerSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   userId?: boolean
-  x?: boolean
-  y?: boolean
+  isCreated?: boolean
+  username?: boolean
+  nameChangeCount?: boolean
   skin?: boolean
   house?: boolean
+  x?: boolean
+  y?: boolean
   prestige?: boolean
   gold?: boolean
   xp?: boolean
@@ -1021,10 +1130,13 @@ export type PlayerSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extens
 export type PlayerSelectScalar = {
   id?: boolean
   userId?: boolean
-  x?: boolean
-  y?: boolean
+  isCreated?: boolean
+  username?: boolean
+  nameChangeCount?: boolean
   skin?: boolean
   house?: boolean
+  x?: boolean
+  y?: boolean
   prestige?: boolean
   gold?: boolean
   xp?: boolean
@@ -1037,7 +1149,7 @@ export type PlayerSelectScalar = {
   maxHealth?: boolean
 }
 
-export type PlayerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "x" | "y" | "skin" | "house" | "prestige" | "gold" | "xp" | "alignment" | "academicPoints" | "detentionWork" | "unconsciousUntil" | "echoId" | "health" | "maxHealth", ExtArgs["result"]["player"]>
+export type PlayerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "isCreated" | "username" | "nameChangeCount" | "skin" | "house" | "x" | "y" | "prestige" | "gold" | "xp" | "alignment" | "academicPoints" | "detentionWork" | "unconsciousUntil" | "echoId" | "health" | "maxHealth", ExtArgs["result"]["player"]>
 export type PlayerInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   inventory?: boolean | Prisma.Player$inventoryArgs<ExtArgs>
@@ -1059,10 +1171,13 @@ export type $PlayerPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
     userId: number
-    x: number
-    y: number
+    isCreated: boolean
+    username: string
+    nameChangeCount: number
     skin: string
     house: string
+    x: number
+    y: number
     prestige: number
     gold: number
     xp: number
@@ -1500,10 +1615,13 @@ export interface Prisma__PlayerClient<T, Null = never, ExtArgs extends runtime.T
 export interface PlayerFieldRefs {
   readonly id: Prisma.FieldRef<"Player", 'Int'>
   readonly userId: Prisma.FieldRef<"Player", 'Int'>
-  readonly x: Prisma.FieldRef<"Player", 'Float'>
-  readonly y: Prisma.FieldRef<"Player", 'Float'>
+  readonly isCreated: Prisma.FieldRef<"Player", 'Boolean'>
+  readonly username: Prisma.FieldRef<"Player", 'String'>
+  readonly nameChangeCount: Prisma.FieldRef<"Player", 'Int'>
   readonly skin: Prisma.FieldRef<"Player", 'String'>
   readonly house: Prisma.FieldRef<"Player", 'String'>
+  readonly x: Prisma.FieldRef<"Player", 'Float'>
+  readonly y: Prisma.FieldRef<"Player", 'Float'>
   readonly prestige: Prisma.FieldRef<"Player", 'Int'>
   readonly gold: Prisma.FieldRef<"Player", 'Int'>
   readonly xp: Prisma.FieldRef<"Player", 'Int'>

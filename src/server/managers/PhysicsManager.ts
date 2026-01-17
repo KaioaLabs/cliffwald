@@ -1,5 +1,6 @@
 import RAPIER from "@dimforge/rapier2d-compat";
 import { GameState } from "../../shared/SchemaDef";
+import { CONFIG } from "../../shared/Config";
 import { Entity } from "../../shared/ecs/components";
 import { LevelRegistry } from "./LevelRegistry";
 import { MapData, buildPhysics, parseEntities, parseLogic } from "../../shared/MapParser";
@@ -17,6 +18,10 @@ export class PhysicsManager {
     private playerZones: Map<string, string> = new Map(); // SessionId -> CurrentZoneName
     public onZoneEnter?: (sessionId: string, zoneName: string) => void;
 
+    public getPlayerZone(sessionId: string): string | undefined {
+        return this.playerZones.get(sessionId);
+    }
+
     // Sync Optimization
     private syncTimer = 0;
     private readonly SYNC_RATE = 100; // 10Hz sync (Client interpolates)
@@ -30,7 +35,7 @@ export class PhysicsManager {
         this.eventQueue = new RAPIER.EventQueue(true);
     }
 
-    public async loadMap(mapPath: string): Promise<{ spawnPos: {x: number, y: number}, mapData: MapData, navGrid: number[][] }> {
+    public async loadMap(mapPath: string): Promise<{ spawnPos: {x: number, y: number}, mapData: MapData, navGrids: Map<number, number[][]> }> {
         const mapFile = await fs.readFile(mapPath, "utf-8");
         const mapData = JSON.parse(mapFile) as MapData;
         
@@ -46,7 +51,7 @@ export class PhysicsManager {
         return { 
             spawnPos: entitiesResult.spawnPos, 
             mapData, 
-            navGrid: result.navGrid 
+            navGrids: result.navGrids 
         };
     }
 
@@ -62,6 +67,10 @@ export class PhysicsManager {
                 colliderDesc.setSensor(true);
                 colliderDesc.setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
                 
+                // Sensor groups
+                const groups = (CONFIG.COLLISION_GROUPS.SENSOR << 16) | CONFIG.COLLISION_GROUPS.PLAYER;
+                colliderDesc.setCollisionGroups(groups);
+
                 const collider = this.world.createCollider(colliderDesc, body);
                 
                 this.zoneSensors.set(collider.handle, key); // Key e.g. "CLASSROOM"
@@ -81,11 +90,10 @@ export class PhysicsManager {
             const zoneName1 = this.zoneSensors.get(handle1);
             const zoneName2 = this.zoneSensors.get(handle2);
             
+            // Handle Zones
             if (zoneName1 || zoneName2) {
-                const sensorHandle = zoneName1 ? handle1 : handle2;
-                const otherHandle = zoneName1 ? handle2 : handle1;
                 const zoneName = zoneName1 || zoneName2;
-
+                const otherHandle = zoneName1 ? handle2 : handle1;
                 const otherCollider = this.world.getCollider(otherHandle);
                 const parent = otherCollider?.parent();
                 
@@ -136,5 +144,18 @@ export class PhysicsManager {
     
     public dispose() {
         // Rapier managed by JS GC mostly, but good practice to clear if binding was manually managed
+    }
+
+    public clearStaticBodies() {
+        const bodiesToRemove: RAPIER.RigidBody[] = [];
+        this.world.forEachRigidBody((body) => {
+            const userData = body.userData as any;
+            if (userData && userData.type === 'static_wall') {
+                bodiesToRemove.push(body);
+            }
+        });
+        
+        bodiesToRemove.forEach(b => this.world.removeRigidBody(b));
+        console.log(`[PHYSICS] Cleared ${bodiesToRemove.length} static bodies.`);
     }
 }

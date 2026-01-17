@@ -3,14 +3,15 @@ import { Pathfinding } from './Pathfinding';
 
 describe('Pathfinding System (A*)', () => {
     // 5x5 grid with a wall in the middle
-    const grid = [
+    const gridData = [
         [0, 0, 0, 0, 0],
         [0, 1, 1, 1, 0],
         [0, 0, 0, 1, 0],
         [0, 1, 0, 0, 0],
         [0, 0, 0, 0, 0]
     ];
-    const pathfinder = new Pathfinding(grid);
+    const grids = new Map([[0, gridData]]);
+    const pathfinder = new Pathfinding(grids);
 
     it('should find a direct path on empty grid', () => {
         const start = { x: 16, y: 16 }; // Center of (0,0) @ 32px
@@ -32,7 +33,7 @@ describe('Pathfinding System (A*)', () => {
         path?.forEach(p => {
             const gx = Math.floor(p.x / 32);
             const gy = Math.floor(p.y / 32);
-            expect(grid[gy][gx]).toBe(0);
+            expect(gridData[gy][gx]).toBe(0);
         });
     });
 
@@ -43,7 +44,7 @@ describe('Pathfinding System (A*)', () => {
             [1, 1, 1],
             [0, 1, 0]
         ];
-        const pf = new Pathfinding(blockedGrid);
+        const pf = new Pathfinding(new Map([[0, blockedGrid]]));
         const path = pf.findPath({ x: 8, y: 8 }, { x: 40, y: 40 });
         expect(path).toBeNull();
     });

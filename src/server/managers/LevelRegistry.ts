@@ -52,6 +52,10 @@ export class LevelRegistry {
         return this.data?.anchors.get(id);
     }
 
+    public getItemSpawns(): {x: number, y: number}[] {
+        return this.data?.itemSpawns || [];
+    }
+
     // Helper for safe access
     public hasData(): boolean {
         return this.data !== null;

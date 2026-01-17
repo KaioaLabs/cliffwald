@@ -4,7 +4,6 @@ import { CONFIG, getAcademicProgress, getGameTime } from "../shared/Config";
 import { PlayerInput, JoinOptions } from "../shared/types/NetworkTypes";
 import { createWorld, ECSWorld } from "../shared/ecs/world";
 import { MovementSystem } from "../shared/systems/MovementSystem";
-import { AISystem } from "../shared/systems/AISystem";
 import { Pathfinding } from "../shared/systems/Pathfinding";
 import { SpellSystem } from "./systems/SpellSystem";
 import { PrestigeSystem } from "./systems/PrestigeSystem";
@@ -25,34 +24,36 @@ import { timeManager } from "../shared/managers/TimeManager";
 import { HealthSystem } from "./systems/HealthSystem";
 import { AcademicManager } from "./managers/AcademicManager";
 import { PhysicsManager } from "./managers/PhysicsManager";
+import { GameLoopManager } from "./managers/GameLoopManager";
 
 import { WorldService } from "./services/WorldService";
+import fs from 'fs';
 
 export class WorldRoom extends Room<GameState> {
     world!: ECSWorld;
     
-    // Managers
+    // Explicit Property Definitions
     physicsManager!: PhysicsManager;
-    academicManager!: AcademicManager;
     spawnManager!: SpawnManager;
+    gameLoopManager!: GameLoopManager;
+    academicManager!: AcademicManager;
     chatManager!: ChatManager;
-    
-    // Systems
-    pathfinder?: Pathfinding;
-    spellSystem!: SpellSystem;
-    prestigeSystem!: PrestigeSystem;
-    duelSystem!: DuelSystem;
     itemSystem!: ItemSystem;
     shopSystem!: ShopSystem;
-    persistenceSystem!: PersistenceSystem;
+    spellSystem!: SpellSystem;
+    duelSystem!: DuelSystem;
     healthSystem!: HealthSystem;
-    
+    prestigeSystem!: PrestigeSystem;
+    persistenceSystem!: PersistenceSystem;
+    pathfinder!: Pathfinding;
+
     entities = new Map<string, Entity>();
-    
-    // Security: Cooldown Tracking
     lastCastTimes = new Map<string, number>();
+    private isReloading = false;
+    private reloadDebounce: NodeJS.Timeout | null = null;
 
     async onAuth(client: Client, options: JoinOptions, request: any) {
+        if (this.isReloading) return false;
         if (!options.token) return false;
         const userData = AuthService.verifyToken(options.token);
         if (!userData) return false;
@@ -60,47 +61,33 @@ export class WorldRoom extends Room<GameState> {
     }
 
     async onCreate(options: JoinOptions) {
-        this.setMetadata({ name: "Cliffwald World" });
         this.setState(new GameState());
-        
-        // LOAD PERSISTENT WORLD STATE
-        await WorldService.loadWorldState(this.state);
-        this.state.worldStartTime = CONFIG.SEASON_START_DATE; // Fixed anchor
-
-        // 1. Core Systems
         this.world = createWorld();
-        this.physicsManager = new PhysicsManager(this.state, this.entities);
         
-        // ... (PhysicsZone logic)
-
-        // 2. Managers
-        this.spawnManager = new SpawnManager(this.world, this.physicsManager.world, this.state, this.entities);
+        // --- INITIALIZE MANAGERS (Order Matters) ---
+        // 1. Core Systems
         this.chatManager = new ChatManager(this);
+        this.physicsManager = new PhysicsManager(this.state, this.entities);
+        this.persistenceSystem = new PersistenceSystem(this.entities, this.state);
         
-        // 3. Gameplay Systems
-        this.spellSystem = new SpellSystem(this); 
+        // 2. Gameplay Systems
         this.prestigeSystem = new PrestigeSystem(this);
-        this.duelSystem = new DuelSystem(this);
         this.itemSystem = new ItemSystem(this);
         this.shopSystem = new ShopSystem(this);
-        this.persistenceSystem = new PersistenceSystem(this.entities, this.state);
+        this.spellSystem = new SpellSystem(this);
+        this.duelSystem = new DuelSystem(this);
         this.healthSystem = new HealthSystem(this);
-        
-        this.academicManager = new AcademicManager(
-            this.state, 
-            // ... 
-            this.spawnManager, 
-            this.chatManager, 
-            this.prestigeSystem, 
-            this.entities
-        );
+        this.spawnManager = new SpawnManager(this.world, this.physicsManager.world, this.state, this.entities);
+        this.academicManager = new AcademicManager(this.state, this.spawnManager, this.chatManager, this.prestigeSystem, this.entities);
+        this.gameLoopManager = new GameLoopManager(this);
 
-        // 4. Load Map
+        // 3. Load Map & Logic
+        const mapPath = path.join(process.cwd(), "assets/maps/world.json");
         try {
-            const mapPath = path.join(process.cwd(), "assets/maps/world.json");
-            const { spawnPos, mapData, navGrid } = await this.physicsManager.loadMap(mapPath);
+            await this.loadMapLogic(mapPath);
             
-            this.pathfinder = new Pathfinding(navGrid);
+            // Spawn Logic
+            const { spawnPos, mapData } = await this.physicsManager.loadMap(mapPath);
             
             console.log(`[SERVER] Map loaded. Initializing 24 Student Slots...`);
             this.spawnManager.loadSeats(mapData);
@@ -108,70 +95,49 @@ export class WorldRoom extends Room<GameState> {
             this.spawnManager.spawnFromMap(mapData);
             
             for(let i=0; i<5; i++) this.itemSystem.spawnRandomItem();
+
+            // Setup Watcher
+            this.setupMapWatcher(mapPath);
+
         } catch (e) {
             console.error("[SERVER] Error loading map:", e);
         }
 
-        let lastLogHour = -1;
-
         this.setSimulationInterval((deltaTime) => {
-            const now = timeManager.getNow();
-            if (this.state.timeOffset !== timeManager.getOffset()) {
-                this.state.timeOffset = timeManager.getOffset();
-            }
-
-            const { hour: currentHour, isNight } = getGameTime(now);
-            
-            // --- UPDATES ---
-            this.spawnManager.checkPrefectSpawns(isNight);
-            
-            if (Math.abs(currentHour - lastLogHour) > 0.1) {
-                lastLogHour = currentHour;
-            }
-            
-            const { currentCourse, currentMonth, currentDay } = getAcademicProgress(this.state.worldStartTime, now);
-            if (this.state.currentMonth !== currentMonth) {
-                this.state.currentMonth = currentMonth;
-            }
-            if (this.state.currentDay !== currentDay) {
-                this.state.currentDay = currentDay;
-            }
-
-            // Detect Graduation
-            if (this.state.currentCourse < currentCourse) {
-                this.handleGraduation(currentCourse);
-            }
-            
-            // --- SYSTEMS ---
-            MovementSystem(this.world);
-            this.duelSystem.update();
-            this.physicsManager.update(deltaTime); 
-            this.academicManager.update(deltaTime, currentHour); 
-            
-            AISystem(
-                this.world, 
-                this.physicsManager.world, 
-                deltaTime, 
-                currentHour, 
-                this.pathfinder,
-                (id, spell, vx, vy) => this.handleCast(id, spell, vx, vy),
-                (id) => {
-                    const p = this.state.players.get(id);
-                    return p ? { x: p.x, y: p.y } : null;
-                },
-                (id, text) => this.chatManager.handleChat(id, text),
-                (id) => this.broadcast("player_jump", { id }),
-                (prefectId, victimId) => this.sendToDetention(victimId)
-            );
-            
-            this.spellSystem.update(deltaTime);
-            this.itemSystem.update(deltaTime);
-            this.healthSystem.update();
-            
+            if (!this.isReloading) this.gameLoopManager.update(deltaTime);
         }, 1000 / CONFIG.SERVER_FPS);
 
         this.registerMessageHandlers();
         this.persistenceSystem.startAutoSave();
+    }
+
+    private setupMapWatcher(mapPath: string) {
+        fs.watch(mapPath, (eventType) => {
+            if (eventType === 'change') {
+                if (this.reloadDebounce) clearTimeout(this.reloadDebounce);
+                this.reloadDebounce = setTimeout(() => this.reloadMap(mapPath), 500);
+            }
+        });
+    }
+
+    private async loadMapLogic(mapPath: string) {
+        const { navGrids } = await this.physicsManager.loadMap(mapPath);
+        this.pathfinder = new Pathfinding(navGrids);
+    }
+
+    private async reloadMap(mapPath: string) {
+        console.log("[HOT-RELOAD] Reloading Map Physics & Logic...");
+        this.isReloading = true;
+        
+        try {
+            this.physicsManager.clearStaticBodies();
+            await this.loadMapLogic(mapPath);
+            this.chatManager.broadcastSystemMessage("World Geometry Updated!", "BUILDER");
+        } catch (e) {
+            console.error("[HOT-RELOAD] Failed:", e);
+        } finally {
+            this.isReloading = false;
+        }
     }
     
     get physicsWorld() { return this.physicsManager.world; }
@@ -291,7 +257,7 @@ export class WorldRoom extends Room<GameState> {
         if (playerState && playerState.unconsciousUntil > 0) return;
 
         const entity = this.entities.get(sessionId);
-        if (!entity || !entity.body) return;
+        if (!entity || !entity.body || !playerState) return;
 
         const spellConfig = SPELL_REGISTRY[spellId];
         if (!spellConfig) return;
@@ -344,7 +310,6 @@ export class WorldRoom extends Room<GameState> {
             if (!echoSlot) {
                 echoSlot = this.spawnManager.findAvailableEcho(house);
                 if (echoSlot) {
-                    // Save new association
                     await PlayerService.setEchoId(session.dbPlayer.id, echoSlot.id);
                 }
             }
@@ -355,7 +320,6 @@ export class WorldRoom extends Room<GameState> {
                 return;
             }
 
-            // 4. Possess
             const playerEnt = await this.spawnManager.possessEcho(echoSlot.id, client.sessionId, {
                 username: authUser.username,
                 skin: options.skin || "player_idle",
@@ -395,23 +359,16 @@ export class WorldRoom extends Room<GameState> {
         // Save if Valid
         if (entity && entity.body && entity.metadata && entity.metadata.dbId && playerState) {
             const dbId = entity.metadata.dbId;
-            
             const pos = entity.body.translation();
             playerState.x = pos.x;
             playerState.y = pos.y;
-            
-            // CLEANUP: Reset temporary states
             playerState.isAttendingClass = false; 
             playerState.classEndsAt = 0;
-            
-            // PERSISTENCE: Ensure critical stats are attached
             (playerState as any).alignment = entity.metadata.alignment || 0;
-            // detentionWork is part of Schema, so it's auto-read by saveSession from playerState object
             
             await PlayerService.saveSession(dbId, playerState);
         }
 
-        // Restore Echo
         this.spawnManager.restoreEcho(client.sessionId, playerState);
         console.log(`[SERVER] Player ${client.sessionId} left.`);
     }

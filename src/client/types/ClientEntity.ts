@@ -15,4 +15,6 @@ export interface ClientEntity extends Entity {
     lastMoveTime?: number;
     serverPos?: { x: number, y: number };
     unconsciousUntil?: number;
+    prestige?: number;
+    gold?: number;
 }

@@ -26,9 +26,9 @@ export interface AIComponent {
     targetPos?: { x: number, y: number };
     path?: { x: number, y: number }[];
     routineSpots?: {
-        sleep: { x: number, y: number };
-        class: { x: number, y: number };
-        eat: { x: number, y: number };
+        sleep: { x: number, y: number, facing?: { x: number, y: number } };
+        class: { x: number, y: number, facing?: { x: number, y: number } };
+        eat: { x: number, y: number, facing?: { x: number, y: number } };
     };
     targetId?: string;
     

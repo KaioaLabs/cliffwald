@@ -74,7 +74,7 @@ export class AuthService {
                 // Reset stats
                 xp: 0,
                 gold: 0,
-                personalPrestige: 0,
+                prestige: 0,
                 academicPoints: 0,
                 x: CONFIG.SPAWN_POINT.x,
                 y: CONFIG.SPAWN_POINT.y,
@@ -92,7 +92,7 @@ export class AuthService {
                 // Reset everything important
                 xp: 0,
                 gold: 0,
-                personalPrestige: 0,
+                prestige: 0,
                 academicPoints: 0,
                 inventory: { set: [] }, // Clear relations if possible or handled elsewhere?
                 // Note: Clearing JSON array/relations depends on Prisma. 
@@ -109,9 +109,13 @@ export class AuthService {
         // Explicitly clear inventory items relation
         // This requires importing db correctly and knowing the schema
         const player = await db.player.findUnique({ where: { userId } });
-        if (player) {
-             await db.inventoryItem.deleteMany({ where: { ownerId: player.id } });
-        }
+         if (player) {
+             // Wipe inventory?
+             await db.inventoryItem.deleteMany({ where: { playerId: player.id } });
+             // Wipe player entry? Or keep for history?
+             // For now, full wipe to allow fresh start
+             await db.player.delete({ where: { id: player.id } });
+         }
     }
 
     static async renameCharacter(userId: number, newName: string) {
@@ -156,6 +160,7 @@ export class AuthService {
                     password: hashedPassword,
                     player: {
                         create: {
+                            username: username, // Default to login name
                             x: CONFIG.SPAWN_POINT.x,
                             y: CONFIG.SPAWN_POINT.y,
                             skin: "player_idle"

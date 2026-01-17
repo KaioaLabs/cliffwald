@@ -43,7 +43,6 @@ export class PlayerController {
         const shadow = this.scene.add.image(x, y, 'player_idle');
         shadow.setTint(0x000000);
         shadow.setAlpha(0.3);
-        // Image uses setOrigin in ShadowUtils
         
         const sprite = this.scene.add.sprite(x, y, 'player_idle', 0);
         if (CONFIG.USE_LIGHTS) sprite.setPipeline('Light2D'); 
@@ -56,7 +55,6 @@ export class PlayerController {
 
         if (isPrefect) {
             sprite.setTint(THEME.HOUSES.PREFECT);
-            // Optional: Scale up slightly? Prefects are intimidating.
             sprite.setScale(CONFIG.PLAYER_SCALE * 1.1);
             
             // DYNAMIC LIGHT
@@ -181,12 +179,18 @@ export class PlayerController {
             if (entity.isLocal && entity.body) {
                 const localPos = entity.body.translation();
                 const dist = Phaser.Math.Distance.Between(localPos.x, localPos.y, data.x, data.y);
-                if (dist > 20) entity.body.setTranslation({ x: data.x, y: data.y }, true);
-                else if (dist > 2) {
-                    entity.body.setTranslation({
-                        x: Phaser.Math.Linear(localPos.x, data.x, 0.2),
-                        y: Phaser.Math.Linear(localPos.y, data.y, 0.2)
-                    }, true);
+                
+                // SOTA Reconciliation: "Soft Pull" -> "Hard Snap"
+                if (dist > CONFIG.RECONCILIATION_THRESHOLD_LARGE) {
+                    // Critical desync: Teleport
+                    entity.body.setTranslation({ x: data.x, y: data.y }, true);
+                } 
+                else if (dist > CONFIG.RECONCILIATION_THRESHOLD_SMALL) {
+                    // Minor desync: Apply "Soft Pull" (Exponential Decay)
+                    const t = 0.15; 
+                    const newX = Phaser.Math.Linear(localPos.x, data.x, t);
+                    const newY = Phaser.Math.Linear(localPos.y, data.y, t);
+                    entity.body.setTranslation({ x: newX, y: newY }, true);
                 }
             }
         }
@@ -210,7 +214,7 @@ export class PlayerController {
                     stroke: '#000000',
                     strokeThickness: 3,
                     align: 'center'
-                }).setOrigin(0.5).setDepth(10000); // High depth to show over everything
+                }).setOrigin(0.5).setDepth(10000); 
             }
             entity.classTimerText.setVisible(true);
             entity.classTimerText.setData('endsAt', endsAt);
@@ -233,25 +237,16 @@ export class PlayerController {
         // Teachers don't have jump sprites yet, ignore or just tween
         if (!isTeacher) {
             const animKey = `jump-${dir}`;
-            // console.log(`[DEBUG-JUMP] Playing ${animKey} for ${sessionId}`);
             if (sprite.anims.exists(animKey)) {
                 sprite.play(animKey, true);
-                // Lock animation for duration of jump
                 sprite.setData('isJumping', true);
                 sprite.once('animationcomplete', () => {
-                    // console.log(`[DEBUG-JUMP] Complete ${animKey}`);
                     sprite.setData('isJumping', false);
                 });
-            } else {
-                console.warn(`[DEBUG-JUMP] Animation missing: ${animKey}`);
             }
         }
 
         // 2. Vertical Tween (Visual Height)
-        // We move the sprite Y up and down, but we need to account for the shadow staying on the ground.
-        // The shadow logic tracks sprite.x/y. If we move sprite.y, shadow will follow "up", which looks like floating.
-        
-        // SOLUTION: Add a 'visualOffset' to ClientEntity
         entity.visualOffset = { x: 0, y: 0 };
         
         this.scene.tweens.add({
@@ -260,10 +255,6 @@ export class PlayerController {
             duration: 200,
             yoyo: true,
             ease: 'Sine.easeOut',
-            onUpdate: () => {
-                // Force update to apply offset immediately if needed, 
-                // but main loop handles it naturally.
-            },
             onComplete: () => {
                 entity.visualOffset = { x: 0, y: 0 };
             }
@@ -279,17 +270,34 @@ export class PlayerController {
             const sprite = entity.visual!.sprite as Phaser.GameObjects.Sprite;
             const isLocal = entity.isLocal;
             
+            // ALWAYS VISIBLE (Single Floor)
+            const isVisible = true;
+            
+            sprite.setVisible(isVisible);
+            sprite.setActive(isVisible);
+            
+            if (entity.shadow) {
+                entity.shadow.setVisible(isVisible);
+                entity.shadow.setActive(isVisible);
+            }
+            if (entity.nameTag) {
+                entity.nameTag.setVisible(isVisible);
+                entity.nameTag.setActive(isVisible);
+            }
+            if (entity.prefectLight) {
+                entity.prefectLight.setVisible(isVisible);
+            }
+            if (entity.classTimerText) {
+                const timerVisible = isVisible && !!entity.classTimerText.getData('endsAt');
+                entity.classTimerText.setVisible(timerVisible);
+                entity.classTimerText.setActive(timerVisible);
+            }
+            
             let targetX = sprite.x;
             let targetY = sprite.y;
 
-            // --- UNIFIED INTERPOLATION LOGIC ---
-            // Local player also uses buffer for smoothing physics steps, 
-            // but we might snap if the deviation is small to feel "crisp".
-            // However, to fix jitter, treating everyone as interpolated targets is safer.
-            
             if (isLocal && entity.body) {
                 const pos = entity.body.translation();
-                // Direct physics read for local to ensure 0 input lag
                 targetX = pos.x; 
                 targetY = pos.y;
             } else {
@@ -310,25 +318,21 @@ export class PlayerController {
                 }
             }
 
-            // --- SMOOTHING ---
             const lerp = isLocal ? CONFIG.LERP_FACTOR_LOCAL : CONFIG.LERP_FACTOR_REMOTE;
             
-            // Current "Base" position (feet)
             const currentBaseX = sprite.x - (entity.visualOffset?.x || 0);
             const currentBaseY = sprite.y - ((entity.visualOffset?.y || 0) + (entity.climbOffset || 0));
 
             const smoothedX = Phaser.Math.Linear(currentBaseX, targetX, lerp);
             const smoothedY = Phaser.Math.Linear(currentBaseY, targetY, lerp);
 
-            // --- APPLY OFFSETS (JUMP/CLIMB) ---
             const offsetX = entity.visualOffset?.x || 0;
             const offsetY = (entity.visualOffset?.y || 0) + (entity.climbOffset || 0);
             
             sprite.setPosition(smoothedX + offsetX, smoothedY + offsetY);
             sprite.setDepth(smoothedY + 100); 
 
-            // --- SHADOW LOGIC (FIXED) ---
-            // Shadow MUST follow the BASE position (smoothedX, smoothedY), not the sprite (jumping).
+            // --- SHADOW LOGIC ---
             const shadow = entity.shadow;
             if (shadow) {
                 const gameScene = this.scene as any;
@@ -349,9 +353,8 @@ export class PlayerController {
                     shadowBaseY -= (sprite.displayHeight || 64) * 0.15;
                 }
 
-                // Scale shadow relative to jump height (visualOffset.y is negative when up)
                 const jumpHeight = Math.abs(entity.visualOffset?.y || 0);
-                const jumpScale = Math.max(0.5, 1.0 - (jumpHeight / 100)); // Shrink as you go up
+                const jumpScale = Math.max(0.5, 1.0 - (jumpHeight / 100)); 
 
                 ShadowUtils.updateShadow(
                     shadow, 
@@ -367,7 +370,6 @@ export class PlayerController {
                 );
             }
 
-            // ... (Rest of UI updates) ...
             const dx = targetX - currentBaseX;
             const dy = targetY - currentBaseY;
             
@@ -377,7 +379,6 @@ export class PlayerController {
                 entity.prefectLight.setPosition(smoothedX, smoothedY);
             }
 
-            // Update Class Timer
             if (entity.classTimerText && entity.classTimerText.visible) {
                 entity.classTimerText.setPosition(smoothedX, smoothedY - 60);
                 const endsAt = entity.classTimerText.getData('endsAt');
@@ -406,14 +407,12 @@ export class PlayerController {
         const sprite = entity.visual?.sprite;
         if (!sprite) return;
         
-        // Don't override jump animation
         if (sprite.getData('isJumping')) return;
 
         const isLocal = entity.isLocal;
         const velocity = Math.sqrt(dx * dx + dy * dy);
         let anim = 'idle', dir = entity.lastDir || 'down', targetDx = dx, targetDy = dy, shouldUpdate = false;
         
-        // --- SLEEP LOGIC (Visual Freeze) ---
         const isTeacher = sprite.getData('isTeacher');
         const isPrefect = entity.prefectLight !== undefined;
         
@@ -426,17 +425,13 @@ export class PlayerController {
                 const { isNight } = getGameTime(Date.now());
                 if (isNight && this.isInDorm(sprite.x, sprite.y)) {
                     if (!sprite.getData('isSleepingVisual')) {
-                        // Enter Sleep Mode: Freeze on vertical frames (Up or Down)
                         sprite.stop();
-                        
-                        // Frames: 0(Down), 16(Up)
                         const frames = [0, 16];
                         const randomFrame = frames[Math.floor(Math.random() * frames.length)];
-                        
                         sprite.setFrame(randomFrame);
                         sprite.setData('isSleepingVisual', true);
                     }
-                    return; // SKIP NORMAL ANIMATION
+                    return; 
                 } else {
                     sprite.setData('isSleepingVisual', false);
                 }

@@ -99,7 +99,13 @@ export class DebugManager {
         // --- LIGHTING ---
         const fLights = this.pane.addFolder({ title: 'Lighting', expanded: false });
         fLights.addBinding(this.settings, 'enableLights', { label: 'Enable' })
-            .on('change', (ev: any) => this.scene.lights.active = ev.value);
+            .on('change', (ev: any) => {
+                 // Invert logic: If "Enable Lights" is TRUE, Override is FALSE.
+                 // If "Enable Lights" is FALSE, Override is TRUE (Full White).
+                 if (this.scene.lightManager) {
+                     this.scene.lightManager.setLightingOverride(!ev.value);
+                 }
+            });
         fLights.addBinding(this.settings, 'ambientColor', { view: 'color', label: 'Ambient' })
             .on('change', (ev: any) => {
                 const color = new Phaser.Display.Color(ev.value.r, ev.value.g, ev.value.b);

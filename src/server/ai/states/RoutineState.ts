@@ -3,6 +3,7 @@ import { getStudentScheduleTarget } from "../../../shared/utils/ScheduleUtils";
 import { MathUtils } from "../../../shared/utils/MathUtils";
 import { LevelRegistry } from "../../managers/LevelRegistry";
 import RAPIER from "@dimforge/rapier2d-compat";
+import { CONFIG } from "../../../shared/Config";
 
 export const RoutineState = {
     update: (
@@ -11,7 +12,8 @@ export const RoutineState = {
         currentHour: number, 
         pathfinder: any, 
         physicsWorld: RAPIER.World,
-        frameCount: number
+        frameCount: number,
+        floor: number = 0
     ) => {
         const { ai, body, input, id, facing } = entity;
         if (!ai || !body || !input) return;
@@ -37,12 +39,16 @@ export const RoutineState = {
         const zoneLoc = registry.getLocation(targetZone);
         
         if (zoneLoc && zoneLoc.x !== 0) {
-            const distToZoneCenter = MathUtils.distance(currentPos.x, currentPos.y, zoneLoc.x, zoneLoc.y);
-            // Define zone radius roughly (e.g., 200px for room). 
-            // Better: Use bounding boxes if available, but radius is cheap.
-            const ZONE_RADIUS = 300; 
+            // DYNAMIC TILED LOGIC: Use the exact rectangle drawn in Tiled
+            const halfW = (zoneLoc.width || 200) / 2;
+            const halfH = (zoneLoc.height || 200) / 2;
             
-            if (distToZoneCenter < ZONE_RADIUS) {
+            // Check AABB (Axis-Aligned Bounding Box)
+            // zoneLoc.x/y is CENTER in our Logic Data (parsed in MapParser)
+            const dx = Math.abs(currentPos.x - zoneLoc.x); 
+            const dy = Math.abs(currentPos.y - zoneLoc.y);
+            
+            if (dx <= halfW && dy <= halfH) {
                 isAtZone = true;
             } else {
                 // Not in zone -> Go to Zone Center
@@ -50,21 +56,38 @@ export const RoutineState = {
             }
         }
 
-        // Step B: In Zone -> Find specific slot or roam
+        // Step B: In Zone -> Find specific slot or roam within Tiled bounds
         if (isAtZone && ai.routineSpots) {
             if (schedule.activity === 'sleep') finalPos = ai.routineSpots.sleep;
             else if (schedule.activity === 'eat') finalPos = ai.routineSpots.eat;
             else if (schedule.activity === 'class') finalPos = ai.routineSpots.class;
             else {
-                // Free Roam / Duel inside zone
-                // Dispersion logic moved here from ScheduleUtils
-                const numericId = typeof id === 'number' ? id : 0;
-                const angle = numericId * 2.399; 
-                const radius = 150;
-                finalPos = { 
-                    x: zoneLoc.x + Math.cos(angle) * radius, 
-                    y: zoneLoc.y + Math.sin(angle) * radius 
-                };
+                // Free Roam / Duel inside DYNAMIC Tiled Zone
+                // Pick a random point strictly inside the room boundaries
+                const w = zoneLoc?.width || 200;
+                const h = zoneLoc?.height || 200;
+                
+                // Add a small padding (20px) so they don't hug the walls
+                const padding = 20;
+                const safeW = Math.max(0, (w/2) - padding);
+                const safeH = Math.max(0, (h/2) - padding);
+
+                // Deterministic pseudo-random based on time + ID to avoid jitter
+                // Change roaming spot every ~10 seconds
+                const seed = Math.floor(Date.now() / 10000) + numericId;
+                // Simple deterministic random
+                const sinSeed = Math.sin(seed);
+                const cosSeed = Math.cos(seed);
+                
+                const randX = sinSeed * safeW;
+                const randY = cosSeed * safeH;
+
+                if (zoneLoc) {
+                    finalPos = { 
+                        x: zoneLoc.x + randX, 
+                        y: zoneLoc.y + randY 
+                    };
+                }
             }
         }
 
@@ -92,7 +115,7 @@ export const RoutineState = {
 
         if ((ai.stuckTimer || 0) > 2000) {
             // Stuck for 2 seconds -> Force Repath
-            console.log(`[AI] Entity ${id} stuck. Recalculating...`);
+            // console.log(`[AI] Entity ${id} stuck. Recalculating...`);
             ai.path = undefined;
             ai.targetPos = undefined;
             ai.stuckTimer = 0;
@@ -108,22 +131,15 @@ export const RoutineState = {
             }
 
             if (!ai.path && pathfinder) {
-                ai.path = pathfinder.findPath(currentPos, finalPos);
+                ai.path = pathfinder.findPath(currentPos, finalPos, floor);
             }
 
             if (ai.path && ai.path.length > 0) {
                 const next = ai.path[0];
                 
                 // --- LANE LOGIC (Prevent Railroading) ---
-                // Deterministic offset based on ID to create "Lanes" in corridors
-                // numericId % 3 => 0, 1, 2. Map to -1, 0, 1. Scale by 12px.
                 const laneOffset = ((numericId % 3) - 1) * 12; 
                 
-                // We add the offset to the target node, but we need to know the path direction 
-                // to apply it perpendicularly? Too complex.
-                // Simpler: Just add x/y offset globally. 
-                // If moving horizontal, y-offset matters. If vertical, x-offset matters.
-                // A simple diagonal offset works well enough for 2D top-down without strict grid.
                 const targetX = next.x + laneOffset;
                 const targetY = next.y + laneOffset;
 
@@ -161,18 +177,14 @@ export const RoutineState = {
                             return true;
                         });
                         
-                        // Store separation force in AI state to smooth it over frames? 
-                        // For simplicity, apply directly now.
                         norm.x += sepX;
                         norm.y += sepY;
                         
-                        // Re-normalize after blending forces
                         norm = MathUtils.normalize(norm.x, norm.y);
                     }
 
                     input.analogDir = { x: norm.x, y: norm.y };
                     
-                    // Facing follows movement
                     if (facing) { facing.x = norm.x; facing.y = norm.y; }
                 }
             } else {
@@ -186,13 +198,24 @@ export const RoutineState = {
             // Arrived
             input.analogDir = { x: 0, y: 0 };
             
-            // Trigger Contextual State
+            // 1. Apply Preset Facing
+            if (ai.routineSpots && facing) {
+                let spot: any = null;
+                if (schedule.activity === 'sleep') spot = ai.routineSpots.sleep;
+                else if (schedule.activity === 'eat') spot = ai.routineSpots.eat;
+                else if (schedule.activity === 'class') spot = ai.routineSpots.class;
+                
+                if (spot && spot.facing) {
+                    facing.x = spot.facing.x;
+                    facing.y = spot.facing.y;
+                }
+            }
+
+            // 2. Trigger Contextual State
             if (schedule.activity === 'class') ai.state = 'attending_class';
             else if (schedule.activity === 'duel') ai.state = 'duel';
             else {
-                // Orient towards object (e.g. bed is usually Up/Left, Table is Up/Down)
-                if (schedule.activity === 'sleep' && facing) facing.y = -1;
-                if (schedule.activity === 'eat' && facing) facing.y = (finalPos.y > zoneLoc.y) ? -1 : 1; // Look at table
+                if (facing && schedule.activity === 'sleep' && !facing.x && !facing.y) facing.y = -1;
                 ai.state = 'idle';
             }
             ai.timer = 0;

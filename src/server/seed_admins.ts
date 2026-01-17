@@ -18,14 +18,14 @@ export async function seedAdmins() {
                     username: ADMIN_USER,
                     password: hashedPassword,
                     player: {
-                        create: {
-                            x: CONFIG.SPAWN_POINT.x,
-                            y: CONFIG.SPAWN_POINT.y,
-                            skin: "player_idle", // Normal student skin
-                            house: "ignis",
-                            prestige: 9999 // Admin privilege
-                        }
-                    }
+                                                create: {
+                                                    skin: 'player_idle',
+                                                    house: 'ignis',
+                                                    prestige: 100,
+                                                    username: 'Admin',
+                                                    x: 320,
+                                                    y: 320
+                                                }                    }
                 }
             });
             console.log(`[SEED] Admin User created successfully.`);

@@ -6,6 +6,8 @@ import { Entity } from "../../shared/ecs/components";
 import { MapData, parseSeats, parseNPCs } from "../../shared/MapParser";
 import { LevelRegistry } from "./LevelRegistry";
 import { PlayerService } from "../services/PlayerService";
+import { StudentData } from "../../shared/data/StudentData";
+import { NPC_DATA } from "../../shared/data/NPCRegistry";
 
 export interface CharacterSpawnData {
     id: string; // SessionId or EchoId
@@ -175,21 +177,10 @@ export class SpawnManager {
         this.claimedEchoIds.add(echoId);
 
         // 3. Spawn Player
-        // Find player DB ID from metadata? Or passed in?
-        // possessEcho receives playerData which are VISUAL/Schema stats. Not DB ID.
-        // But WorldRoom calls possessEcho AFTER PlayerService.initializeSession.
-        // We need to pass the DB ID to possessEcho or handle it outside.
-        // Let's rely on WorldRoom saving it? 
-        // No, WorldRoom doesn't know the echoId unless we return it or save it here.
-        // Better: possessEcho logic is strictly ECS. The DB link should be in WorldRoom.
-        
-        // However, I need to return the entity to WorldRoom so it can set metadata.
-        
         console.log(`[SPAWN] Player ${playerData.username} possessing ${echoId}`);
         return this.spawnCharacter({
             id: clientSessionId,
             numericId: numericId,
-            // ...
             username: playerData.username || "Unknown",
             skin: playerData.skin || "player_idle",
             house: house as any,
@@ -207,8 +198,6 @@ export class SpawnManager {
         });
     }
 
-    // ...
-
     public async spawnEchoes(count: number, centerPos: { x: number, y: number }) {
         const echoMap = await PlayerService.getEchoMap();
         this.claimedEchoIds.clear();
@@ -216,117 +205,131 @@ export class SpawnManager {
         
         console.log(`[SPAWN] Loaded ${echoMap.size} persistent Echo identities.`);
 
-        const houses: ('ignis' | 'axiom' | 'vesper')[] = ['ignis', 'axiom', 'vesper'];
-        
-        const NAMES = {
-            ignis: ['Ivan', 'Isabella', 'Isaac', 'Ivy', 'Ian', 'Iris', 'Igor', 'Imogen', 'Ilya', 'Ingrid', 'Isaiah', 'Isla'],
-            axiom: ['Arthur', 'Alice', 'Aaron', 'Ava', 'Adam', 'Amelia', 'Alex', 'Audrey', 'Alan', 'Anna', 'Adrian', 'Aria'],
-            vesper: ['Victor', 'Victoria', 'Vincent', 'Violet', 'Vance', 'Vanessa', 'Vlad', 'Valerie', 'Vaughn', 'Vivian', 'Vernon', 'Veronica']
-        };
-
-        let globalIdCounter = 1;
+        const students = StudentData.getAll();
         const TILE_SIZE = 32;
 
-        houses.forEach(house => {
-            const registry = LevelRegistry.getInstance();
-            let dormPos = registry.getLocation(`DORM_${house.toUpperCase()}`) || registry.getLocation("DORM_IGNIS");
+        students.forEach(student => {
+            const id = `student_${student.house}_${student.id}`;
+            const numericId = student.id;
+            const seatId = student.id - 1; // 0-based index for map anchors
 
-            const studentsPerHouse = Math.floor(count / 3);
-            for (let i = 1; i <= studentsPerHouse; i++) {
-                const id = `student_${house}_${i}`;
-                const numericId = globalIdCounter++;
-                const studentIndex = i - 1;
-                const seatId = numericId - 1;
+            // PERSISTENCE CHECK
+            const persistentData = echoMap.get(id);
+            
+            let username = student.name;
+            let skin = student.skin;
+            let prestige = 0;
 
-                // PERSISTENCE CHECK
-                const persistentData = echoMap.get(id);
-                // Assign a name from the list based on index
-                const nameList = NAMES[house];
-                const baseName = nameList[(i - 1) % nameList.length];
-                
-                let username = baseName;
-                let skin = house === 'ignis' ? "player_red" : (house === 'axiom' ? "player_blue" : "player_idle");
-                let prestige = 0;
-
-                if (persistentData) {
-                    username = persistentData.username;
-                    skin = persistentData.skin;
-                    prestige = persistentData.prestige;
-                    // console.log(`[SPAWN] Restoring ${id} as ${username}`);
-                }
-                
-                // Calculate Spots (Anchors)
-                let sleepPos = registry.getAnchor(`seat_bed_${seatId}`);
-                if (!sleepPos) {
-                    const bedRow = Math.floor(studentIndex / 4);
-                    const bedCol = studentIndex % 4;
-                    sleepPos = {
-                        x: dormPos.x + (bedCol * TILE_SIZE * 2),
-                        y: dormPos.y + (bedRow * TILE_SIZE * 3) + 20
-                    };
-                }
-
-                let eatPos = registry.getAnchor(`seat_food_${seatId}`);
-                if (!eatPos) {
-                    const gh = registry.getLocation("GREAT_HALL");
-                    let tableOffsetY = house === 'ignis' ? -80 : (house === 'vesper' ? 80 : 0);
-                    const tableRow = Math.floor(studentIndex / 4); 
-                    const tableCol = studentIndex % 4; 
-                    eatPos = {
-                        x: gh.x + (tableCol * 64) - 96, 
-                        y: gh.y + tableOffsetY + (tableRow === 0 ? -40 : 40)
-                    };
-                }
-
-                let classPos = registry.getAnchor(`seat_class_${seatId}`);
-                if (!classPos) {
-                    classPos = this.seats.class.get(seatId) || { x: 1440, y: 1312 };
-                }
-
-                this.spawnCharacter({
-                    id: id,
-                    numericId: numericId,
-                    username: username,
-                    skin: skin,
-                    house: house,
-                    x: sleepPos.x,
-                    y: sleepPos.y,
-                    isAI: true,
-                    prestige: prestige,
-                    routineSpots: { sleep: sleepPos, eat: eatPos, class: classPos }
-                });
+            if (persistentData) {
+                username = persistentData.username;
+                skin = persistentData.skin;
+                prestige = persistentData.prestige;
             }
+            
+            // Calculate Spots (Anchors) with Facing
+            const registry = LevelRegistry.getInstance();
+            let dormPos = registry.getLocation(`DORM_${student.house.toUpperCase()}`) || registry.getLocation("DORM_IGNIS");
+
+            // Calculate Grid Position relative to house peers
+            const housePeers = StudentData.getByHouse(student.house);
+            const studentIndex = housePeers.findIndex(s => s.id === student.id); 
+
+            let sleepPos = registry.getAnchor(`seat_bed_${seatId}`);
+            const sleepFacing = { x: 0, y: -1 }; // Look at headboard
+            if (!sleepPos) {
+                const bedRow = Math.floor(studentIndex / 4);
+                const bedCol = studentIndex % 4;
+                sleepPos = {
+                    x: dormPos.x + (bedCol * TILE_SIZE * 2),
+                    y: dormPos.y + (bedRow * TILE_SIZE * 3) + 20
+                };
+            }
+
+            let eatPos = registry.getAnchor(`seat_food_${seatId}`);
+            let eatFacing = { x: 0, y: 1 }; // Default down
+            if (!eatPos) {
+                const gh = registry.getLocation("GREAT_HALL");
+                let tableOffsetY = student.house === 'ignis' ? -80 : (student.house === 'vesper' ? 80 : 0);
+                const tableRow = Math.floor(studentIndex / 4); 
+                const tableCol = studentIndex % 4; 
+                
+                // Facing: If row 0, look DOWN at table. If row 1, look UP.
+                eatFacing = tableRow === 0 ? { x: 0, y: 1 } : { x: 0, y: -1 };
+                
+                eatPos = {
+                    x: gh.x + (tableCol * 64) - 96, 
+                    y: gh.y + tableOffsetY + (tableRow === 0 ? -40 : 40)
+                };
+            }
+
+            let classPos = registry.getAnchor(`seat_class_${seatId}`);
+            const classFacing = { x: 0, y: -1 }; // Look at teacher
+            if (!classPos) {
+                classPos = this.seats.class.get(seatId) || { x: 1440, y: 1312 };
+            }
+
+            this.spawnCharacter({
+                id: id,
+                numericId: numericId,
+                username: username,
+                skin: skin,
+                house: student.house,
+                x: sleepPos.x,
+                y: sleepPos.y,
+                isAI: true,
+                prestige: prestige,
+                routineSpots: { 
+                    sleep: { ...sleepPos, facing: sleepFacing }, 
+                    eat: { ...eatPos, facing: eatFacing }, 
+                    class: { ...classPos, facing: classFacing } 
+                }
+            });
         });
     }
 
     public spawnFromMap(mapData: MapData) {
-        // --- SINGLE TEACHER (24/7) ---
-        const registry = LevelRegistry.getInstance();
-        
-        // Try to find anchor or fallback to Classroom center
-        let teacherPos = registry.getAnchor("spot_teacher_class");
-        
-        if (!teacherPos) {
-            const classroom = registry.getLocation("ACADEMIC_WING");
-            if (classroom && classroom.id !== "MISSING") {
-                teacherPos = { x: classroom.x, y: classroom.y };
-            } else {
-                teacherPos = { x: 1440, y: 1312 }; // Hard Fallback
-            }
-        }
+        const npcObjects = parseNPCs(mapData);
+        let npcCounter = 9000;
 
-        this.spawnCharacter({
-             id: "npc_professor_merlin",
-             username: "Professor Merlin",
-             skin: "teacher",
-             house: 'ignis',
-             x: teacherPos.x,
-             y: teacherPos.y,
-             isAI: true,
-             numericId: 9000
+        npcObjects.forEach(obj => {
+            const name = obj.name; // This is the key "Professor Hecate"
+            const def = NPC_DATA[name];
+
+            if (def) {
+                console.log(`[SPAWN] Found NPC Definition for: ${name}`);
+                this.spawnCharacter({
+                    id: `npc_${name.replace(/\s+/g, '_').toLowerCase()}`,
+                    username: def.name,
+                    skin: def.skin,
+                    house: 'ignis', // Default, doesn't matter much for teachers
+                    x: obj.x,
+                    y: obj.y,
+                    isAI: true,
+                    numericId: npcCounter++
+                });
+            } else {
+                console.warn(`[SPAWN] Unknown NPC in map: ${name}`);
+            }
         });
         
-        console.log("[SPAWN] Single Teacher 'Professor Merlin' spawned.");
+        // Check for Anchors if needed
+        const registry = LevelRegistry.getInstance();
+        const merlinAnchor = registry.getAnchor("anchor_teacher_merlin");
+        if (merlinAnchor) {
+             const def = NPC_DATA["Professor Merlin"];
+             if (def) {
+                 this.spawnCharacter({
+                    id: "npc_professor_merlin",
+                    username: def.name,
+                    skin: def.skin,
+                    house: 'ignis',
+                    x: merlinAnchor.x,
+                    y: merlinAnchor.y,
+                    isAI: true,
+                    numericId: npcCounter++
+                });
+             }
+        }
     }
 
     public restoreEcho(clientSessionId: string, finalState?: Player) {

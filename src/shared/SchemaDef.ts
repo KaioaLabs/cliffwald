@@ -10,9 +10,9 @@ export class Player extends Schema {
     @type("string") id: string = "";
     @type("string") username: string = "Guest";
     @type("string") house: string = "ignis"; // Default to ignis or empty
+    @type("float32") x: number = 0;
+    @type("float32") y: number = 0;
     @type("string") skin: string = "player_idle";
-    @type("number") x: number = 0;
-    @type("number") y: number = 0;
     
     @type("number") personalPrestige: number = 0;
     @type("number") gold: number = 0;

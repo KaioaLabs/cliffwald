@@ -187,12 +187,13 @@ export class AssetManager {
                         if (y >= shelfH - 10) continue;
                         let x = 10;
                         while (x < shelfW - 10) {
-                            const bookW = 5 + Math.random() * 15;
-                            const bookH = 20 + Math.random() * 15;
+                            const bookW = 6 + Math.random() * 12;
+                            const bookH = 25 + Math.random() * 10; // Taller books
                             const color = colors[Math.floor(Math.random() * colors.length)];
                             ctx.fillStyle = color;
-                            ctx.fillRect(x, y + (35 - bookH), bookW, bookH);
-                            x += bookW + 1;
+                            // Align to the shelf floor (y + shelfHeight)
+                            ctx.fillRect(x, y + shelfHeight - bookH, bookW, bookH);
+                            x += bookW + 2; // Spacing
                         }
                     }
                     canvas.refresh();

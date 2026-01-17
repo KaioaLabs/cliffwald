@@ -4,7 +4,6 @@ import { THEME } from '../../shared/Theme';
 import { VirtualJoystick } from '../VirtualJoystick';
 
 export class UIScene extends Phaser.Scene {
-    pvpStatusText?: Phaser.GameObjects.Text;
     joystick?: VirtualJoystick;
 
     // Prestige UI
@@ -26,15 +25,6 @@ export class UIScene extends Phaser.Scene {
         // Prestige Pillars Container (Left of Clock)
         this.createPrestigeUI();
 
-        // PvP Status Text (Below Clock)
-        this.pvpStatusText = this.add.text(this.scale.width - 20, 55, 'PVP: OFF', {
-            fontFamily: 'monospace',
-            fontSize: '12px',
-            color: THEME.UI.PVP_OFF,
-            backgroundColor: THEME.UI.BACKGROUND_DIM,
-            padding: { x: 10, y: 3 }
-        }).setOrigin(1, 0);
-
         // ... mobile logic ...
         // Robust check: OS is mobile OR device supports touch
         const isMobile = !this.sys.game.device.os.desktop || this.sys.game.device.input.touch;
@@ -45,7 +35,6 @@ export class UIScene extends Phaser.Scene {
 
         this.scale.on('resize', (gameSize: any) => {
             this.cameras.main.setViewport(0, 0, gameSize.width, gameSize.height);
-            if (this.pvpStatusText) this.pvpStatusText.setPosition(gameSize.width - 20, 55);
             this.repositionPrestigeUI(gameSize.width);
         });
     }

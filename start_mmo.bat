@@ -76,7 +76,7 @@ pause
 goto MAIN_MENU
 
 :TILED
-start "" "Tiled\tiled.exe" "assets\maps\world.json"
+start "" "vendor\Tiled\tiled.exe" "assets\maps\world.json"
 goto MAIN_MENU
 
 :KILL

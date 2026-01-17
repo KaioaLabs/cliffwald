@@ -31,10 +31,19 @@ export class ItemSystem {
         const randomKey = keys[Math.floor(Math.random() * keys.length)];
         const itemDef = ITEM_REGISTRY[randomKey];
         
-        // Simple random position within map bounds (approx 3200x3200)
-        // Ideally we should check for walls, but for now random is okay for prototype
-        const x = Math.random() * 3000 + 100; 
-        const y = Math.random() * 3000 + 100;
+        let x = 0, y = 0;
+
+        // Try to find defined spawn points
+        const spawns = LevelRegistry.getInstance().getItemSpawns();
+        if (spawns && spawns.length > 0) {
+            const spawn = spawns[Math.floor(Math.random() * spawns.length)];
+            x = spawn.x;
+            y = spawn.y;
+        } else {
+            // Fallback to random
+            x = Math.random() * 3000 + 100; 
+            y = Math.random() * 3000 + 100;
+        }
 
         const id = `world_item_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
         const item = new WorldItem();

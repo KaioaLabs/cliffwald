@@ -4,19 +4,29 @@ export interface Point {
 }
 
 export class Pathfinding {
-    private grid: number[][];
+    private grids: Map<number, number[][]>;
     private width: number;
     private height: number;
 
-    constructor(grid: number[][]) {
-        this.grid = grid;
-        this.height = grid.length;
-        this.width = grid[0]?.length || 0;
+    constructor(grids: Map<number, number[][]>) {
+        this.grids = grids;
+        // Assume all grids have same dimensions
+        const defaultGrid = grids.get(0) || grids.values().next().value;
+        this.height = defaultGrid?.length || 0;
+        this.width = defaultGrid?.[0]?.length || 0;
     }
 
-    public findPath(start: Point, end: Point): Point[] | null {
+    public findPath(start: Point, end: Point, floor: number = 0): Point[] | null {
         if (this.width === 0 || this.height === 0) return null;
         
+        const grid = this.grids.get(floor);
+        if (!grid) {
+             // Fallback to Floor 0 if specific grid missing (unlikely if map correct)
+             console.warn(`[PATHFINDING] No grid for floor ${floor}, defaulting to 0`);
+             if (floor !== 0) return this.findPath(start, end, 0);
+             return null;
+        }
+
         // Convert world to grid coords (32px tiles)
         const startX = Math.floor(start.x / 32);
         const startY = Math.floor(start.y / 32);
@@ -26,7 +36,7 @@ export class Pathfinding {
         // Bounds check
         if (startX < 0 || startX >= this.width || startY < 0 || startY >= this.height) return null;
         if (endX < 0 || endX >= this.width || endY < 0 || endY >= this.height) return null;
-        if (this.grid[startY][startX] === 1 || this.grid[endY][endX] === 1) return null;
+        if (grid[startY][startX] === 1 || grid[endY][endX] === 1) return null;
 
         const openSet = new BinaryHeap<Node>((a, b) => a.f - b.f);
         const closedSet = new Set<number>(); // Numeric Key: y * width + x
@@ -43,7 +53,7 @@ export class Pathfinding {
             
             if (current.x === endX && current.y === endY) {
                 const rawPath = this.reconstructPath(current);
-                return this.smoothPath(rawPath);
+                return this.smoothPath(rawPath, grid);
             }
 
             const currentKey = current.y * this.width + current.x;
@@ -62,14 +72,14 @@ export class Pathfinding {
                 const ny = current.y + dir.y;
 
                 if (nx < 0 || nx >= this.width || ny < 0 || ny >= this.height) continue;
-                if (this.grid[ny][nx] === 1) continue;
+                if (grid[ny][nx] === 1) continue;
                 
                 const neighborKey = ny * this.width + nx;
                 if (closedSet.has(neighborKey)) continue;
 
                 // Corner Cutting Prevention for Diagonals
                 if (dir.cost > 1) {
-                    if (this.grid[current.y][nx] === 1 || this.grid[ny][current.x] === 1) continue;
+                    if (grid[current.y][nx] === 1 || grid[ny][current.x] === 1) continue;
                 }
 
                 const gScore = current.g + dir.cost;
@@ -92,7 +102,7 @@ export class Pathfinding {
     }
 
     // --- STRING PULLING LOGIC ---
-    private smoothPath(path: Point[]): Point[] {
+    private smoothPath(path: Point[], grid: number[][]): Point[] {
         if (path.length <= 2) return path;
 
         const smoothed: Point[] = [path[0]];
@@ -102,7 +112,7 @@ export class Pathfinding {
             let next = current + 1;
             // Check as far ahead as possible
             for (let i = current + 2; i < path.length; i++) {
-                if (this.lineOfSight(path[current], path[i])) {
+                if (this.lineOfSight(path[current], path[i], grid)) {
                     next = i;
                 }
             }
@@ -113,7 +123,7 @@ export class Pathfinding {
         return smoothed;
     }
 
-    private lineOfSight(p1: Point, p2: Point): boolean {
+    private lineOfSight(p1: Point, p2: Point, grid: number[][]): boolean {
         // Bresenham's Line Algorithm (Grid Check)
         let x0 = Math.floor(p1.x / 32);
         let y0 = Math.floor(p1.y / 32);
@@ -126,23 +136,9 @@ export class Pathfinding {
         const sy = (y0 < y1) ? 1 : -1;
         let err = dx - dy;
 
-        // Inflate Safety Buffer (Check 1 tile around line to prevent corner cutting)
-        // Simple approach: Check neighbors of current tile
-        const checkSafety = (x: number, y: number) => {
-            // Check cross pattern to ensure width
-            const neighbors = [
-                {x:0, y:0}, {x:1,y:0}, {x:-1,y:0}, {x:0,y:1}, {x:0,y:-1}
-            ];
-            // Just check the tile itself for obstruction? 
-            // String Pulling needs to be conservative.
-            // If the line passes through a wall, return false.
-            if (x < 0 || x >= this.width || y < 0 || y >= this.height) return false;
-            return this.grid[y][x] === 0;
-        };
-
         while (true) {
             // Check obstruction
-            if (this.grid[y0][x0] === 1) return false;
+            if (grid[y0][x0] === 1) return false;
             
             if (x0 === x1 && y0 === y1) break;
             
@@ -163,10 +159,7 @@ export class Pathfinding {
 
             // CORNER CHECK: If moved diagonally, check adjacent cardinal neighbors
             if (movedX && movedY) {
-                // We moved from (prevX, prevY) to (x0, y0).
-                // Neighbors are (x0, prevY) and (prevX, y0).
-                // Since x0 = prevX + sx, prevX = x0 - sx.
-                if (this.grid[y0][x0 - sx] === 1 || this.grid[y0 - sy][x0] === 1) return false;
+                if (grid[y0][x0 - sx] === 1 || grid[y0 - sy][x0] === 1) return false;
             }
         }
 

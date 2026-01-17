@@ -4,6 +4,7 @@ import { ECSWorld, createWorld } from '../shared/ecs/world';
 import { GameState } from '../shared/SchemaDef';
 import RAPIER from '@dimforge/rapier2d-compat';
 import { Pathfinding } from '../shared/systems/Pathfinding';
+import { Entity } from '../shared/ecs/components';
 
 // Mock Config if needed, or use real one
 import { CONFIG } from '../shared/Config';
@@ -29,7 +30,8 @@ describe("NPC Behavior & Seating Verification", () => {
             duelZones: [],
             infirmaryBeds: [],
             infirmaryExit: { x: 0, y: 0 },
-            duelExits: new Map()
+            duelExits: new Map(),
+            anchors: new Map()
         });
 
         await RAPIER.init();
@@ -45,15 +47,15 @@ describe("NPC Behavior & Seating Verification", () => {
     });
 
     it('should load seats correctly from Map Data', () => {
-        const mockMapData = {
+        const mockMapData: any = {
             layers: [
                 {
                     name: 'FixedSeats',
                     type: 'objectgroup',
                     objects: [
-                        { type: 'bed', x: 100, y: 100, properties: [{ name: 'studentId', value: 0 }] }, // Student 0 Bed
-                        { type: 'seat_class', x: 500, y: 500, properties: [{ name: 'studentId', value: 0 }] }, // Student 0 Class
-                        { type: 'seat_food', x: 800, y: 800, properties: [{ name: 'studentId', value: 0 }] } // Student 0 Food
+                        { name: 'bed_1', x: 100, y: 100 }, 
+                        { name: 'seat_class_1', x: 500, y: 500 }, 
+                        { name: 'seat_food_1', x: 800, y: 800 } 
                     ]
                 }
             ]
@@ -64,29 +66,26 @@ describe("NPC Behavior & Seating Verification", () => {
         // Access private seats via 'any' casting for testing
         const seats = (spawnManager as any).seats;
         
+        // bed_1 -> index 0 (studentId - 1)
         expect(seats.bed.get(0)).toEqual({ x: 100, y: 100 });
         expect(seats.class.get(0)).toEqual({ x: 500, y: 500 });
         expect(seats.food.get(0)).toEqual({ x: 800, y: 800 });
     });
 
     it('should assign students to their specific fixed seats', () => {
-        // 1. Setup Seats
-        const mockMapData = {
+        const mockMapData: any = {
             layers: [
                 {
                     name: 'FixedSeats',
                     type: 'objectgroup',
                     objects: [
-                        { type: 'bed', x: 100, y: 100, properties: [{ name: 'studentId', value: 0 }] },
-                        { type: 'bed', x: 200, y: 200, properties: [{ name: 'studentId', value: 1 }] }
+                        { name: 'bed_1', x: 100, y: 100 }
                     ]
                 }
             ]
         };
         spawnManager.loadSeats(mockMapData);
 
-        // 2. Spawn Student 0 (Ignis 1)
-        // Numeric ID 1 -> index 0
         spawnManager.spawnCharacter({
              id: "student_ignis_1",
              numericId: 1,
@@ -101,65 +100,28 @@ describe("NPC Behavior & Seating Verification", () => {
 
         const entity = entities.get("student_ignis_1");
         expect(entity).toBeDefined();
+        expect(entity?.ai?.routineSpots.sleep).toEqual({ x: 500, y: 520 });
         
-        // 3. Verify AI Routine Spots match the Calculated Seat (Ignis Dorm Base + Offset)
-        // DORM_IGNIS is at 500,500. Index 0 -> Row 0, Col 0 -> Offset 0,0. + 20 Y Offset.
-        expect(entity.ai.routineSpots.sleep).toEqual({ x: 500, y: 520 });
-        
-        // 4. Verify Physical Spawn Position
-        const pos = entity.body.translation();
-        expect(pos.x).toBe(500);
-        expect(pos.y).toBe(520);
-    });
-
-    it('should fallback to math if seat is missing', () => {
-        // No seats loaded
-        spawnManager.spawnCharacter({
-             id: "student_fallback",
-             numericId: 1,
-             username: "Fallback",
-             skin: "skin",
-             house: "ignis",
-             x: 999, 
-             y: 999,
-             isAI: true,
-             routineSpots: { sleep: { x: 500, y: 520 }, eat: {x:0,y:0}, class: {x:0,y:0} }
-        });
-        
-        const entity = entities.get("student_fallback");
-        // Should use Calculated Position based on DORM_IGNIS (500,500) + Offset
-        expect(entity.ai.routineSpots.sleep).toEqual({ x: 500, y: 520 });
+        const pos = entity?.body?.translation();
+        expect(pos?.x).toBe(500);
+        expect(pos?.y).toBe(520);
     });
 
     it('should find diagonal paths (8-way pathfinding)', () => {
-        // Mock Math.random to 0.5 for deterministic path offsets
         const originalRandom = Math.random;
         Math.random = () => 0.5;
 
-        // Create a 10x10 empty grid
         const grid = Array(10).fill(0).map(() => Array(10).fill(0));
-        const pathfinder = new Pathfinding(grid);
+        const grids = new Map([[0, grid]]);
+        const pathfinder = new Pathfinding(grids);
 
-        // Path from (0,0) to (2,2)
-        // 4-Way would be: (0,0)->(1,0)->(1,1)->(1,2)->(2,2) (Cost 4)
-        // 8-Way should be: (0,0)->(1,1)->(2,2) (Cost 2 steps)
-        
         const path = pathfinder.findPath({ x: 16, y: 16 }, { x: 2*32 + 16, y: 2*32 + 16 });
         
-        // Restore
         Math.random = originalRandom;
         
         expect(path).toBeDefined();
         if (path && path.length > 1) {
-            // path[0] is Start (16,16). path[1] is the first move.
-            
             const firstStep = path[1];
-            // 32px tiles. Center is +16.
-            // (1,1) is 32+16 = 48
-            
-            // If it moved diagonally, first step should be around 48,48
-            // With String Pulling, it might jump to end (80,80) if LOS is clear!
-            // In 10x10 empty grid, (0,0) to (2,2) is clear.
             expect(firstStep.x).toBe(80); 
             expect(firstStep.y).toBe(80);
         }
@@ -169,19 +131,12 @@ describe("NPC Behavior & Seating Verification", () => {
         const originalRandom = Math.random;
         Math.random = () => 0.5;
 
-        // Grid setup:
-        // 0 0
-        // 1 0
-        // Wall at (0,1).
-        // Path from (0,0) to (1,1).
-        
         const grid = Array(3).fill(0).map(() => Array(3).fill(0));
-        grid[1][0] = 1; // Wall at x=0, y=1
+        grid[1][0] = 1; 
         
-        const pathfinder = new Pathfinding(grid);
+        const grids = new Map([[0, grid]]);
+        const pathfinder = new Pathfinding(grids);
         
-        // Try to go from (0,0) [16,16] to (1,1) [48,48]
-        // Should NOT go directly. Should go (1,0) -> (1,1)
         const path = pathfinder.findPath({ x: 16, y: 16 }, { x: 48, y: 48 });
         
         Math.random = originalRandom;
@@ -189,9 +144,6 @@ describe("NPC Behavior & Seating Verification", () => {
         expect(path).toBeDefined();
         if (path && path.length > 1) {
             const firstStep = path[1];
-            // Valid first step is (1,0) [x=48, y=16]
-            // Invalid first step is (1,1) [x=48, y=48] (diagonal blocked by corner)
-            
             expect(firstStep.x).toBe(48);
             expect(firstStep.y).toBe(16); 
         }

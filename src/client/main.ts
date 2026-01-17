@@ -22,7 +22,6 @@ import { LightManager } from './managers/LightManager';
 import { VisualProjectileManager } from './managers/VisualProjectileManager';
 import { LoginManager } from './managers/LoginManager';
 import { MinigameManager } from './managers/MinigameManager';
-import { LadderManager } from './managers/LadderManager';
 import { WorldBuilder } from './managers/WorldBuilder';
 
 export class GameScene extends Phaser.Scene {
@@ -32,7 +31,6 @@ export class GameScene extends Phaser.Scene {
     projectileManager!: VisualProjectileManager;
     loginManager!: LoginManager;
     minigameManager!: MinigameManager;
-    ladderManager!: LadderManager;
     worldBuilder!: WorldBuilder;
     
     room?: Colyseus.Room;
@@ -59,7 +57,6 @@ export class GameScene extends Phaser.Scene {
         super('GameScene');
         this.network = new NetworkManager(this);
         this.minigameManager = new MinigameManager();
-        this.ladderManager = new LadderManager(this);
         this.setupRemoteLogging();
         
         window.addEventListener('unhandledrejection', (event) => {
@@ -123,18 +120,6 @@ export class GameScene extends Phaser.Scene {
 
             this.projectileManager = new VisualProjectileManager(this);
 
-            // --- LIBRARY LADDER ---
-            const lib = this.worldBuilder.getLocation("LIBRARY");
-            if (lib.x !== 0) {
-                // Fix: Move shelf to Top-Center of the zone (North Wall)
-                // lib.x/y is Top-Left. width/height is dimensions.
-                const cx = lib.x + (lib.width || 0) / 2;
-                const topY = lib.y; 
-                // We might need to push it slightly up/down depending on wall thickness?
-                // Assuming topY is the wall base line.
-                this.ladderManager.setup(cx, topY);
-            }
-            
             this.playerController = new PlayerController(this, this.physicsWorld);
             AssetManager.createAnimations(this);
             this.wasd = this.input.keyboard?.addKeys('W,A,S,D') as any;
@@ -290,9 +275,6 @@ export class GameScene extends Phaser.Scene {
         });
     }
 
-    // --- CORREGIDO: LOGIN LOGIC ---
-    // Logic moved to managers/LoginManager.ts
-
     async connect() {
         try {
             console.log("Connecting to Colyseus...");
@@ -318,15 +300,6 @@ export class GameScene extends Phaser.Scene {
             this.network.onPlayerJump = (sessionId: string) => {
                 this.playerController.performJump(sessionId);
             };
-            
-            // CLASS MINIGAME LISTENERS
-            // Note: These need to be attached AFTER connection usually, but here we attach to room?
-            // Wait, this.network.room is null here before connect().
-            // Correct approach: NetworkManager should handle these or we attach after connect.
-            // But let's look at how onPong works. It's a callback on NetworkManager.
-            
-            // For now, let's just keep them here but we must attach them AFTER connect() succeeds.
-            // Removing the broken code block.
 
             const success = await this.network.connect(this.authToken, this.skin);
             
@@ -567,13 +540,10 @@ export class GameScene extends Phaser.Scene {
         }
 
         const pointer = this.input.activePointer;
-        // const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
 
         // Update Static Object Shadows (Tables) - THROTTLED & SUN-BASED
         if (this.game.loop.frame % 10 === 0 && this.lightManager) {
             const sunPos = this.lightManager.getSunPosition();
-            // Calculate Sun Height locally or fetch from LightManager if cached?
-            // Re-calc is cheap.
             const timeInfo = getGameTime(Date.now() + (this.network.room?.state.timeOffset || 0));
             const dHour = timeInfo.hour + (timeInfo.minute / 60);
             const sunHeight = this.lightManager.getSunHeight(dHour);
@@ -618,22 +588,11 @@ export class GameScene extends Phaser.Scene {
             if (this.network.room) {
                 const worldStart = this.network.room.state.worldStartTime;
                 const progress = getAcademicProgress(worldStart, now);
-                // const phase = gameTime.isNight ? 'Night' : 'Day'; // Removed phase
                 
                 if (this.uiManager) {
                     this.uiManager.updateHUDTime(gameTime.hour, gameTime.minute, progress.currentDay, progress.currentMonth);
                 }
             }
-
-        /* Legacy UIScene Time Update - REMOVED
-        const uiScene = this.scene.get('UIScene') as UIScene;
-        if (uiScene) {
-            const displaySeconds = gameTime.hour * 3600 + gameTime.minute * 60;
-            if (this.network.room) {
-                 uiScene.updateTime(displaySeconds, this.network.room.state.currentCourse, this.network.room.state.currentMonth);
-            }
-        }
-        */
 
         if (this.lightManager) {
             try {
@@ -669,6 +628,9 @@ export class GameScene extends Phaser.Scene {
             const isLocal = sessionId === this.network.room?.sessionId;
             this.playerController.addPlayer(sessionId, data.x, data.y, isLocal, data.skin, data.username, data.house);
             
+            // Sync Initial State
+            this.playerController.updatePlayerState(sessionId, data, data.unconsciousUntil);
+
             // Initial Status Check
             if (data.isAttendingClass) {
                 this.playerController.updateClassStatus(sessionId, true, data.classEndsAt);
@@ -698,11 +660,6 @@ export class GameScene extends Phaser.Scene {
 
         const localId = this.network.room.sessionId;
         const player = this.playerController.players.get(localId);
-
-        // --- LADDER INTERACTION ---
-        if (this.ladderManager.handleInteraction(player, this.cursors, this.wasd)) {
-            return { left: false, right: false, up: false, down: false }; // Consume input
-        }
 
         if (!this.cursors || !this.wasd) return { left: false, right: false, up: false, down: false };
         if (this.uiManager && this.uiManager.getChatInputActive()) {

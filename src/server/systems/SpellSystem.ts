@@ -1,6 +1,7 @@
 import { WorldRoom } from "../WorldRoom";
 import { Projectile } from "../../shared/SchemaDef";
-import { CONFIG } from "../../shared/Config";
+import { CONFIG, getGameTime } from "../../shared/Config";
+import { ZONE_DATA } from "../../shared/data/ZoneRegistry";
 import RAPIER from "@dimforge/rapier2d-compat";
 import { PhysicsUserData } from "../types/PhysicsTypes";
 
@@ -39,8 +40,10 @@ export class SpellSystem {
                 this.ray.dir.x = dx;
                 this.ray.dir.y = dy;
 
-                // Limit ray to movement distance + radius
-                const hit = this.room.physicsWorld.castRay(this.ray, dist + 10, true);
+                // SINGLE FLOOR GLOBAL FILTER
+                const filterGroups = (CONFIG.COLLISION_GROUPS.PROJECTILE << 16) | CONFIG.COLLISION_GROUPS.PROJECTILE_MASK;
+
+                const hit = this.room.physicsWorld.castRay(this.ray, dist + 10, true, filterGroups);
                 
                 if (hit) {
                     const collider = hit.collider;
@@ -64,7 +67,6 @@ export class SpellSystem {
         }
 
         // 2. Projectile vs Projectile (RPS Logic) - Optimized with Sweep & Prune
-        // Sort by X coordinate to reduce checks from O(N^2) to near O(N)
         entries.sort((a, b) => a[1].x - b[1].x);
 
         for (let i = 0; i < count; i++) {
@@ -74,14 +76,13 @@ export class SpellSystem {
             for (let j = i + 1; j < count; j++) {
                 const [idB, projB] = entries[j];
                 
-                // Sweep & Prune: If X distance is greater than collision threshold (30px),
-                // no further projectiles in the list can possibly collide. Break early.
+                // Sweep & Prune
                 if (projB.x - projA.x > CONFIG.COLLISION_CONFIG.SWEEP_PRUNE_THRESHOLD) break;
 
                 if (toRemove.has(idB)) continue;
 
                 const distSq = (projA.x - projB.x)**2 + (projA.y - projB.y)**2;
-                if (distSq < CONFIG.COLLISION_CONFIG.PROJECTILE_RADIUS_SQ) { // 30px collision radius
+                if (distSq < CONFIG.COLLISION_CONFIG.PROJECTILE_RADIUS_SQ) { 
                     this.resolveRPS(projA, projB, idA, idB, toRemove);
                 }
             }
@@ -93,7 +94,6 @@ export class SpellSystem {
     }
 
     private resolveRPS(a: Projectile, b: Projectile, idA: string, idB: string, toRemove: Set<string>) {
-        // Extract base type (remove suffix if any)
         const getBase = (id: string) => {
             if (id.includes('circle')) return 'circle';
             if (id.includes('square')) return 'square';
@@ -108,10 +108,8 @@ export class SpellSystem {
             toRemove.add(idA);
             toRemove.add(idB);
         } else if (CONFIG.RPS_WINNER[typeA] === typeB) {
-            // A beats B
             toRemove.add(idB);
         } else {
-            // B beats A
             toRemove.add(idA);
         }
     }
@@ -121,29 +119,37 @@ export class SpellSystem {
         const victim = this.room.state.players.get(victimId);
 
         if (attacker && victim) {
-             // Basic duel score logic
+             const now = Date.now();
+             const { isNight } = getGameTime(now);
+             
+             // Cast to any to access physicsManager (it exists but TS doesn't see it on base Room type sometimes if not casted)
+             const roomAny = this.room as any;
+             const zoneId = roomAny.physicsManager.getPlayerZone(victimId);
+             const zoneDef = zoneId ? ZONE_DATA[zoneId] : null;
+
+             const isSanctuary = zoneDef?.isSanctuary || false;
+             
+             if (!isNight) return; 
+             if (isNight && isSanctuary) return;
+
+             // PvP ALLOWED
              attacker.duelScore = (attacker.duelScore || 0) + 1;
              console.log(`[PVP] ${attacker.username} scored against ${victim.username}. Score: ${attacker.duelScore}`);
              
              if (attacker.duelScore >= 2) {
-                 // WINNER DECLARED
                  console.log(`[COMBAT] ${attacker.username} defeated ${victim.username}!`);
                  
                  attacker.duelScore = 0;
-                 victim.duelScore = 0; // Reset score for both scenarios
+                 victim.duelScore = 0; 
 
-                 // Branch Logic: Duel Zone vs World
                  if (victim.inDuel) {
-                     // DUEL MODE: Eject to side
-                     this.room.duelSystem.resolveLoss(victimId);
+                     roomAny.duelSystem.resolveLoss(victimId);
                  } else {
-                     // WORLD MODE: Send to Infirmary
-                     this.room.healthSystem.knockOut(victim, victimId);
+                     roomAny.healthSystem.knockOut(victim, victimId);
                  }
 
-                 // Stop fighting logic for AI
                  const stopAI = (id: string) => {
-                     const ent = this.room.entities.get(id);
+                     const ent = roomAny.entities.get(id);
                      if (ent?.ai) {
                          ent.ai.state = 'idle';
                          ent.ai.targetId = undefined;
@@ -153,8 +159,7 @@ export class SpellSystem {
                  stopAI(attackerId);
                  stopAI(victimId);
                  
-                 // Award Prestige to Winner
-                 this.room.prestigeSystem.addPrestige(attackerId, 20);
+                 roomAny.prestigeSystem.addPrestige(attackerId, 20);
              }
         }
     }
