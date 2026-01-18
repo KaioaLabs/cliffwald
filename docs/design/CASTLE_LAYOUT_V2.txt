@@ -1,0 +1,93 @@
+CLIFFWALD CASTLE - ORGANIC LAYOUT PROPOSAL (120x160)
+=====================================================
+
+LEYENDA:
+# = Muro (Colisión)
+. = Suelo Interior
+_ = Suelo Patio (Exterior piedra)
+~ = Agua/Vacío
+= = Puerta/Arco
+: = Pasillo/Claustro (Suelo distinto)
+S = Secret Passage (Muro falso)
+I = Istmo
+
+COORDENADAS APROXIMADAS (Tiles):
+Canvas: 120W x 160H
+Castillo Centro: x=20, y=20 (aprox)
+
+--------------------------------------------------------------------------------------
+(Norte - Mar Abierto)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~        (TORRE DE ASTRONOMIA - IGNIS)      ~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~              #######                      ~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~              #..I..#                      ~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~      #########.....#########              ~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~      #........Ignis........#              ~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~      #.....................#              ~~~~~~~~~~~~~~~~~~~~~
+~~~~~~(ACANTILADO)~~~~      ####=#############=####              ~~~~~~(ACANTILADO)~~~
+~~~~~~~~~~~~~~~~~~~~~~         :             :                   ~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~#######~~~~~~~~~~~~~~~~:  (JARDIN    :~~~~~~~~~~~~~~~~~~~~~~~~~#######~~~~~~~~
+~~~~~~~~#..V..#~~~~~~~~~~~~~~~~:   NORTE)    :~~~~~~~~~~~~~~~~~~~~~~~~~#..A..#~~~~~~~~
+~~~~~~~~#..e..# (VESPER)       :             :          (AXIOM)        #..x..#~~~~~~~~
+~~~~~~~~#..s..#                ###############                         #..i..#~~~~~~~~
+~~~~~~~~#..p..#                #XX_DETENCION#                          #..o..#~~~~~~~~
+~~~~~~~~#..e..#                #X...........#                          #..m..#~~~~~~~~
+~~~~~~~~#..r..S::::::::::::::::=.....(X)....=::::::::::::::::::::::::::S..m..#~~~~~~~~
+~~~~~~~~#######:               ##############                         #######~~~~~~~~~
+~~~~~~~~       :                                                            :~~~~~~~~~
+~~~~~~~~       :      (PASILLO OESTE)             (PASILLO ESTE)            :~~~~~~~~~
+~~~~~~~~   ####=####                          #######################       :~~~~~~~~~
+~~~~~~~~   #.......#                          #.........#...........#       :~~~~~~~~~
+~~~~~~~~   #..BAÑ..#                          #..AULA...#..BIBLIO...#       :~~~~~~~~~
+~~~~~~~~   #..OS...#                          #.........S...........#       :~~~~~~~~~
+~~~~~~~~   #.......#      _____________       #.........#...........#       :~~~~~~~~~
+~~~~~~~~   ####=####      _           _       #####=#########=#######       :~~~~~~~~~
+~~~~~~~~       :          _   PATIO   _            :         :              :~~~~~~~~~
+~~~~~~~~       :          _  CENTRAL  _            :         :              :~~~~~~~~~
+~~~~~~~~       :          _    (D)    _            : (CALLEJON)             :~~~~~~~~~
+~~~~~~~~       :          _           _            :         :              :~~~~~~~~~
+~~~~~~~~       :          _____________            :         :              :~~~~~~~~~
+~~~~~~~~       :                                   :         :              :~~~~~~~~~
+~~~~~~~~       ::::::::::::::::=::::::::::::::::::::         ::::::::::::::::~~~~~~~~~
+~~~~~~~~                       :                                             ~~~~~~~~~
+~~~~~~~~                  #####=#####                                        ~~~~~~~~~
+~~~~~~~~                  #.........#                                        ~~~~~~~~~
+~~~~~~~~                  #..HALL...#                                        ~~~~~~~~~
+~~~~~~~~                  #..MAIN...#                                        ~~~~~~~~~
+~~~~~~~~                  #.........#                                        ~~~~~~~~~
+~~~~~~~~                  #####=#####                                        ~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~I~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~I~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~I~~ (ISTMO - EL PUENTE) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~I~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~I~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGIIGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGIIGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+(JARDINES PRINCIPALES - ZONA SEGURA)
+...
+...
+FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+(BOSQUE - ZONA DE PELIGRO)
+--------------------------------------------------------------------------------------
+
+MEJORAS DE DISEÑO:
+
+1. El Sistema de Claustros (:::):
+   Un pasillo perimetral conecta todas las alas. Esto permite ir de Vesper a Axiom sin cruzar el patio abierto si llueve o si hay duelo en el centro.
+   
+2. Callejón del Gato:
+   Entre el Aula y la Biblioteca hay un pasillo estrecho exterior. Es un atajo, pero oscuro. Ideal para esconderse.
+
+3. Pasadizos Secretos (S):
+   - Detrás de la Biblioteca (conecta con el pasillo Este).
+   - En la Sala Común de Vesper (salida rápida al jardín norte).
+
+4. Asimetría de Dormitorios:
+   - IGNIS: Al norte, central, como una torre vigía.
+   - VESPER: Al oeste, alargado y estrecho (tipo mazmorra lateral).
+   - AXIOM: Al este, simétrico a Vesper pero conectado diferente.
+
+5. Jardín Norte (Privado):
+   Detrás de Detención hay un pequeño jardín cerrado por el muro norte. Solo accesible desde los pasillos laterales. Un lugar para secretos "High Level".
+
+¿Qué te parece esta complejidad? Mantiene la estructura pero añade capas de profundidad táctica.

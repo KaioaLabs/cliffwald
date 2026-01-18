@@ -9,18 +9,18 @@ export interface StudentDef {
 const ROSTER: StudentDef[] = [];
 
 const NAMES = {
-    ignis: ['Ivan', 'Isabella', 'Isaac', 'Ivy', 'Ian', 'Iris', 'Igor', 'Imogen', 'Ilya', 'Ingrid', 'Isaiah', 'Isla'],
-    axiom: ['Arthur', 'Alice', 'Aaron', 'Ava', 'Adam', 'Amelia', 'Alex', 'Audrey', 'Alan', 'Anna', 'Adrian', 'Aria'],
-    vesper: ['Victor', 'Victoria', 'Vincent', 'Violet', 'Vance', 'Vanessa', 'Vlad', 'Valerie', 'Vaughn', 'Vivian', 'Vernon', 'Veronica']
+    ignis: ['Ivan', 'Isabella', 'Isaac', 'Ivy', 'Ian', 'Iris', 'Igor', 'Imogen', 'Ilya', 'Ingrid', 'Isaiah', 'Isla', 'Inigo', 'Irene', 'Idris', 'Indira'],
+    axiom: ['Arthur', 'Alice', 'Aaron', 'Ava', 'Adam', 'Amelia', 'Alex', 'Audrey', 'Alan', 'Anna', 'Adrian', 'Aria', 'Austin', 'Abigail', 'Asher', 'Aurora'],
+    vesper: ['Victor', 'Victoria', 'Vincent', 'Violet', 'Vance', 'Vanessa', 'Vlad', 'Valerie', 'Vaughn', 'Vivian', 'Vernon', 'Veronica', 'Valentin', 'Veda', 'Viggo', 'Vera']
 };
 
 let globalId = 1;
 
-// Generate 24 Students (8 per house)
+// Generate 96 Students (32 per house)
 (['ignis', 'axiom', 'vesper'] as const).forEach(house => {
     const list = NAMES[house];
-    for (let i = 0; i < 8; i++) {
-        const name = list[i % list.length];
+    for (let i = 0; i < 32; i++) {
+        const name = `${list[i % list.length]} ${String.fromCharCode(65 + (i % 26))}.`; // Diverse names
         const skin = house === 'ignis' ? "player_red" : (house === 'axiom' ? "player_blue" : "player_idle");
         
         ROSTER.push({

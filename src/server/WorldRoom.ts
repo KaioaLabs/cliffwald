@@ -89,9 +89,9 @@ export class WorldRoom extends Room<GameState> {
             // Spawn Logic
             const { spawnPos, mapData } = await this.physicsManager.loadMap(mapPath);
             
-            console.log(`[SERVER] Map loaded. Initializing 24 Student Slots...`);
+            console.log(`[SERVER] Map loaded. Initializing 96 Student Slots...`);
             this.spawnManager.loadSeats(mapData);
-            this.spawnManager.spawnEchoes(24, spawnPos);
+            this.spawnManager.spawnEchoes(96, spawnPos);
             this.spawnManager.spawnFromMap(mapData);
             
             for(let i=0; i<5; i++) this.itemSystem.spawnRandomItem();

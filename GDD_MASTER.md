@@ -44,7 +44,7 @@ Las actividades ocurren en **Ventanas de Oportunidad**. Asistir habilita la tare
 ## 3. POBLACIÓN E IDENTIDAD (SISTEMA ECHO)
 
 ### 3.1. Persistencia 24/7 (Body Claiming)
-*   **Población Finita:** El mundo tiene 96 slots de estudiantes aunque ahora mismo estamos trabajando con solo los 24 del primer curso. (8 Ignis, 8 Axiom, 8 Vesper).
+*   **Población Finita:** El mundo tiene 96 slots de estudiantes (32 Ignis, 32 Axiom, 32 Vesper).
 *   **Posesión:** Al loguearse, el jugador "posee" un cuerpo existente.
 *   **El Eco:** Al desconectarse, el personaje no desaparece. Se convierte en un NPC ("Echo") que mantiene el nombre, apariencia, inventario, Oro y Prestigio del jugador.
 

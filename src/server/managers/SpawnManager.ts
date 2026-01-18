@@ -35,7 +35,7 @@ export class SpawnManager {
     private physicsWorld: RAPIER.World;
     private state: GameState;
     private entities: Map<string, Entity>;
-    private readonly MAX_ECHOES = 50;
+    private readonly MAX_ECHOES = 96;
 
     // Track "Souls" of possessed echoes
     private possessedSlots = new Map<string, { numericId: number, routineSpots: any, house: string, originalId: string }>();

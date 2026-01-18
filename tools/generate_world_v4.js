@@ -10,8 +10,8 @@ const MAP_H = 150;
 const TILE_SIZE = 32;
 
 // POPULATION SCALE
-const TOTAL_POPULATION = 100; // The Echo system target
-const HOUSE_POPULATION = 34;  // Approx 100 / 3
+const TOTAL_POPULATION = 96; // 32 per house
+const HOUSE_POPULATION = 32;  // 96 / 3
 
 // ZONES (Grid Coordinates)
 const ZONES = {
