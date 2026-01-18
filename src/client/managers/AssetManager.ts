@@ -43,6 +43,8 @@ export class AssetManager {
         scene.load.audio('audio_circle', '/audio/circolo.mp3');
         scene.load.audio('audio_square', '/audio/squaro.mp3');
         scene.load.audio('audio_triangle', '/audio/triangelo.mp3');
+        scene.load.audio('intro_full', '/audio/intro_full.mp3');
+        scene.load.audio('main_theme', '/audio/cliffwald_main_theme.mp3');
         
         scene.load.on('loaderror', (file: any) => console.error('Asset Load Error:', file.src));
     }

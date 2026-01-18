@@ -128,15 +128,19 @@ export class GameScene extends Phaser.Scene {
             this.cameraTarget = this.add.image(1600, 1000, '').setVisible(false);
             this.cameras.main.startFollow(this.cameraTarget, true, 0.2, 0.2);
             
-            // Mobile Zoom Adjustment
             const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
             if (isMobile) {
-                this.cameras.main.setZoom(1.5); // 960/640 = 1.5
+                this.cameras.main.setZoom(1.5); 
             } else {
                 this.cameras.main.setZoom(1.0);
             }
             
             this.cameras.main.centerOn(1600, 1000);
+
+            // UI MANAGER (Initialize Early for Intro)
+            this.uiManager = new UIManager(this, this.network);
+            (window as any).gameClient = this;
+            this.uiManager.create();
 
             this.gestureManager = new GestureManager(this, uiScene);
             this.gestureManager.onGestureRecognized = (id: string, score: number, centroid: {x: number, y: number}) => {
@@ -148,7 +152,7 @@ export class GameScene extends Phaser.Scene {
                     
                     if (id === 'unknown') {
                         this.showFizzleEffect(worldPoint.x, worldPoint.y);
-                        return; // Stop here, no server message
+                        return; 
                     }
 
                     this.showCastEffect(id, worldPoint.x, worldPoint.y);
@@ -180,14 +184,12 @@ export class GameScene extends Phaser.Scene {
                 this.authToken = token;
                 this.skin = skin;
 
-                this.uiManager = new UIManager(this, this.network);
-                (window as any).gameClient = this;
-                this.uiManager.create();
+                // Transition UI to Game Mode
+                this.uiManager.setGameState('PLAYING');
 
                 console.log("[DEBUG] Calling connect()...");
                 this.connect();
 
-                // Initialize DebugManager if DEV or ADMIN
                 if (import.meta.env.DEV || username === 'admin') {
                     if (!this.debugManager) {
                         console.log("[DEBUG] Enabling Debug Tools for:", username);
@@ -215,7 +217,6 @@ export class GameScene extends Phaser.Scene {
     }
 
     showFizzleEffect(x: number, y: number) {
-        // Gray/White Smoke Particles
         const smoke = this.add.particles(x, y, 'star', {
             speed: { min: 20, max: 100 },
             scale: { start: 0.8, end: 0 },
@@ -224,8 +225,6 @@ export class GameScene extends Phaser.Scene {
             tint: 0x888888,
             maxParticles: 15
         });
-        
-        // Auto-cleanup after short duration
         this.time.delayedCall(1000, () => smoke.destroy());
     }
 
@@ -279,13 +278,11 @@ export class GameScene extends Phaser.Scene {
         try {
             console.log("Connecting to Colyseus...");
 
-            // Setup Network Listeners BEFORE connecting
             this.network.onPong = (latency) => this.currentLatency = latency;
             
             this.network.onChatMessage = (msg) => {
                 this.uiManager.appendChatMessage(msg);
-                // Bubble Chat
-                if (msg.senderId && msg.text) {
+                if (msg.senderId && msg.text && !msg.text.startsWith('/')) {
                     this.playerController.showChatBubble(msg.senderId, msg.text);
                 }
             };
@@ -303,7 +300,6 @@ export class GameScene extends Phaser.Scene {
                 this.projectileManager.removeNetworkProjectile(id);
             };
             
-            // Listen for Jump Events
             this.network.onPlayerJump = (sessionId: string) => {
                 this.playerController.performJump(sessionId);
             };
@@ -314,7 +310,6 @@ export class GameScene extends Phaser.Scene {
                 this.room = this.network.room;
                 console.log("Joined successfully!", this.room.sessionId);
                 
-                // Attach Minigame Listeners NOW that room exists
                 this.room.onMessage("start_minigame", (data: { duration: number, type: string }) => {
                     console.log("[CLASS] Starting Minigame:", data.type);
                     let type: 'charms' | 'potions' | 'history' = 'charms';
@@ -366,7 +361,6 @@ export class GameScene extends Phaser.Scene {
             } else {
                 collection[event] = cb;
             }
-             // Trigger for existing items
             if (event === 'onAdd' && collection.forEach) {
                 collection.forEach((item: T, key: string) => cb(item, key));
             }
@@ -379,7 +373,6 @@ export class GameScene extends Phaser.Scene {
                     
                     let sprite: Phaser.GameObjects.GameObject;
 
-                    // --- TIMER VISUAL ---
                     if (item.type === 'timer') {
                         const text = this.add.text(item.x, item.y, item.itemId, {
                             fontSize: '48px',
@@ -389,7 +382,6 @@ export class GameScene extends Phaser.Scene {
                             strokeThickness: 6
                         }).setOrigin(0.5).setDepth(100);
                         
-                        // Pulse Effect
                         this.tweens.add({
                             targets: text,
                             scale: 1.2,
@@ -398,16 +390,14 @@ export class GameScene extends Phaser.Scene {
                             repeat: -1
                         });
 
-                        // Watch for changes to update number
                         item.onChange(() => {
                             text.setText(item.itemId);
                         });
 
                         sprite = text;
                     } 
-                    // --- DETENTION TASK VISUAL ---
                     else if (item.type === 'task') {
-                        let color = 0x888888; // Default gray
+                        let color = 0x888888; 
                         if (item.itemId === 'scroll') color = 0xffff00;
                         if (item.itemId === 'dust') color = 0xffffff;
                         
@@ -415,7 +405,6 @@ export class GameScene extends Phaser.Scene {
                         rect.setStrokeStyle(2, 0x000000);
                         rect.setDepth(10);
                         
-                        // Floating animation
                         this.tweens.add({
                             targets: rect,
                             y: item.y - 10,
@@ -431,7 +420,6 @@ export class GameScene extends Phaser.Scene {
                         
                         sprite = rect;
                     }
-                    // --- STANDARD ITEM VISUAL ---
                     else {
                         let visual: Phaser.GameObjects.Image | Phaser.GameObjects.Shape;
                         
@@ -441,7 +429,7 @@ export class GameScene extends Phaser.Scene {
                         } else {
                             visual = this.add.rectangle(item.x, item.y, 20, 20, 0x00FFFF);
                             (visual as Phaser.GameObjects.Shape).setStrokeStyle(2, 0xFFFFFF);
-                            visual.rotation = 0.785; // 45 deg
+                            visual.rotation = 0.785; 
                         }
                         
                         visual.setDepth(-5);
@@ -481,7 +469,6 @@ export class GameScene extends Phaser.Scene {
                 attach(this.room.state.items, 'onRemove', (_: any, id: string) => {
                     const v = this.itemVisuals.get(id);
                     if (v) {
-                        // Disappear animation
                         this.tweens.add({
                             targets: v,
                             alpha: 0,
@@ -548,7 +535,6 @@ export class GameScene extends Phaser.Scene {
 
         const pointer = this.input.activePointer;
 
-        // Update Static Object Shadows (Tables) - THROTTLED & SUN-BASED
         if (this.game.loop.frame % 10 === 0 && this.lightManager) {
             const sunPos = this.lightManager.getSunPosition();
             const timeInfo = getGameTime(Date.now() + (this.network.room?.state.timeOffset || 0));
@@ -581,17 +567,14 @@ export class GameScene extends Phaser.Scene {
         
         if (this.debugManager) this.debugManager.update();
 
-        // TIME SYNC: Apply server offset to local time
         let decimalHour = 0;
         let gameTime = { hour: 12, minute: 0, day: 1, month: 'Jan', year: 1 };
         
-        // Use Server Synced Time
         const offset = this.network.room?.state.timeOffset || 0;
         const now = Date.now() + offset;
         gameTime = getGameTime(now);
         decimalHour = gameTime.hour + (gameTime.minute / 60);
 
-            // Update Calendar UI
             if (this.network.room) {
                 const worldStart = this.network.room.state.worldStartTime;
                 const progress = getAcademicProgress(worldStart, now);
@@ -635,15 +618,12 @@ export class GameScene extends Phaser.Scene {
             const isLocal = sessionId === this.network.room?.sessionId;
             this.playerController.addPlayer(sessionId, data.x, data.y, isLocal, data.skin, data.username, data.house);
             
-            // Sync Initial State
             this.playerController.updatePlayerState(sessionId, data, data.unconsciousUntil);
 
-            // Initial Status Check
             if (data.isAttendingClass) {
                 this.playerController.updateClassStatus(sessionId, true, data.classEndsAt);
             }
             
-            // Listen for future changes (Schema only)
             if (typeof data.onChange === 'function') {
                 data.onChange(() => {
                     this.playerController.updateClassStatus(sessionId, data.isAttendingClass, data.classEndsAt);
@@ -662,7 +642,6 @@ export class GameScene extends Phaser.Scene {
     lastInputState = { left: false, right: false, up: false, down: false };
 
     handleInput() {
-        // Strict Login Gate: No input processing until authenticated
         if (!this.authToken || !this.room) return { left: false, right: false, up: false, down: false };
 
         const localId = this.network.room.sessionId;
@@ -722,7 +701,6 @@ const config: Phaser.Types.Core.GameConfig = {
     render: { maxLights: 50 },
     backgroundColor: '#000000',
     scene: [GameScene, UIScene, CardAlbumScene],
-    // physics: { default: 'arcade', arcade: { debug: false } }, // Removed: Using Rapier
     lights: { enable: true, ambientColor: 0x808080 }
 };
 

@@ -23,6 +23,20 @@ export class UIManager {
     private inventoryModal?: HTMLElement;
     private quickMenu?: HTMLElement;
 
+    // Intro State
+    private introPlayed = false;
+    private introAudio?: Phaser.Sound.BaseSound;
+    private introTimer?: Phaser.Time.TimerEvent;
+    
+    private introSubtitlesData = [
+        { time: 1000, text: "In the dawn of the Age of Arcana..." },
+        { time: 6000, text: "The world was formless, chaos reigning supreme." },
+        { time: 12000, text: "Until the Three Founders united their powers." },
+        { time: 18000, text: "Ignis, Axiom, and Vesper forged the Academy." },
+        { time: 26000, text: "A sanctuary for knowledge, power, and legacy." },
+        { time: 34000, text: "Welcome... to Cliffwald." }
+    ];
+
     // Cleanup Tracker
     private eventListeners: { target: EventTarget, type: string, listener: EventListenerOrEventListenerObject }[] = [];
 
@@ -43,21 +57,148 @@ export class UIManager {
         this.bindDOMUI();
         this.setupEventListeners();
         
+        // Check if intro needed (could check localStorage)
+        if (!this.introPlayed) {
+            this.startIntro();
+        }
+
         // TRANSITION: Login -> Game
         const loginScreen = document.getElementById('login-screen');
         const gameUI = document.getElementById('game-ui');
         
-        if (loginScreen) loginScreen.classList.add('hidden');
-        if (gameUI) gameUI.classList.remove('hidden');
+        if (loginScreen) loginScreen.classList.remove('hidden'); // Ensure visible behind intro
+        if (gameUI) gameUI.classList.add('hidden'); // Ensure hidden
     }
+    
+    private startIntro() {
+        const screen = document.getElementById('intro-screen');
+        const startBtn = document.getElementById('intro-start-btn');
+        const subtitles = document.getElementById('intro-subtitles');
+        const skip = document.getElementById('intro-skip');
+        
+        if (!screen || !startBtn) return;
+
+        screen.classList.remove('hidden');
+
+        // Interaction Trigger
+        startBtn.onclick = () => {
+            startBtn.classList.add('hidden');
+            subtitles?.classList.remove('hidden');
+            skip?.classList.remove('hidden');
+            
+            // Audio
+            if (this.scene.cache.audio.exists('intro_full')) {
+                this.introAudio = this.scene.sound.add('intro_full', { volume: 0.5 });
+                this.introAudio.play();
+            }
+            
+            // Subtitles Loop
+            const startTime = Date.now();
+            let lastText = "";
+
+            this.introTimer = this.scene.time.addEvent({
+                delay: 100,
+                loop: true,
+                callback: () => {
+                    const elapsed = Date.now() - startTime;
+                    const currentSub = this.introSubtitlesData.slice().reverse().find(s => elapsed >= s.time);
+                    
+                    if (subtitles && currentSub) {
+                        if (lastText !== currentSub.text) {
+                            lastText = currentSub.text;
+                            subtitles.style.opacity = '0';
+                            subtitles.style.transition = 'opacity 0.5s';
+                            setTimeout(() => {
+                                subtitles.innerText = currentSub.text;
+                                subtitles.style.opacity = '1';
+                            }, 500);
+                        }
+                    }
+                    
+                    if (elapsed > 41000) { // End of audio (41s)
+                        this.finishIntro();
+                    }
+                }
+            });
+
+            // Skip Logic (Hold)
+            let holdTimeout: any;
+            const startHold = () => {
+                skip!.style.color = '#fff';
+                skip!.innerText = "SKIPPING...";
+                holdTimeout = setTimeout(() => this.finishIntro(), 1000); 
+            };
+            const endHold = () => {
+                skip!.style.color = '#666';
+                skip!.innerText = "HOLD SCREEN TO SKIP";
+                clearTimeout(holdTimeout);
+            };
+            
+            screen.addEventListener('mousedown', startHold);
+            screen.addEventListener('mouseup', endHold);
+            screen.addEventListener('touchstart', startHold);
+            screen.addEventListener('touchend', endHold);
+        };
+    }
+
+    private finishIntro() {
+        if (this.introPlayed) return;
+        this.introPlayed = true;
+        
+        if (this.introAudio) {
+            this.introAudio.stop();
+            this.introAudio.destroy();
+        }
+        if (this.introTimer) this.introTimer.remove();
+        
+        const screen = document.getElementById('intro-screen');
+        if (screen) {
+            screen.style.transition = "opacity 2s";
+            screen.style.opacity = "0";
+            setTimeout(() => screen.classList.add('hidden'), 2000);
+        }
+        
+        // Start Main Theme
+        if (this.scene.cache.audio.exists('main_theme')) {
+            const theme = this.scene.sound.add('main_theme', { volume: 0.3, loop: true });
+            theme.play();
+        }
+        
+        // Reveal Login (It is already there, but ensures z-index/focus)
+        // Login Screen z-index is 20000, Intro is 30000. Fading intro reveals login.
+    }
+
+    // ... (Existing methods: destroy, createPhaserUI, bindDOMUI, setupEventListeners, etc.)
+    // I need to be careful not to delete existing code. I will use 'replace' if possible or overwrite carefully.
+    // Since UIManager is large, overwrite is safer if I include everything.
+    
+    // BUT wait, I need to make sure I don't lose the login transition logic I added before.
+    // In create():
+    // if (loginScreen) loginScreen.classList.add('hidden'); -> THIS IS WRONG for intro.
+    // Login screen should be VISIBLE behind intro, or revealed after intro.
+    // BUT LoginManager logic says: On Success -> create UIManager -> Hide Login -> Show Game. 
+    
+    // CONFLICT:
+    // UIManager is created ONLY AFTER LOGIN SUCCESS in main.ts.
+    // If UIManager runs AFTER login, then Intro runs AFTER login?
+    // That's wrong. Intro should run BEFORE login.
+    
+    // REFACTOR NEEDED:
+    // UIManager needs to be instantiated EARLY (at start of GameScene), not inside LoginManager success callback.
+    // LoginManager should just handle the form logic.
+    // UIManager should handle the screens (Intro -> Login -> Game).
+    
+    // Plan:
+    // 1. Instantiate UIManager in GameScene.create() immediately.
+    // 2. UIManager.create() starts Intro.
+    // 3. LoginManager is independent. It listens to buttons.
+    // 4. On Login Success, LoginManager calls a callback that tells UIManager to switch to GAME state.
     
     public destroy() {
         this.eventListeners.forEach(l => {
             l.target.removeEventListener(l.type, l.listener);
         });
         this.eventListeners = [];
-        
-        // Cleanup Phaser specific
         if (this.scene && this.scene.input && this.scene.input.keyboard) {
             this.scene.input.keyboard.off('keydown-ESC');
         }
@@ -78,8 +219,6 @@ export class UIManager {
         this.chatContainer = document.getElementById('chat-container') as HTMLElement;
         this.chatInput = document.getElementById('chat-input') as HTMLInputElement;
         this.btnAudio = document.getElementById('btn-audio') as HTMLElement;
-        
-        // Changed to Overlay
         this.albumModal = document.getElementById('album-overlay') as HTMLElement;
         this.timetableModal = document.getElementById('timetable-modal') as HTMLElement;
         this.loreModal = document.getElementById('card-lore-modal') as HTMLElement;
@@ -93,7 +232,6 @@ export class UIManager {
     private setupEventListeners() {
         if (!this.chatInput || !this.chatContainer) return;
 
-        // --- Chat Logic ---
         this.addListener(this.chatInput, 'focus', () => {
             this.chatContainer?.classList.add('active');
         });
@@ -122,10 +260,8 @@ export class UIManager {
             }
         });
 
-        // --- Generic Toggle ---
         const toggle = (el: HTMLElement | null) => el?.classList.toggle('hidden');
 
-        // --- Settings ---
         const settingsBtn = document.getElementById('settings-btn');
         const settingsMenu = document.getElementById('settings-menu');
         const btnClose = document.getElementById('btn-close');
@@ -133,7 +269,6 @@ export class UIManager {
         this.addListener(settingsBtn, 'click', (e: any) => { e.stopPropagation(); toggle(settingsMenu); });
         this.addListener(btnClose, 'click', (e: any) => { e.stopPropagation(); settingsMenu?.classList.add('hidden'); });
 
-        // --- Album ---
         const btnAlbum = document.getElementById('btn-album');
         this.addListener(btnAlbum, 'click', (e: any) => { 
             e.stopPropagation(); 
@@ -151,38 +286,27 @@ export class UIManager {
             }
         });
 
-        // Album Overlay Click (Close on click outside)
         if (this.albumModal) {
             this.addListener(this.albumModal, 'click', (e: any) => {
-                // If the click target is the overlay itself (not the inner modal)
                 if (e.target === this.albumModal) {
                     this.albumModal.classList.add('hidden');
                 }
             });
         }
         
-        // Album Explicit Close Button
         const btnAlbumCloseMain = document.getElementById('btn-album-close-main');
         this.addListener(btnAlbumCloseMain, 'click', (e: any) => {
              e.stopPropagation();
              this.albumModal?.classList.add('hidden');
         });
 
-        // Album Tabs
         const albumTabs = document.querySelectorAll('.album-tab');
         albumTabs.forEach(tab => {
             this.addListener(tab, 'click', (e: any) => {
                 e.stopPropagation();
-                // Update UI state
                 albumTabs.forEach(t => t.classList.remove('active'));
                 tab.classList.add('active');
-                
-                // Update Logic
                 this.currentAlbumTab = (tab as HTMLElement).dataset.category || 'wizards';
-                
-                // Re-render
-                // Need access to ownedIds here.
-                // We'll fetch fresh from network state
                 const ownedIds: number[] = [];
                 const localSessionId = this.network.room?.sessionId;
                 if (localSessionId) {
@@ -195,30 +319,26 @@ export class UIManager {
             });
         });
 
-        // --- Timetable ---
         const btnTimetable = document.getElementById('btn-timetable');
         this.addListener(btnTimetable, 'click', (e: any) => { 
             e.stopPropagation(); 
             toggle(this.timetableModal || null); 
         });
 
-        // --- Fullscreen ---
         const btnFullscreen = document.getElementById('btn-fullscreen');
         this.addListener(btnFullscreen, 'click', (e: any) => {
             e.stopPropagation();
             this.toggleFullscreen();
         });
 
-        // Listen for browser fullscreen changes (ESC key or button)
         this.scene.scale.on('enterfullscreen', () => {
-            if (btnFullscreen) btnFullscreen.innerText = '⤢'; // Shrink icon
+            if (btnFullscreen) btnFullscreen.innerText = '⤢'; 
         });
         
         this.scene.scale.on('leavefullscreen', () => {
-            if (btnFullscreen) btnFullscreen.innerText = '⛶'; // Expand icon
+            if (btnFullscreen) btnFullscreen.innerText = '⛶'; 
         });
 
-        // --- Inventory ---
         const btnInventory = document.getElementById('btn-inventory');
         this.addListener(btnInventory, 'click', (e: any) => { 
             e.stopPropagation(); 
@@ -228,7 +348,6 @@ export class UIManager {
             }
         });
 
-        // Close Buttons
         document.querySelectorAll('.close-btn').forEach(btn => {
             this.addListener(btn, 'click', (e: any) => {
                 e.stopPropagation();
@@ -253,7 +372,6 @@ export class UIManager {
             }
         });
         
-        // Character Management
         const btnRename = document.getElementById('btn-rename-char');
         this.addListener(btnRename, 'click', async (e: any) => {
             e.stopPropagation();
@@ -300,21 +418,14 @@ export class UIManager {
         });
 
         this.scene.input.keyboard?.on('keydown-ESC', () => {
-            // Priority: Close Menus first
             const modals = [settingsMenu, this.albumModal, this.timetableModal, this.loreModal, this.inventoryModal];
             let closedAny = false;
-            
             modals.forEach(m => {
                 if (m && !m.classList.contains('hidden')) {
                     m.classList.add('hidden');
                     closedAny = true;
                 }
             });
-
-            // Note: Browser handles ESC -> Exit Fullscreen natively.
-            // We don't need to force it, just handle UI updates via 'leavefullscreen' event.
-            
-            // If nothing was closed, toggle Settings Menu
             if (!closedAny && settingsMenu) {
                 if (settingsMenu.classList.contains('hidden')) {
                     settingsMenu.classList.remove('hidden');
@@ -334,31 +445,23 @@ export class UIManager {
     }
 
     private calendarView: 'week' | 'month' = 'week';
-    private currentAlbumTab: string = 'wizards'; // Default tab
+    private currentAlbumTab: string = 'wizards'; 
 
     public renderInventory() {
         const grid = document.getElementById('inventory-grid');
         if (!grid) return;
-
         grid.innerHTML = '';
-        
-        // Get local player inventory
         const localSessionId = this.network.room?.sessionId;
         const player = localSessionId ? this.network.room?.state.players.get(localSessionId) : null;
-        
         if (!player) return;
-
-        const inventory = player.inventory; // ArraySchema of InventoryItem
+        const inventory = player.inventory; 
         const CAPACITY = 20;
-
         for (let i = 0; i < CAPACITY; i++) {
             const slot = document.createElement('div');
             slot.className = 'inv-slot';
-            
             if (i < inventory.length) {
                 const item = inventory[i];
                 const itemDef = ITEM_REGISTRY[item.itemId];
-                
                 if (itemDef) {
                     slot.setAttribute('data-rarity', itemDef.Rarity.toLowerCase());
                     const color = itemDef.Type === 'Potion' ? '#f55' : (itemDef.Type === 'Card' ? '#fa0' : '#aaa');
@@ -366,47 +469,37 @@ export class UIManager {
                         <div style="width:100%; height:100%; background:${color}; opacity:0.5;"></div>
                         ${item.qty > 1 ? `<span class="inv-qty">${item.qty}</span>` : ''}
                     `;
-                    
                     slot.addEventListener('click', () => this.selectInventoryItem(item, itemDef));
                 }
             }
-
             grid.appendChild(slot);
         }
     }
 
     private selectInventoryItem(item: any, itemDef: any) {
         document.querySelectorAll('.inv-slot').forEach(s => s.classList.remove('selected'));
-        // Highlight clicked (simulated, ideally would pass event or element)
-        
         const nameEl = document.getElementById('detail-name');
         const typeEl = document.getElementById('detail-type');
         const descEl = document.getElementById('detail-desc');
         const statsEl = document.getElementById('detail-stats');
         const btnUse = document.getElementById('btn-use') as HTMLButtonElement;
         const btnEquip = document.getElementById('btn-equip') as HTMLButtonElement;
-
         if (nameEl) nameEl.innerText = itemDef.Name;
         if (typeEl) typeEl.innerText = itemDef.Type;
         if (descEl) descEl.innerText = itemDef.Description;
         if (statsEl) statsEl.innerText = itemDef.Stats || "";
-
         if (btnUse) {
             btnUse.disabled = itemDef.Type !== 'Potion' && itemDef.Type !== 'Food';
-            btnUse.onclick = () => { console.log("Use item:", item.itemId); }; // Placeholder
+            btnUse.onclick = () => { console.log("Use item:", item.itemId); }; 
         }
-        
         if (btnEquip) {
             btnEquip.disabled = !['Robe', 'Boots', 'Hat', 'Wand'].includes(itemDef.Type);
         }
     }
 
-    // --- NEW CALENDAR LOGIC ---
-
     private setupCalendarControls() {
         const btnWeek = document.getElementById('btn-view-week');
         const btnMonth = document.getElementById('btn-view-month');
-        
         this.addListener(btnWeek, 'click', (e: any) => {
             e.stopPropagation();
             this.calendarView = 'week';
@@ -414,7 +507,6 @@ export class UIManager {
             btnMonth?.classList.remove('active');
             this.renderCalendar();
         });
-
         this.addListener(btnMonth, 'click', (e: any) => {
             e.stopPropagation();
             this.calendarView = 'month';
@@ -435,22 +527,12 @@ export class UIManager {
     private renderWeekView() {
         const container = document.getElementById('calendar-container');
         if (!container) return;
-        
         container.innerHTML = '';
-        container.className = 'calendar-week'; // Add CSS class for grid styling
-
-        // Structure: Header Row (Days) + Body (Time Slots)
-        // CSS Grid is best here.
-        // We will inline styles for simplicity in this tool step, or assume CSS class exists.
-        // Let's build a simple Flex column structure for now or a Table.
-        // Table is robust for timetables.
-        
+        container.className = 'calendar-week'; 
         const table = document.createElement('table');
         table.style.width = '100%';
         table.style.borderCollapse = 'collapse';
         table.style.fontSize = '10px';
-        
-        // Header
         const thead = document.createElement('thead');
         const trHead = document.createElement('tr');
         ['Time', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].forEach(day => {
@@ -463,49 +545,37 @@ export class UIManager {
         });
         thead.appendChild(trHead);
         table.appendChild(thead);
-
-        // Body
         const tbody = document.createElement('tbody');
         const startHour = 6;
         const endHour = 22;
-        
         for (let h = startHour; h <= endHour; h++) {
             const tr = document.createElement('tr');
             tr.setAttribute('data-hour', h.toString());
-            
-            // Time Col
             const tdTime = document.createElement('td');
             tdTime.innerText = `${h}:00`;
             tdTime.style.border = '1px solid #444';
             tdTime.style.color = '#aaa';
             tr.appendChild(tdTime);
-
-            // Days
             for (let d = 0; d < 7; d++) {
                 const td = document.createElement('td');
                 td.style.border = '1px solid #444';
                 td.style.position = 'relative';
                 td.style.height = '30px';
-                
-                // Find event for this hour
-                // Assuming Mon-Fri (d=0..4) have classes. Sat-Sun (d=5,6) are free.
                 if (d < 5) {
                     const event = CONFIG.ACADEMIC_SCHEDULE.find((e: any) => h >= e.start && h < e.end);
                     if (event) {
                         td.style.background = this.getEventColor(event.activity);
-                        td.innerText = event.name.split(' ')[0]; // Short name
+                        td.innerText = event.name.split(' ')[0]; 
                         td.style.fontSize = '9px';
                         td.style.cursor = 'pointer';
-                        
                         td.addEventListener('mouseenter', (e) => this.showTooltip(e, event));
                         td.addEventListener('mouseleave', () => this.hideTooltip());
                         td.addEventListener('click', (e) => {
                              e.stopPropagation();
-                             this.showTooltip(e, event); // Click also shows tooltip/details
+                             this.showTooltip(e, event); 
                         });
                     }
                 }
-                
                 tr.appendChild(td);
             }
             tbody.appendChild(tr);
@@ -517,17 +587,12 @@ export class UIManager {
     private renderMonthView() {
         const container = document.getElementById('calendar-container');
         if (!container) return;
-        
         container.innerHTML = '';
         container.className = 'calendar-month';
-
-        // 7x5 Grid
         const grid = document.createElement('div');
         grid.style.display = 'grid';
         grid.style.gridTemplateColumns = 'repeat(7, 1fr)';
         grid.style.gap = '2px';
-
-        // Headers
         ['M', 'T', 'W', 'T', 'F', 'S', 'S'].forEach(d => {
             const el = document.createElement('div');
             el.innerText = d;
@@ -536,46 +601,37 @@ export class UIManager {
             el.style.background = '#222';
             grid.appendChild(el);
         });
-
-        // Days (1..30)
         for (let i = 1; i <= 30; i++) {
             const day = document.createElement('div');
             day.style.border = '1px solid #444';
             day.style.height = '40px';
             day.style.padding = '2px';
             day.style.position = 'relative';
-            
             day.innerHTML = `<span style="color:#666">${i}</span>`;
-            
-            // Add dots for events (simplified)
-            // Mon-Fri have classes
             const dayOfWeek = (i - 1) % 7; 
             if (dayOfWeek < 5) {
                 const dot = document.createElement('div');
                 dot.style.width = '6px';
                 dot.style.height = '6px';
-                dot.style.background = '#f0c040'; // Class color
+                dot.style.background = '#f0c040'; 
                 dot.style.borderRadius = '50%';
                 dot.style.margin = '2px auto';
                 day.appendChild(dot);
-                
                 day.style.cursor = 'pointer';
                 day.addEventListener('mouseenter', (e) => this.showTooltip(e, { name: 'School Day', start: 8, end: 17, activity: 'class', location: 'Castle' }));
                 day.addEventListener('mouseleave', () => this.hideTooltip());
             }
-
             grid.appendChild(day);
         }
-        
         container.appendChild(grid);
     }
 
     private getEventColor(activity: string) {
         switch(activity) {
-            case 'class': return '#404080'; // Blueish
-            case 'eat': return '#804040'; // Reddish
-            case 'sleep': return '#202020'; // Dark
-            case 'free': return '#305030'; // Greenish
+            case 'class': return '#404080'; 
+            case 'eat': return '#804040'; 
+            case 'sleep': return '#202020'; 
+            case 'free': return '#305030'; 
             default: return '#333';
         }
     }
@@ -583,22 +639,13 @@ export class UIManager {
     private showTooltip(e: MouseEvent, event: any) {
         const tooltip = document.getElementById('calendar-tooltip');
         if (!tooltip) return;
-
         const title = document.getElementById('tooltip-title');
         const time = document.getElementById('tooltip-time');
         const desc = document.getElementById('tooltip-desc');
-        
         if (title) title.innerText = event.name;
         if (time) time.innerText = `${event.start}:00 - ${event.end}:00`;
         if (desc) desc.innerText = `Location: ${event.location}\nType: ${event.activity.toUpperCase()}`;
-
         tooltip.classList.remove('hidden');
-        
-        // Position relative to modal to avoid clipping if fixed
-        // Or just fixed near mouse.
-        // Let's use mouse coords relative to viewport
-        // tooltip is in modal-content relative.
-        // We need coordinates relative to modal-content.
         const content = tooltip.parentElement;
         if (content) {
             const rect = content.getBoundingClientRect();
@@ -612,33 +659,22 @@ export class UIManager {
         if (tooltip) tooltip.classList.add('hidden');
     }
 
-    // Replace renderTimetable with renderCalendar binding in bindDOMUI
-    // ... (This assumes I call setupCalendarControls in bindDOMUI)
-
     public updateTimetable(gameHour: number) {
         if (!this.timetableModal || this.timetableModal.classList.contains('hidden')) return;
-
         const clockDisplay = document.getElementById('clock-display');
         if (clockDisplay) clockDisplay.innerText = `${gameHour.toString().padStart(2, '0')}:00`;
-
-        // Reset previous highlights
         document.querySelectorAll('.current-hour-row').forEach(el => el.classList.remove('current-hour-row'));
         document.querySelectorAll('.current-day-cell').forEach(el => el.classList.remove('current-day-cell'));
-
         if (this.calendarView === 'week') {
             const hourInt = Math.floor(gameHour);
-            // Rows are startHour (6) to endHour (22). 
-            // We can find the row by index or data-hour
             const row = document.querySelector(`tr[data-hour="${hourInt}"]`);
             if (row) {
                 row.classList.add('current-hour-row');
-                
                 const state = this.network.room?.state;
                 if (state) {
                     const day = state.currentDay || 1; 
-                    const dayOfWeek = (day - 1) % 7; // 0=Mon, 6=Sun
+                    const dayOfWeek = (day - 1) % 7; 
                     const cells = row.querySelectorAll('td');
-                    // cells[0] is time, cells[1..7] are Mon..Sun
                     const targetCell = cells[dayOfWeek + 1];
                     if (targetCell) {
                         targetCell.classList.add('current-day-cell');
@@ -648,74 +684,54 @@ export class UIManager {
         }
     }
 
-    // ... renderAlbum ...
-
     public renderAlbum(ownedCardIds: number[]) {
         const grid = document.getElementById('album-grid');
         const countDisplay = document.getElementById('collection-count');
         if (!grid) return;
-
         grid.innerHTML = '';
-        // Change grid display to flex column for rows
         grid.style.display = 'flex';
         grid.style.flexDirection = 'column';
         grid.style.alignItems = 'center';
         grid.style.paddingTop = '20px';
-
         const allCards = GET_ALL_CARDS();
-        
-        // 1. Filter by Category
         const categoryCards = allCards.filter(card => {
             const category = this.getCardCategory(card.ID);
             return category === this.currentAlbumTab;
         });
-
         if (categoryCards.length === 0) {
             grid.innerHTML = `<div style="color:#666; width:100%; text-align:center; margin-top:50px;">No cards in this section yet.</div>`;
             return;
         }
-
-        // 2. Buckets by Rarity
         const tiers: Record<string, any[]> = {
             'mythic': [],
             'legendary': [],
             'rare': [],
             'common': []
         };
-
         categoryCards.forEach(card => {
             const r = card.Rarity.toLowerCase();
             if (tiers[r]) tiers[r].push(card);
-            else tiers['common'].push(card); // Fallback
+            else tiers['common'].push(card); 
         });
-
-        // 3. Render Rows (Top to Bottom)
         const renderRow = (cards: any[], tierName: string) => {
             if (cards.length === 0) return;
-            
             const row = document.createElement('div');
             row.className = `album-tier-grid ${tierName}`;
-            
             cards.forEach(cardData => {
                 let numericId = -1;
                 const parts = cardData.ID.split('_');
                 if (parts.length > 1 && !isNaN(parseInt(parts[1]))) {
                     numericId = parseInt(parts[1]);
                 }
-                
                 const isOwned = (numericId !== -1 && ownedCardIds.includes(numericId));
-                
                 const slot = document.createElement('div');
                 const rarityClass = `frame-${cardData.Rarity.toLowerCase()}`;
-                
                 slot.className = `card-slot ${isOwned ? 'owned' : 'locked'}`;
                 slot.setAttribute('data-name', isOwned ? cardData.Name : "???");
-                
                 slot.innerHTML = `
                     <img src="/ui/cards/${cardData.ID}.png" class="card-art" onerror="this.style.display='none'">
                     <div class="card-frame ${rarityClass}"></div>
                 `;
-                
                 if (isOwned) {
                     slot.addEventListener('click', (e) => {
                         e.stopPropagation();
@@ -726,64 +742,41 @@ export class UIManager {
             });
             grid.appendChild(row);
         };
-
         renderRow(tiers['mythic'], 'mythic');
         renderRow(tiers['legendary'], 'legendary');
         renderRow(tiers['rare'], 'rare');
         renderRow(tiers['common'], 'common');
-
-        // Update Total Count
         const totalOwned = ownedCardIds.length;
         const totalCards = allCards.length;
         if (countDisplay) countDisplay.innerText = `${totalOwned}/${totalCards}`;
     }
 
     private getCardCategory(id: string): string {
-        // Heuristic Mapping
         if (id.startsWith('card_')) {
             const suffix = id.replace('card_', '');
-            
-            // Creatures List
             const creatures = ['cyclops', 'goliath', 'dragon', 'giant', 'vampire', 'imp', 'pixie', 'gnome', 'unicorn', 'griffin'];
             if (creatures.includes(suffix)) return 'creatures';
-
-            // Personalities (Famous Named Non-Deities or Specific Historical)
-            // We'll put the specific named people here if they aren't "Wizards"
             const personalities = ['agrippa', 'flamel', 'paracelsus', 'faust', 'solomon', 'scot'];
             if (personalities.includes(suffix)) return 'personalities';
-            
-            // Check numeric IDs for generic mapping
             const num = parseInt(suffix);
             if (!isNaN(num)) {
-                // IDs 1-16. 
-                // Let's split them arbitrarily or logic.
-                // 1-8: Wizards/Gods -> Wizards
-                // 9-16: Personalities?
-                // For simplicity, let's put ALL numeric into 'wizards' for now unless specified.
                 return 'wizards';
             }
         }
-        
-        // Default fallbacks
         if (id.includes('spell')) return 'spells';
         if (id.includes('place') || id.includes('location')) return 'places';
         if (id.includes('artifact') || id.includes('relic') || id.includes('object')) return 'artifacts';
         if (id.includes('plant') || id.includes('herb') || id.includes('nature') || id.includes('ingredient')) return 'nature';
-        
-        return 'wizards'; // Default catch-all
+        return 'wizards'; 
     }
-
 
     private openCardLore(itemId: string) {
         if (!this.loreModal) return;
-        
         const item = ITEM_REGISTRY[itemId];
         if (!item) return;
-
         const title = document.getElementById('lore-title');
         const text = document.getElementById('lore-text');
         const rarity = document.getElementById('lore-rarity');
-        
         if (title) title.innerText = item.Name;
         if (text) text.innerText = item.Description;
         if (rarity) {
@@ -791,23 +784,20 @@ export class UIManager {
             rarity.innerText = r.toUpperCase();
             if (r === 'legendary') rarity.style.color = '#f0c040';
             else if (r === 'rare') rarity.style.color = '#40c0f0';
-            else if (r === 'mythic') rarity.style.color = '#d0f'; // Purple
+            else if (r === 'mythic') rarity.style.color = '#d0f'; 
             else rarity.style.color = '#fff';
         }
-
         this.loreModal.classList.remove('hidden');
     }
 
     public updateHUDTime(hour: number, minute: number, day: number, month: string) {
         const timeEl = document.getElementById('hud-time');
         const dateEl = document.getElementById('hud-date');
-
         if (timeEl) {
             const hStr = Math.floor(hour).toString().padStart(2, '0');
             const mStr = Math.floor(minute).toString().padStart(2, '0');
             timeEl.innerText = `${hStr}:${mStr}`;
         }
-        
         if (dateEl) {
             dateEl.innerText = `DAY ${day} - ${month.toUpperCase()}`;
         }
@@ -857,18 +847,14 @@ PING: ${latency}ms`);
         container.style.borderRadius = '10px';
         container.style.textAlign = 'center';
         container.style.zIndex = '1000';
-        container.style.pointerEvents = 'none'; // Don't block input
-        
+        container.style.pointerEvents = 'none'; 
         container.innerHTML = `
             <h2>ATTENDING CLASS</h2>
             <div id="class-timer" style="font-size: 24px; font-weight: bold;">Starting...</div>
             <p>Study hard!</p>
         `;
-        
         document.body.appendChild(container);
-
         const endTime = Date.now() + duration;
-        
         const interval = setInterval(() => {
             const remaining = Math.ceil((endTime - Date.now()) / 1000);
             const timerEl = document.getElementById('class-timer');
@@ -877,14 +863,11 @@ PING: ${latency}ms`);
                 const secs = remaining % 60;
                 timerEl.innerText = `${mins}:${secs.toString().padStart(2, '0')}`;
             }
-
             if (remaining <= 0) {
                 clearInterval(interval);
                 container.remove();
             }
         }, 1000);
-
-        // Store interval to clear if needed manually
         (window as any)._classInterval = interval;
     }
 
@@ -901,20 +884,15 @@ PING: ${latency}ms`);
         el.style.left = '50%';
         el.style.transform = 'translate(-50%, -50%)';
         el.style.color = '#fff';
-        el.style.fontFamily = 'Cinzel, serif'; // Fantasy font if available, or serif
+        el.style.fontFamily = 'Cinzel, serif'; 
         el.style.fontSize = '32px';
         el.style.textShadow = '0 0 10px #000';
         el.style.opacity = '0';
         el.style.transition = 'opacity 0.5s ease-in-out';
         el.style.pointerEvents = 'none';
         el.innerHTML = `<span>${name}</span><div style="width:100%; height:2px; background:linear-gradient(90deg, transparent, #fff, transparent); margin-top:5px;"></div>`;
-        
         document.body.appendChild(el);
-        
-        // Fade In
         requestAnimationFrame(() => el.style.opacity = '1');
-        
-        // Fade Out & Remove
         setTimeout(() => {
             el.style.opacity = '0';
             setTimeout(() => el.remove(), 500);
@@ -934,9 +912,29 @@ PING: ${latency}ms`);
         notif.style.zIndex = '2000';
         notif.innerText = message;
         document.body.appendChild(notif);
-        
         setTimeout(() => {
             notif.remove();
         }, 3000);
+    }
+    
+    // UI State Management Helper
+    public setGameState(state: 'INTRO' | 'LOGIN' | 'PLAYING') {
+        const intro = document.getElementById('intro-screen');
+        const login = document.getElementById('login-screen');
+        const game = document.getElementById('game-ui');
+        
+        if (state === 'INTRO') {
+            intro?.classList.remove('hidden');
+            login?.classList.remove('hidden'); // Visible behind
+            game?.classList.add('hidden');
+        } else if (state === 'LOGIN') {
+            intro?.classList.add('hidden');
+            login?.classList.remove('hidden');
+            game?.classList.add('hidden');
+        } else if (state === 'PLAYING') {
+            intro?.classList.add('hidden');
+            login?.classList.add('hidden');
+            game?.classList.remove('hidden');
+        }
     }
 }
