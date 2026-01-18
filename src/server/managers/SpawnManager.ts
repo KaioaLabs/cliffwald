@@ -48,6 +48,7 @@ export class SpawnManager {
     };
 
     private prefectIds = new Set<string>();
+    private spawnPoint: {x: number, y: number} = {x: 300, y: 300}; // Default
 
     constructor(world: ECSWorld, physicsWorld: RAPIER.World, state: GameState, entities: Map<string, Entity>) {
         this.world = world;
@@ -55,6 +56,8 @@ export class SpawnManager {
         this.state = state;
         this.entities = entities;
     }
+
+    public getSpawnPoint() { return this.spawnPoint; }
 
     // --- CORE FACTORY ---
     public spawnCharacter(data: CharacterSpawnData): Entity {
@@ -161,11 +164,18 @@ export class SpawnManager {
         return null;
     }
 
-    public async possessEcho(echoId: string, clientSessionId: string, playerData: Partial<CharacterSpawnData>): Promise<Entity | null> {
+    public async possessEcho(
+        echoId: string, 
+        clientSessionId: string, 
+        playerData: Partial<CharacterSpawnData>,
+        overridePos?: { x: number, y: number }
+    ): Promise<Entity | null> {
         const echoEnt = this.entities.get(echoId);
         if (!echoEnt || !echoEnt.ai) return null;
 
-        const pos = echoEnt.body?.translation() || { x: 300, y: 300 };
+        const echoPos = echoEnt.body?.translation() || { x: 300, y: 300 };
+        const finalPos = overridePos || echoPos;
+
         const routineSpots = echoEnt.ai.routineSpots;
         const numericId = typeof echoEnt.id === 'number' ? echoEnt.id : 0;
         const house = echoEnt.ai.house || 'ignis';
@@ -177,15 +187,15 @@ export class SpawnManager {
         this.claimedEchoIds.add(echoId);
 
         // 3. Spawn Player
-        console.log(`[SPAWN] Player ${playerData.username} possessing ${echoId}`);
+        console.log(`[SPAWN] Player ${playerData.username} possessing ${echoId} at ${Math.round(finalPos.x)},${Math.round(finalPos.y)}`);
         return this.spawnCharacter({
             id: clientSessionId,
             numericId: numericId,
             username: playerData.username || "Unknown",
             skin: playerData.skin || "player_idle",
             house: house as any,
-            x: pos.x,
-            y: pos.y,
+            x: finalPos.x,
+            y: finalPos.y,
             prestige: playerData.prestige,
             gold: playerData.gold,
             xp: playerData.xp,
@@ -406,5 +416,15 @@ export class SpawnManager {
 
     public loadSeats(mapData: MapData) {
         this.seats = parseSeats(mapData);
+        
+        // Parse Spawn Point
+        const entitiesLayer = mapData.layers.find(l => l.name === "Entities");
+        if (entitiesLayer && entitiesLayer.objects) {
+            const sp = entitiesLayer.objects.find(o => o.name === "Spawn");
+            if (sp) {
+                this.spawnPoint = { x: sp.x, y: sp.y };
+                console.log(`[SPAWN] Global Spawn Point set to: ${sp.x}, ${sp.y}`);
+            }
+        }
     }
 }

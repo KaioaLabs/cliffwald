@@ -29,12 +29,16 @@ export class UIManager {
     private introTimer?: Phaser.Time.TimerEvent;
     
     private introSubtitlesData = [
-        { time: 1000, text: "In the dawn of the Age of Arcana..." },
-        { time: 6000, text: "The world was formless, chaos reigning supreme." },
-        { time: 12000, text: "Until the Three Founders united their powers." },
-        { time: 18000, text: "Ignis, Axiom, and Vesper forged the Academy." },
-        { time: 26000, text: "A sanctuary for knowledge, power, and legacy." },
-        { time: 34000, text: "Welcome... to Cliffwald." }
+        { time: 1000, text: "Time is a ruthless circle." },
+        { time: 4200, text: "Every thousand years the stars return to their origin," },
+        { time: 9000, text: "and the sky bleeds." },
+        { time: 12800, text: "In the last cycle, the world nearly broke." },
+        { time: 17000, text: "Two great forces clashed, leaving behind only scars." },
+        { time: 23000, text: "And silence." },
+        { time: 27500, text: "Now, the silence ends." },
+        { time: 31000, text: "That is why Cliffwald stands." },
+        { time: 35500, text: "We have opened the gates because the cycle demands it." },
+        { time: 41500, text: "Enter, and show us who you truly are." }
     ];
 
     // Cleanup Tracker
@@ -72,73 +76,92 @@ export class UIManager {
     
     private startIntro() {
         const screen = document.getElementById('intro-screen');
-        const startBtn = document.getElementById('intro-start-btn');
         const subtitles = document.getElementById('intro-subtitles');
         const skip = document.getElementById('intro-skip');
         
-        if (!screen || !startBtn) return;
+        if (!screen) return;
 
         screen.classList.remove('hidden');
+        if (subtitles) subtitles.classList.remove('hidden');
+        if (skip) skip.classList.remove('hidden');
 
-        // Interaction Trigger
-        startBtn.onclick = () => {
-            startBtn.classList.add('hidden');
-            subtitles?.classList.remove('hidden');
-            skip?.classList.remove('hidden');
+        // Audio Auto-Play Attempt
+        if (this.scene.cache.audio.exists('intro_full')) {
+            this.introAudio = this.scene.sound.add('intro_full', { volume: 0.5 });
             
-            // Audio
-            if (this.scene.cache.audio.exists('intro_full')) {
-                this.introAudio = this.scene.sound.add('intro_full', { volume: 0.5 });
+            // Try to play immediately
+            try {
                 this.introAudio.play();
+            } catch (e) {
+                console.warn("Audio autoplay blocked. Waiting for interaction.");
             }
             
-            // Subtitles Loop
-            const startTime = Date.now();
-            let lastText = "";
-
-            this.introTimer = this.scene.time.addEvent({
-                delay: 100,
-                loop: true,
-                callback: () => {
-                    const elapsed = Date.now() - startTime;
-                    const currentSub = this.introSubtitlesData.slice().reverse().find(s => elapsed >= s.time);
-                    
-                    if (subtitles && currentSub) {
-                        if (lastText !== currentSub.text) {
-                            lastText = currentSub.text;
-                            subtitles.style.opacity = '0';
-                            subtitles.style.transition = 'opacity 0.5s';
-                            setTimeout(() => {
-                                subtitles.innerText = currentSub.text;
-                                subtitles.style.opacity = '1';
-                            }, 500);
-                        }
-                    }
-                    
-                    if (elapsed > 41000) { // End of audio (41s)
-                        this.finishIntro();
-                    }
+            // Fallback unlocker
+            const unlockAudio = () => {
+                if (this.scene.sound.locked) {
+                    this.scene.sound.unlock();
                 }
-            });
-
-            // Skip Logic (Hold)
-            let holdTimeout: any;
-            const startHold = () => {
-                skip!.style.color = '#fff';
-                skip!.innerText = "SKIPPING...";
-                holdTimeout = setTimeout(() => this.finishIntro(), 1000); 
-            };
-            const endHold = () => {
-                skip!.style.color = '#666';
-                skip!.innerText = "HOLD SCREEN TO SKIP";
-                clearTimeout(holdTimeout);
+                if (this.introAudio && !this.introAudio.isPlaying && !this.introPlayed) {
+                    this.introAudio.play();
+                }
+                window.removeEventListener('click', unlockAudio);
+                window.removeEventListener('touchstart', unlockAudio);
             };
             
-            screen.addEventListener('mousedown', startHold);
-            screen.addEventListener('mouseup', endHold);
-            screen.addEventListener('touchstart', startHold);
-            screen.addEventListener('touchend', endHold);
+            window.addEventListener('click', unlockAudio);
+            window.addEventListener('touchstart', unlockAudio);
+        }
+        
+        // Subtitles Loop
+        const startTime = Date.now();
+        let lastText = "";
+
+        this.introTimer = this.scene.time.addEvent({
+            delay: 100,
+            loop: true,
+            callback: () => {
+                const elapsed = Date.now() - startTime;
+                const currentSub = this.introSubtitlesData.slice().reverse().find(s => elapsed >= s.time);
+                
+                if (subtitles && currentSub) {
+                    if (lastText !== currentSub.text) {
+                        lastText = currentSub.text;
+                        subtitles.style.opacity = '0';
+                        subtitles.style.transition = 'opacity 0.5s';
+                        setTimeout(() => {
+                            subtitles.innerText = currentSub.text;
+                            subtitles.style.opacity = '1';
+                        }, 500);
+                    }
+                }
+                
+                if (elapsed > 46000) { 
+                    this.finishIntro();
+                }
+            }
+        });
+
+        // Skip Logic (Hold)
+        let holdTimeout: any;
+        const startHold = () => {
+            if (skip) {
+                skip.style.color = '#fff';
+                skip.innerText = "SKIPPING...";
+            }
+            holdTimeout = setTimeout(() => this.finishIntro(), 1000); 
         };
+        const endHold = () => {
+            if (skip) {
+                skip.style.color = '#666';
+                skip.innerText = "HOLD SCREEN TO SKIP";
+            }
+            clearTimeout(holdTimeout);
+        };
+        
+        screen.addEventListener('mousedown', startHold);
+        screen.addEventListener('mouseup', endHold);
+        screen.addEventListener('touchstart', startHold);
+        screen.addEventListener('touchend', endHold);
     }
 
     private finishIntro() {
@@ -163,37 +186,8 @@ export class UIManager {
             const theme = this.scene.sound.add('main_theme', { volume: 0.3, loop: true });
             theme.play();
         }
-        
-        // Reveal Login (It is already there, but ensures z-index/focus)
-        // Login Screen z-index is 20000, Intro is 30000. Fading intro reveals login.
     }
 
-    // ... (Existing methods: destroy, createPhaserUI, bindDOMUI, setupEventListeners, etc.)
-    // I need to be careful not to delete existing code. I will use 'replace' if possible or overwrite carefully.
-    // Since UIManager is large, overwrite is safer if I include everything.
-    
-    // BUT wait, I need to make sure I don't lose the login transition logic I added before.
-    // In create():
-    // if (loginScreen) loginScreen.classList.add('hidden'); -> THIS IS WRONG for intro.
-    // Login screen should be VISIBLE behind intro, or revealed after intro.
-    // BUT LoginManager logic says: On Success -> create UIManager -> Hide Login -> Show Game. 
-    
-    // CONFLICT:
-    // UIManager is created ONLY AFTER LOGIN SUCCESS in main.ts.
-    // If UIManager runs AFTER login, then Intro runs AFTER login?
-    // That's wrong. Intro should run BEFORE login.
-    
-    // REFACTOR NEEDED:
-    // UIManager needs to be instantiated EARLY (at start of GameScene), not inside LoginManager success callback.
-    // LoginManager should just handle the form logic.
-    // UIManager should handle the screens (Intro -> Login -> Game).
-    
-    // Plan:
-    // 1. Instantiate UIManager in GameScene.create() immediately.
-    // 2. UIManager.create() starts Intro.
-    // 3. LoginManager is independent. It listens to buttons.
-    // 4. On Login Success, LoginManager calls a callback that tells UIManager to switch to GAME state.
-    
     public destroy() {
         this.eventListeners.forEach(l => {
             l.target.removeEventListener(l.type, l.listener);

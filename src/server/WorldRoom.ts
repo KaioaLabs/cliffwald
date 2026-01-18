@@ -320,6 +320,15 @@ export class WorldRoom extends Room<GameState> {
                 return;
             }
 
+            // FTUE: First Time User Experience Logic
+            // If player has default coordinates (never saved position), spawn at Great Hall (Director Welcome)
+            let overridePos: { x: number, y: number } | undefined;
+            if (session.dbPlayer.x === 300 && session.dbPlayer.y === 300) {
+                console.log(`[FTUE] New Character ${authUser.username} detected. Forcing spawn at Great Hall.`);
+                overridePos = this.spawnManager.getSpawnPoint();
+            }
+
+            // 4. Possess
             const playerEnt = await this.spawnManager.possessEcho(echoSlot.id, client.sessionId, {
                 username: authUser.username,
                 skin: options.skin || "player_idle",
@@ -335,7 +344,7 @@ export class WorldRoom extends Room<GameState> {
                     item.qty = i.count;
                     return item;
                 })
-            });
+            }, overridePos);
             
             if (playerEnt) {
                 playerEnt.metadata = {
