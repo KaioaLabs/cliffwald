@@ -143,6 +143,7 @@ export class ChatManager {
 
         const msg = new ChatMessage();
         msg.sender = player.username;
+        msg.senderId = clientSessionId;
         msg.timestamp = Date.now();
 
         // 1. Determine Channel

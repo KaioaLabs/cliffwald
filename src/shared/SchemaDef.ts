@@ -46,6 +46,7 @@ export class WorldItem extends Schema {
 
 export class ChatMessage extends Schema {
     @type("string") sender: string = "";
+    @type("string") senderId: string = ""; // Session ID for Bubble Chat
     @type("string") text: string = "";
     @type("number") timestamp: number = 0;
 }

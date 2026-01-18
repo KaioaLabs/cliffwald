@@ -11,6 +11,8 @@ export interface ClientEntity extends Entity {
     nameTag?: Phaser.GameObjects.Text;
     classTimerText?: Phaser.GameObjects.Text;
     prefectLight?: Phaser.GameObjects.Light;
+    chatBubble?: Phaser.GameObjects.Container;
+    chatBubbleTimer?: Phaser.Time.TimerEvent;
     positionBuffer?: { x: number, y: number, timestamp: number }[];
     lastMoveTime?: number;
     serverPos?: { x: number, y: number };

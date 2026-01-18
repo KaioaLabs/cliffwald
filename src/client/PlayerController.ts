@@ -21,14 +21,10 @@ export class PlayerController {
     }
 
     private isInDorm(x: number, y: number): boolean {
-        // Broad bounds for the 3 dorm rooms in the Left Wing
         if (x < 500 || x > 750) return false;
-        
-        // Ignis (Top), Axiom (Mid), Vesper (Bot)
         const inIgnis = y > 400 && y < 650;
         const inAxiom = y > 1050 && y < 1250;
         const inVesper = y > 1700 && y < 1900;
-        
         return inIgnis || inAxiom || inVesper;
     }
 
@@ -39,7 +35,6 @@ export class PlayerController {
 
         const displayName = username || sessionId.slice(0, 4);
         
-        // Shadow as Image (Fallback)
         const shadow = this.scene.add.image(x, y, 'player_idle');
         shadow.setTint(0x000000);
         shadow.setAlpha(0.3);
@@ -56,8 +51,6 @@ export class PlayerController {
         if (isPrefect) {
             sprite.setTint(THEME.HOUSES.PREFECT);
             sprite.setScale(CONFIG.PLAYER_SCALE * 1.1);
-            
-            // DYNAMIC LIGHT
             if (CONFIG.USE_LIGHTS) {
                 prefectLight = this.scene.lights.addLight(x, y, 150, THEME.HOUSES.PREFECT, 2.0);
             }
@@ -94,7 +87,6 @@ export class PlayerController {
 
         console.log(`[CLIENT] Adding Player Sprite: ${displayName} (Local: ${isLocal})`);
 
-        // 2. Create ECS Entity
         const entity = this.world.add({
             player: { sessionId },
             visual: { sprite },
@@ -102,7 +94,6 @@ export class PlayerController {
             facing: { x: 0, y: 1 }
         }) as ClientEntity;
 
-        // Store extra visual data on the entity (managed state)
         entity.shadow = shadow;
         entity.nameTag = nameTag;
         entity.classTimerText = classTimerText;
@@ -145,6 +136,8 @@ export class PlayerController {
             if (entity.visual?.sprite) entity.visual.sprite.destroy();
             if (entity.shadow) entity.shadow.destroy();
             if (entity.nameTag) entity.nameTag.destroy();
+            if (entity.chatBubble) entity.chatBubble.destroy();
+            if (entity.chatBubbleTimer) entity.chatBubbleTimer.remove();
             if (entity.prefectLight) this.scene.lights.removeLight(entity.prefectLight);
             
             if (entity.body && this.physicsWorld) {
@@ -175,18 +168,14 @@ export class PlayerController {
                 if (buffer.length > 10) buffer.shift();
             }
             
-            // Server Reconciliation for Local
             if (entity.isLocal && entity.body) {
                 const localPos = entity.body.translation();
                 const dist = Phaser.Math.Distance.Between(localPos.x, localPos.y, data.x, data.y);
                 
-                // SOTA Reconciliation: "Soft Pull" -> "Hard Snap"
                 if (dist > CONFIG.RECONCILIATION_THRESHOLD_LARGE) {
-                    // Critical desync: Teleport
                     entity.body.setTranslation({ x: data.x, y: data.y }, true);
                 } 
                 else if (dist > CONFIG.RECONCILIATION_THRESHOLD_SMALL) {
-                    // Minor desync: Apply "Soft Pull" (Exponential Decay)
                     const t = 0.15; 
                     const newX = Phaser.Math.Linear(localPos.x, data.x, t);
                     const newY = Phaser.Math.Linear(localPos.y, data.y, t);
@@ -232,9 +221,7 @@ export class PlayerController {
         const sprite = entity.visual.sprite as Phaser.GameObjects.Sprite;
         const dir = entity.lastDir || 'down';
         
-        // 1. Play Animation
         const isTeacher = sprite.getData('isTeacher');
-        // Teachers don't have jump sprites yet, ignore or just tween
         if (!isTeacher) {
             const animKey = `jump-${dir}`;
             if (sprite.anims.exists(animKey)) {
@@ -246,17 +233,87 @@ export class PlayerController {
             }
         }
 
-        // 2. Vertical Tween (Visual Height)
         entity.visualOffset = { x: 0, y: 0 };
-        
         this.scene.tweens.add({
             targets: entity.visualOffset,
-            y: -15, // Jump height
+            y: -15, 
             duration: 200,
             yoyo: true,
             ease: 'Sine.easeOut',
             onComplete: () => {
                 entity.visualOffset = { x: 0, y: 0 };
+            }
+        });
+    }
+
+    public showChatBubble(sessionId: string, text: string) {
+        const entity = this.players.get(sessionId);
+        if (!entity || !entity.visual?.sprite) return;
+
+        if (entity.chatBubble) {
+            entity.chatBubble.destroy();
+            entity.chatBubble = undefined;
+        }
+        if (entity.chatBubbleTimer) {
+            entity.chatBubbleTimer.remove();
+        }
+
+        const sprite = entity.visual.sprite;
+        
+        const container = this.scene.add.container(sprite.x, sprite.y - 70);
+        container.setDepth(10000); 
+
+        const style = {
+            fontSize: '12px',
+            fontFamily: '"Press Start 2P", monospace', 
+            color: '#000000',
+            align: 'center',
+            wordWrap: { width: 150 }
+        };
+        const chatText = this.scene.add.text(0, 0, text, style).setOrigin(0.5);
+        
+        const padding = 8;
+        const w = chatText.width + padding * 2;
+        const h = chatText.height + padding * 2;
+        
+        const bubble = this.scene.add.graphics();
+        bubble.fillStyle(0xffffff, 1);
+        bubble.fillRoundedRect(-w/2, -h/2, w, h, 6);
+        bubble.lineStyle(2, 0x000000, 1);
+        bubble.strokeRoundedRect(-w/2, -h/2, w, h, 6);
+        
+        bubble.fillStyle(0xffffff, 1);
+        bubble.fillTriangle(-5, h/2, 5, h/2, 0, h/2 + 6);
+
+        container.add([bubble, chatText]);
+        container.setScale(0);
+
+        this.scene.tweens.add({
+            targets: container,
+            scaleX: 1,
+            scaleY: 1,
+            duration: 200,
+            ease: 'Back.out'
+        });
+
+        entity.chatBubble = container;
+
+        const duration = Math.min(6000, Math.max(2000, text.length * 100)); 
+        
+        entity.chatBubbleTimer = this.scene.time.delayedCall(duration, () => {
+            if (entity.chatBubble) {
+                this.scene.tweens.add({
+                    targets: entity.chatBubble,
+                    alpha: 0,
+                    y: entity.chatBubble.y - 20,
+                    duration: 500,
+                    onComplete: () => {
+                        if (entity.chatBubble) {
+                            entity.chatBubble.destroy();
+                            entity.chatBubble = undefined;
+                        }
+                    }
+                });
             }
         });
     }
@@ -270,7 +327,6 @@ export class PlayerController {
             const sprite = entity.visual!.sprite as Phaser.GameObjects.Sprite;
             const isLocal = entity.isLocal;
             
-            // ALWAYS VISIBLE (Single Floor)
             const isVisible = true;
             
             sprite.setVisible(isVisible);
@@ -291,6 +347,9 @@ export class PlayerController {
                 const timerVisible = isVisible && !!entity.classTimerText.getData('endsAt');
                 entity.classTimerText.setVisible(timerVisible);
                 entity.classTimerText.setActive(timerVisible);
+            }
+            if (entity.chatBubble) {
+                entity.chatBubble.setVisible(isVisible);
             }
             
             let targetX = sprite.x;
@@ -332,7 +391,6 @@ export class PlayerController {
             sprite.setPosition(smoothedX + offsetX, smoothedY + offsetY);
             sprite.setDepth(smoothedY + 100); 
 
-            // --- SHADOW LOGIC ---
             const shadow = entity.shadow;
             if (shadow) {
                 const gameScene = this.scene as any;
@@ -389,8 +447,11 @@ export class PlayerController {
                     entity.classTimerText.setText(`IN CLASS\n${mins}:${secs.toString().padStart(2, '0')}`);
                 }
             }
+            
+            if (entity.chatBubble) {
+                entity.chatBubble.setPosition(smoothedX, smoothedY - 60);
+            }
 
-            // Handle Unconscious State
             if (entity.unconsciousUntil && entity.unconsciousUntil > now) {
                 sprite.setRotation(Math.PI / 2); 
                 sprite.setOrigin(0.5, 0.5); 
@@ -417,11 +478,9 @@ export class PlayerController {
         const isPrefect = entity.prefectLight !== undefined;
         
         if (!isTeacher && !isPrefect) {
-            // Check moving
             if (velocity > 0.1 || (isLocal && (entity.input?.left || entity.input?.right || entity.input?.up || entity.input?.down))) {
                 sprite.setData('isSleepingVisual', false);
             } else {
-                // Check Environment (Night + Dorm)
                 const { isNight } = getGameTime(Date.now());
                 if (isNight && this.isInDorm(sprite.x, sprite.y)) {
                     if (!sprite.getData('isSleepingVisual')) {

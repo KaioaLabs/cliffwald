@@ -489,7 +489,7 @@ export type PlayerScalarWhereWithAggregatesInput = {
 
 export type PlayerCreateInput = {
   isCreated?: boolean
-  username: string
+  username?: string
   nameChangeCount?: number
   skin?: string
   house?: string
@@ -513,7 +513,7 @@ export type PlayerUncheckedCreateInput = {
   id?: number
   userId: number
   isCreated?: boolean
-  username: string
+  username?: string
   nameChangeCount?: number
   skin?: string
   house?: string
@@ -581,7 +581,7 @@ export type PlayerCreateManyInput = {
   id?: number
   userId: number
   isCreated?: boolean
-  username: string
+  username?: string
   nameChangeCount?: number
   skin?: string
   house?: string
@@ -823,7 +823,7 @@ export type PlayerUpdateOneRequiredWithoutInventoryNestedInput = {
 
 export type PlayerCreateWithoutUserInput = {
   isCreated?: boolean
-  username: string
+  username?: string
   nameChangeCount?: number
   skin?: string
   house?: string
@@ -845,7 +845,7 @@ export type PlayerCreateWithoutUserInput = {
 export type PlayerUncheckedCreateWithoutUserInput = {
   id?: number
   isCreated?: boolean
-  username: string
+  username?: string
   nameChangeCount?: number
   skin?: string
   house?: string
@@ -925,7 +925,7 @@ export type PlayerUncheckedUpdateWithoutUserInput = {
 
 export type PlayerCreateWithoutInventoryInput = {
   isCreated?: boolean
-  username: string
+  username?: string
   nameChangeCount?: number
   skin?: string
   house?: string
@@ -948,7 +948,7 @@ export type PlayerUncheckedCreateWithoutInventoryInput = {
   id?: number
   userId: number
   isCreated?: boolean
-  username: string
+  username?: string
   nameChangeCount?: number
   skin?: string
   house?: string

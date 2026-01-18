@@ -281,7 +281,14 @@ export class GameScene extends Phaser.Scene {
 
             // Setup Network Listeners BEFORE connecting
             this.network.onPong = (latency) => this.currentLatency = latency;
-            this.network.onChatMessage = (msg) => this.uiManager.appendChatMessage(msg);
+            
+            this.network.onChatMessage = (msg) => {
+                this.uiManager.appendChatMessage(msg);
+                // Bubble Chat
+                if (msg.senderId && msg.text) {
+                    this.playerController.showChatBubble(msg.senderId, msg.text);
+                }
+            };
 
             this.network.onProjectileAdd = (proj: Projectile, id: string) => {
                 if (this.room && proj.ownerId === this.room.sessionId) return;
