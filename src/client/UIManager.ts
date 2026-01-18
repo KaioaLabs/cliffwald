@@ -42,6 +42,13 @@ export class UIManager {
         this.createPhaserUI();
         this.bindDOMUI();
         this.setupEventListeners();
+        
+        // TRANSITION: Login -> Game
+        const loginScreen = document.getElementById('login-screen');
+        const gameUI = document.getElementById('game-ui');
+        
+        if (loginScreen) loginScreen.classList.add('hidden');
+        if (gameUI) gameUI.classList.remove('hidden');
     }
     
     public destroy() {
