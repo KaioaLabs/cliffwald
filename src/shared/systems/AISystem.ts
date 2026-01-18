@@ -64,7 +64,7 @@ export const AISystem = (
         // Dispatch to State Handlers
         switch (ai.state) {
             case 'idle':
-                IdleState.update(entity, dt, currentHour, castCallback);
+                IdleState.update(entity, dt, currentHour, castCallback, chatCallback);
                 break;
             case 'routine':
                 RoutineState.update(entity, dt, currentHour, pathfinder, physicsWorld, frameCount, floor);
