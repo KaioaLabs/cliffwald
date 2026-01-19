@@ -1,156 +1,183 @@
 # CLIFFWALD ONLINE – GAME DESIGN DOCUMENT (MASTER)
-**Versión:** 2.3 (Update: Restructure - Enero 2026)
-**Estado:** Fase 5 Completada. Fase 6 (Live Ops) En Curso. QA Completado.
+
+**Versión:** 3.3 (Final: Reglas de Santuario y PvP Definidas - Enero 2026)  
+**Estado:** Diseño Cerrado para Prototipo.
 
 ---
 
 ## 1. HIGH CONCEPT
-**Cliffwald Online** es un MMO de **Simulación Académica Viva** donde el tiempo es la autoridad suprema. Ambientado en una escuela de magia Top-Down 2D, los jugadores no son héroes elegidos, sino estudiantes sujetos a horarios, leyes físicas y una jerarquía social persistente.
+
+**Cliffwald Online** es un MMO de nicho ("Small World") de **Simulación Académica Viva**. No es un mundo masivo infinito, sino un escenario teatral persistente donde ~100 estudiantes (jugadores o IAs) conviven bajo la autoridad absoluta del tiempo.
 
 ### Filosofía de Diseño
-*   **"Low Floor, High Ceiling":** Accesible para aprobar, difícil para destacar.
-*   **Persistencia Radical:** Tu personaje existe aunque tú no estés (Sistema "Echo").
-*   **Magia Táctil:** La habilidad del jugador (dibujo de gestos) supera a las estadísticas numéricas.
+
+*   **"Low Floor, Low Maintenance":** Diseñado para sesiones cortas. Asistir a clase es un reto de 3-5 minutos, no una jornada laboral.
+*   **El Teatro de Autómatas (Identidad):** Tu personaje es un alma que posee un cuerpo. Cuando te desconectas, el cuerpo se vacía pero sigue actuando ("Echo") para mantener la ilusión de vida.
+*   **Magia Táctil:** El lanzamiento de hechizos es físico (dibujo real), priorizando la satisfacción del gesto sobre la seguridad estricta del servidor.
 
 ---
 
-## 2. SISTEMA DE TIEMPO: "LOS DOS EJES"
+## 2. SISTEMA DE TIEMPO: "LA DICTADURA DEL RELOJ"
 
-### 2.1. El Reloj Atmosférico (Ritmo de Sesión)
-Controla el bucle inmediato, la iluminación y la rutina diaria.
+### 2.1. El Reloj Atmosférico (Ritmo Arcade)
+
+El ciclo es rápido para permitir múltiples "días" en una sesión de juego real.
+
 *   **Ciclo Total:** 45 Minutos Reales.
-*   **Día (30 Min):** Clases, Socialización, Zonas Seguras.
-*   **Noche (15 Min):** Toque de Queda (Curfew). Los Prefectos patrullan. PvPvE habilitado.
-*   **Time Jump Debug:** Sistema robusto para saltar a cualquier hora. Los NPCs **caminan** hacia sus nuevas rutinas (no se teletransportan) para verificar la integridad del pathfinding.
+*   **Día (30 Min):** Vida académica y social.
+*   **Noche (15 Min):** Toque de Queda. Peligro y sigilo.
 
-### 2.2. Horario de Actividades (Rutina)
-Las actividades ocurren en **Ventanas de Oportunidad**. Asistir habilita la tarea, pero no regala el progreso.
+### 2.2. Horario y Compromiso (Low Grind)
+
+Las actividades obligatorias (Clases) están diseñadas como **Minijuegos de Ráfaga** (3-5 minutos).
+
+*   **Filosofía de Aprobado:** No se requiere asistencia perfecta. Cumplir un cupo mínimo de asistencias (ej. 10 clases al mes real) es suficiente para aprobar el curso.
+*   **Libertad:** El resto del tiempo es libre para socializar, explorar o conspirar.
 
 | Hora | Actividad | Ubicación | Mecánica |
 | :--- | :--- | :--- | :--- |
 | **07:00 - 08:30** | Desayuno | Gran Comedor | Buff de Regeneración. |
-| **08:30 - 12:30** | Clase Mañana | Aula Magna | Minijuego Académico (Precisión). |
+| **08:30 - 12:30** | Clase Mañana | Aula Magna | **Minijuego (3-5 min)**. Reto de precisión o memoria. |
 | **12:30 - 14:00** | Comida | Gran Comedor | Socialización. |
-| **14:00 - 20:00** | Tiempo Libre | Campus General | Social / Exploración. |
+| **14:00 - 20:00** | Tiempo Libre | Campus General | Social / Exploración / Duelos. |
 | **20:00 - 22:00** | Cena | Gran Comedor | Socialización. |
-| **22:00 - 07:00** | Toque de Queda | Dormitorios | **Zona PvPvE Activa (Prefectos)**. |
-
-### 2.3. Interfaz de Usuario (HUD)
-*   **Calendario:** Panel interactivo que resalta la hora y día actual ("NOW").
-*   **Reloj:** Visualización digital HH:MM sincronizada con el servidor.
+| **22:00 - 07:00** | Toque de Queda | Dormitorios | **Zona PvPvE Activa**. Riesgo alto. |
 
 ---
 
-## 3. POBLACIÓN E IDENTIDAD (SISTEMA ECHO)
+## 3. POBLACIÓN E IDENTIDAD (SISTEMA DE POSESIÓN)
 
-### 3.1. Persistencia 24/7 (Body Claiming)
-*   **Población Finita:** El mundo tiene 96 slots de estudiantes (32 Ignis, 32 Axiom, 32 Vesper).
-*   **Posesión:** Al loguearse, el jugador "posee" un cuerpo existente.
-*   **El Eco:** Al desconectarse, el personaje no desaparece. Se convierte en un NPC ("Echo") que mantiene el nombre, apariencia, inventario, Oro y Prestigio del jugador.
+### 3.1. Arquitectura "Teatro de Autómatas"
 
-### 3.2. Inteligencia Artificial (Vida Escolar)
-Implementación avanzada de comportamiento humano ("Anti-Hive Mind"):
-*   **Stochastic Reaction Latency:** Al cambiar la hora (campana), los alumnos aplican un retardo aleatorio (0.5s - 3.0s) para evitar ráfagas de sincronización masiva.
-*   **Deterministic Lane Offsets:** Los NPCs eligen carriles paralelos basados en su ID para evitar el "Tube Effect" en pasillos.
-*   **Steering Separation:** Micro-fuerzas de repulsión física para evitar la superposición de sprites en movimiento.
-*   **Stuck Detection & Recovery:** Sistema de monitoreo de delta de movimiento; si es < 2px/2s, fuerza el repathfinding y un "Jiggle" estocástico.
-*   **Arquetipos Vivos:**
-    *   **Socializer:** State Machine con estados de pausa AFK simulada y broadcast de chat procedural.
-    *   **Killer:** Agente reactivo con targeting aleatorio y casteo de hechizos para entrenamiento.
-    *   **Achiever:** Heurística de prioridad alta para asistencia a clase.
-    *   **Explorer:** Patrones de deambulación Browniana en zonas perimetrales.
+El servidor mantiene vivos ~100 cuerpos ("Echos") permanentemente.
 
-### 3.3. Gestión de Población (Body Snatching Priority)
-Para garantizar el acceso en un servidor con slots limitados (96), se aplica un sistema de prioridad estricta:
-1.  **Prioridad 1 (Espacio Libre):** El jugador nuevo recibe un Echo genérico ("Ignis Student").
-2.  **Prioridad 2 (Robo de Cuerpo):** Si no hay libres, el sistema "exorciza" a un Echo ocupado por un jugador offline.
-    *   La identidad del jugador offline se desvincula de la base de datos.
-    *   El cuerpo cambia instantáneamente al nombre y skin del nuevo jugador online.
-    *   **Resultado:** Siempre se puede jugar mientras haya <96 jugadores humanos conectados simultáneamente.
+*   **Conexión (Login):** El jugador descarga sus datos (Alma) en un cuerpo disponible de su casa. La transición visual es instantánea durante la carga; el jugador nunca ve el cambio de "Echo" a "Humano" en vivo, el cambio ocurre en el backend antes del renderizado.
+*   **Desconexión (Logout):** El jugador sube sus datos a la nube. El cuerpo se vacía y pasa a modo Echo.
+*   **Persistencia Visual (Ropa):** El Echo mantiene la última skin/ropa equipada por el jugador anterior. Esto preserva la variedad visual del campus. El nuevo jugador que ocupe ese cuerpo sobreescribirá la apariencia al conectarse.
 
-### 3.4. Gestión de Cuenta y Personaje (Account System)
-*   **Vinculación:** Un Personaje por Cuenta (1:1). Similar a Minecraft.
-*   **Creación:** Al registrarse por primera vez, el jugador debe completar el formulario de "Matrícula" (Nombre, Casa, Apariencia).
-*   **Acceso Directo:** Los logins subsiguientes omiten la creación y entran directo al mundo.
-*   **Gestión (Settings):**
-    *   **Renombrar:** Permitido 1 única vez por cuenta.
-    *   **Borrar (Expulsión):** Permite eliminar el personaje y reiniciar el progreso desde cero. Requiere confirmación explícita ("TYPE DELETE").
+### 3.2. Gestión de Límite (Hard Cap)
+
+El servidor es una instancia única para la comunidad.
+
+*   **Capacidad:** ~100 Jugadores simultáneos.
+*   **Regla del Jugador #101:** Si el servidor está lleno, los nuevos jugadores entran en **Cola de Espera**. No se expulsa a nadie.
+
+### 3.3. IA de Relleno (Ambiente y Chat)
+
+Los Echos simulan vida para evitar el "Valle Inquietante" de una escuela muda.
+
+*   **Rutinas:** Asisten a clases, comen y duermen.
+*   **Sistema de Chat IA:** Los Echos emiten "Barks" (frases cortas en bocadillos de chat) contextuales.
+    *   *Ejemplo Comedor:* "¡Qué hambre!", "¿Viste el partido?".
+    *   *Ejemplo Pasillo:* "Llego tarde", "¿Dónde está mi varita?".
+    *   **Objetivo:** Generar ruido de fondo social verosímil.
 
 ---
 
 ## 4. SISTEMA DE MAGIA Y COMBATE
 
-### 4.1. Magia Gestual ($1 Unistroke)
-El lanzamiento de hechizos requiere dibujar formas en pantalla (Mouse o Táctil).
-*   **Círculo:** Escudo (Defensa).
-*   **Triángulo:** Proyectil Rápido (Ataque).
-*   **Cuadrado:** Área de Efecto / Pesado (Romper).
-*   **Línea:** Hechizo Utilitario / Básico.
+### 4.1. Magia Gestual (Validación Cliente)
+
+Para garantizar la fluidez y la sensación táctil ("Game Feel"):
+
+*   **Input:** Dibujo real en pantalla (Ratón/Táctil).
+*   **Validación:** El **Cliente** determina si el dibujo es correcto ($1 Unistroke Recognizer).
+*   **Red:** El cliente envía la orden ("Cast Spell X") al servidor.
+*   **Riesgo Aceptado:** Se asume la posibilidad de *cheats* a cambio de eliminar la latencia de input. El servidor solo valida cooldowns y disponibilidad.
 
 ### 4.2. La Tríada (Rock-Paper-Scissors)
-El combate se rige por una jerarquía estricta para evitar el "spam" sin sentido.
+
 1.  **Círculo (Escudo)** vence a **Triángulo (Ataque)**.
 2.  **Triángulo (Ataque)** vence a **Cuadrado (Área)**.
 3.  **Cuadrado (Área)** vence a **Círculo (Escudo)**.
 
-### 4.3. Duelos y Reglas
-*   **Zona de Duelo:** 4 Anillos en el Tatami. Detectan participantes y árbitros automáticamente.
-*   **Condición de Victoria:** 3 Impactos o Ring Out.
-*   **Consecuencias:** El perdedor queda aturdido (Knockout) temporalmente.
+### 4.3. Reglas de Espacio y PvP (Santuarios)
+
+Define dónde y cuándo se puede combatir.
+
+1.  **Santuarios Absolutos (PvP Desactivado Siempre):**
+    *   **Enfermería:** Zona neutral de recuperación. Se puede entrar libremente caminando, pero el combate está bloqueado por magia antigua.
+    *   **Dormitorios (Salas Comunes):** Zona segura privada. El combate está bloqueado.
+        *   *Restricción de Acceso:* Solo los miembros de la casa pueden entrar (Barrera Mágica). Un Vesper no puede entrar a Ignis.
+2.  **Zonas de Conflicto Condicional:**
+    *   **Pasillos, Patios, Gran Comedor, Aulas:**
+        *   *Día (07:00 - 22:00):* PvP Desactivado (salvo Duelos pactados).
+        *   *Noche (22:00 - 07:00):* **PvP Activado**. Si sales de tu Santuario, eres vulnerable a ataques de otros alumnos o Prefectos.
+3.  **Zona Salvaje (PvP Activado Siempre):**
+    *   **Bosque Prohibido:** El combate siempre está activo, día y noche. Es zona sin ley.
 
 ---
 
-## 5. PROGRESO ACADÉMICO Y ECONOMÍA
+## 5. ESPACIO Y NAVEGACIÓN
 
-### 5.1. AcademicManager
-Sistema centralizado que gestiona la asistencia y calificación.
-*   **Detección:** Valida si el jugador está sentado en su pupitre asignado.
-*   **Anti-Cheat:** Verifica la duración de la sesión de clase.
-*   **Recompensas:** Otorga XP, Oro y Prestigio basado en el rendimiento (Grado S, A, B).
+### 5.1. Diseño Orgánico (Fluid Motion)
 
-### 5.2. Coleccionismo (Álbum de Cromos)
-*   **Mecánica:** Cartas coleccionables de Magos Famosos, Criaturas y Lugares.
-*   **UI:** Interfaz de Álbum con filtrado por rareza (Mythic, Legendary, Rare, Common) e indicador de posesión visual.
-*   **Persistencia:** La colección se guarda en base de datos.
-
-### 5.3. Economía
-*   **Oro:** Moneda transaccional.
-*   **Prestigio:** Moneda social/competitiva.
+*   **Escala:** Mapa amplio (~200x200 tiles) para permitir estructuras no cuadradas.
+*   **Física de Multitudes:** Sistema de "Fluido" (Soft Body). Los jugadores se empujan suavemente pero no se bloquean, permitiendo flujo en pasillos estrechos.
+*   **Arquitectura:** Prioridad al diseño de CASTLE_LAYOUT_V2 (Torres, Pasillos, Secretos).
 
 ---
 
-## 6. DISCIPLINA Y SEGURIDAD
+## 6. PROGRESO Y ECONOMÍA
 
-### 6.1. Prefectos (NPCs de Élite)
-*   **Rol:** Guardias nocturnos.
-*   **Spawn:** Aparecen instantáneamente a las 22:00 y desaparecen a las 05:00.
-*   **Mecánica:** Patrullan rutas clave. Tienen un cono de visión (Line of Sight).
+### 6.1. AcademicManager
 
-### 6.2. Detención (La Mazmorra)
-*   **Castigo:** Zona aislada sin salida física.
-*   **Salida:** Debes completar **5 Tareas de Mantenimiento** (limpiar, ordenar) para abrir la puerta mágica.
+*   **Aprobado:** Basado en acumulación de créditos durante el "Mes Real".
+*   **Faltas:** Sin penalización directa, solo falta de progreso.
 
----
+### 6.2. Coleccionismo
 
-## 7. HOJA DE RUTA (ESTADO ACTUAL)
-*   **Fase 0-5:** COMPLETADAS (Motor, Física, Magia, Tiempo, Disciplina, Minijuegos, Economía).
-*   **Fase 6 (En Progreso):** Live Ops (Torneos Automáticos).
-*   **Fase 7:** Simulation Polish (IA Humanizada COMPLETADA).
-*   **Fase 8 (Futuro):** Implementación técnica de "Las Voces Susurrantes".
+*   El progreso principal es el **Álbum de Cromos** y cosméticos, guardados en la Cuenta.
 
 ---
 
-## 8. ANEXO TÉCNICO
+## 7. HOJA DE RUTA TÉCNICA (NEXT STEPS)
+
+*   **Paso 1:** Generación de mapa orgánico (generate_world_v5.js).
+*   **Paso 2:** Sistema de Posesión y Persistencia Visual en Login.
+*   **Paso 3:** Implementación de IA de Chat para Echos.
+
+---
+---
+
+## 8. ANEXO TÉCNICO & IMPLEMENTACIÓN
+*(Recuperado del GDD Master v2.3 y adaptado a las reglas v3.3)*
 
 ### 8.1. Stack Tecnológico
-*   **Cliente:** Phaser 3 (Rendering Top-Down 2D) + TypeScript.
-*   **Servidor:** Node.js + Colyseus (Stateful Authoritative Server).
-*   **Física:** Rapier2D (Isomorphic Deterministic Physics Engine).
-*   **Red:** Client-Side Prediction con Server Reconciliation.
-*   **Base de Datos:** Estrategia Dual. SQLite (Dev) y PostgreSQL (Prod) via Prisma ORM.
-*   **Protocolo:** WebSockets (State Sync + Delta Compression).
+
+*   **Cliente:** 
+    *   **Motor:** Phaser 3 (Rendering Top-Down 2D).
+    *   **Lenguaje:** TypeScript estricto.
+    *   **Input:** $1 Unistroke Recognizer (Librería personalizada para gestos).
+*   **Servidor:** 
+    *   **Core:** Node.js + Express 5.
+    *   **Game Server:** Colyseus (Stateful Authoritative Server).
+    *   **Física:** Rapier2D (Isomorphic Deterministic Physics Engine). Se utiliza para el "Soft Body" de multitudes y colisiones de proyectiles.
+*   **Red:** 
+    *   **Protocolo:** WebSockets (State Sync + Delta Compression).
+    *   **Sincronización:** Client-Side Prediction con Server Reconciliation (Vital para el movimiento fluido).
+*   **Base de Datos:** 
+    *   **Estrategia Dual:** SQLite (Dev/Local) y PostgreSQL/Supabase (Prod).
+    *   **ORM:** Prisma.
+*   **Build System:** Vite (Zero-copy build a `dist-client`).
 
 ### 8.2. Protocolos de Calidad (QA)
-*   **Unit Testing:** Vitest (50+ tests cubriendo Física, IA y Lógica).
-*   **E2E Audits:** Playwright (Simulación de sesiones completas: Login -> Jugar -> Persistir).
-*   **Debug Dashboard:** Panel Tweakpane integrado para manipulación en tiempo real (Time Jump, Noclip).
+
+*   **Unit Testing:** Vitest. Cobertura crítica en:
+    *   Física de movimiento (evitar traspasar paredes).
+    *   Validación de Gestos ($1 Algorithm).
+    *   Máquinas de estado de IA.
+*   **E2E Audits:** Playwright. Scripts automatizados que simulan:
+    *   Login y Posesión de cuerpo.
+    *   Ciclo completo de día/noche.
+    *   Persistencia de datos tras desconexión.
+*   **Debug Dashboard:** Panel integrado para manipulación en tiempo real (Time Jump, Noclip) accesible solo para admin.
+
+### 8.3. Detalles de Implementación Específicos
+
+*   **Implementación de la IA (Echoes):**
+    *   Se descarta la simulación física compleja (Steering behaviors pesados) a favor de **Máquinas de Estados Finitos (FSM)** ligeras.
+    *   **Navegación:** NavMesh pre-calculado (no A* dinámico costoso) para rutas comunes (Dormitorio -> Clase -> Comedor).
+*   **Gestión de Entidades (Entity Management):**
+    *   **Unified Map:** Uso estricto de `Map<string, Entity>` en cliente y servidor. No arrays dispersos.
+    *   **Sincronización:** Esquema de Colyseus (`Schema`) como única fuente de verdad para la posición, pero interpolada en cliente (100ms buffer).
