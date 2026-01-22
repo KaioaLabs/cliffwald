@@ -127,7 +127,7 @@ export class GestureManager {
         });
     }
 
-    // private drawPath() REMOVED
+    // (Cleaned up)
 
     private recognizeGesture() {
         if (this.points.length < 10) return;
@@ -149,8 +149,15 @@ export class GestureManager {
         let bestScore = 0;
         let bestId = "unknown";
 
+        // Generate reversed candidate for direction invariance
+        const reversedCandidate = [...candidate].reverse();
+        const reversedNormalized = this.normalizePipeline(reversedCandidate); // Re-normalize after reversing to ensure correct rotation alignment
+
         for (const [id, template] of this.templates) {
-            const score = this.compare(candidate, template);
+            const scoreNormal = this.compare(candidate, template);
+            const scoreReverse = this.compare(reversedNormalized, template);
+            const score = Math.max(scoreNormal, scoreReverse);
+
             if (score > bestScore) {
                 bestScore = score;
                 bestId = id;
@@ -183,8 +190,22 @@ export class GestureManager {
         // We add circles starting at 0, 90, 180, 270 degrees.
         this.addRotatedTemplates("circle", this.createPolygonPoints(32, 100, 0)); 
         
+        // Open Circle (C-shape) - 270 degrees
+        // Helps recognize sloppy circles that don't close perfectly
+        this.addRotatedTemplates("circle", this.createArcPoints(24, 100, 0, Math.PI * 1.5));
+
         this.addRotatedTemplates("triangle", [{ x: 0, y: 100 }, { x: 50, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }]);
         this.addRotatedTemplates("square", [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }, { x: 0, y: 0 }]);
+    }
+
+    private createArcPoints(sides: number, radius: number, startAngle: number, endAngle: number): Point[] {
+        const pts: Point[] = [];
+        const totalAngle = endAngle - startAngle;
+        for (let i = 0; i <= sides; i++) {
+            const angle = startAngle + (i / sides) * totalAngle;
+            pts.push({ x: Math.cos(angle) * radius, y: Math.sin(angle) * radius });
+        }
+        return pts;
     }
 
     private addRotatedTemplates(baseName: string, pts: Point[]) {
@@ -267,7 +288,7 @@ export class GestureManager {
 
     private createPolygonPoints(sides: number, radius: number, startAngle: number): Point[] {
         const pts: Point[] = [];
-        for (let i = 0; i < sides; i++) {
+        for (let i = 0; i <= sides; i++) {
             const angle = startAngle + (i / sides) * Math.PI * 2;
             pts.push({ x: Math.cos(angle) * radius, y: Math.sin(angle) * radius });
         }

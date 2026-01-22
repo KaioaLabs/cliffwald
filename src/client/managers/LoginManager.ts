@@ -15,13 +15,13 @@ export class LoginManager {
         return `${protocol}//${host}${port}${endpoint}`;
     }
 
-    public async autoLogin() {
+    public async autoLogin(retries = 3) {
         const urlParams = new URLSearchParams(window.location.search);
         const devUser = urlParams.get("dev_user");
         const skin = urlParams.get("skin");
 
         if (devUser) {
-            console.log(`[DEBUG] Attempting Dev Login for: ${devUser}`);
+            console.log(`[DEBUG] Attempting Dev Login for: ${devUser} (Retries left: ${retries})`);
             try {
                 const apiUrl = this.getApiUrl("/api/dev-login");
 
@@ -43,10 +43,45 @@ export class LoginManager {
                 this.finalizeLogin();
             } catch (e) {
                 console.error("Dev Auto-Login Error:", e);
-                this.setupLoginScreen();
+                if (retries > 0) {
+                    setTimeout(() => this.autoLogin(retries - 1), 1000);
+                } else {
+                    this.setupLoginScreen();
+                }
             }
         } else {
             console.log("Waiting for user login...");
+            this.setupLoginScreen();
+        }
+    }
+
+    public async guestLogin() {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has("dev_user")) {
+            return this.autoLogin();
+        }
+
+        console.log("[LOGIN] Performing Guest Login...");
+        const guestName = "Guest_" + Math.floor(Math.random() * 10000);
+        
+        try {
+            const apiUrl = this.getApiUrl("/api/dev-login");
+            const res = await fetch(apiUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username: guestName })
+            });
+
+            if (!res.ok) throw new Error("Guest Login Failed");
+            
+            const data = await res.json();
+            this.authToken = data.token;
+            this.skin = "player_idle";
+            this.username = guestName;
+
+            this.finalizeLogin();
+        } catch (e) {
+            console.error("Guest Login Failed:", e);
             this.setupLoginScreen();
         }
     }

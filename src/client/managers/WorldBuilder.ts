@@ -3,11 +3,15 @@ import { CONFIG } from '../../shared/Config';
 import { buildPhysics } from '../../shared/MapParser';
 import RAPIER from '@dimforge/rapier2d-compat';
 import { LightManager } from './LightManager';
+import { WaterManager } from './WaterManager';
+import { GrassManager } from './GrassManager';
 
 export class WorldBuilder {
     private scene: Phaser.Scene;
     private physicsWorld: RAPIER.World;
     private lightManager: LightManager;
+    private waterManager?: WaterManager;
+    private grassManager?: GrassManager;
     private map!: Phaser.Tilemaps.Tilemap;
     
     // Track created objects
@@ -15,14 +19,20 @@ export class WorldBuilder {
     public tableShadows: Phaser.GameObjects.Image[] = [];
     private logicObjects: any[] = [];
 
-    constructor(scene: Phaser.Scene, physicsWorld: RAPIER.World, lightManager: LightManager) {
+    constructor(scene: Phaser.Scene, physicsWorld: RAPIER.World, lightManager: LightManager, waterManager?: WaterManager, grassManager?: GrassManager) {
         this.scene = scene;
         this.physicsWorld = physicsWorld;
         this.lightManager = lightManager;
+        this.waterManager = waterManager;
+        this.grassManager = grassManager;
     }
 
     public getLocation(name: string): { x: number, y: number, width?: number, height?: number } {
         return this.logicObjects.find(o => o.name === name) || { x: 0, y: 0 };
+    }
+
+    public getLayer(name: string): Phaser.Tilemaps.TilemapLayer | null {
+        return this.map.getLayer(name)?.tilemapLayer || null;
     }
 
     public build() {
@@ -58,7 +68,21 @@ export class WorldBuilder {
                 if (CONFIG.USE_LIGHTS) layer.setPipeline('Light2D');
                 
                 // Base depth logic:
-                layer.setDepth(layerData.name.includes("Furniture") ? -99 : -100);
+                // Water Shader is at -100. Base layers must be behind it. Furniture above.
+                layer.setDepth(layerData.name.includes("Furniture") ? -99 : -105);
+
+                // --- INTEGRATION: WATER & GRASS ---
+                if (layerData.name === "L1_Terrain") {
+                    console.log("[WorldBuilder] Processing Terrain Layer...");
+                    // Water ID = 1
+                    if (this.waterManager) {
+                        this.waterManager.applyTransparency(layer, 1);
+                    }
+                    // Grass ID = 2
+                    if (this.grassManager) {
+                        this.grassManager.generateFromLayer(layer, 2);
+                    }
+                }
 
                 // Generate Shadows for Furniture Layers
                 if (layerData.name.toLowerCase().includes("furniture")) {

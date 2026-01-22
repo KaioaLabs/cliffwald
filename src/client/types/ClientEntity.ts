@@ -8,11 +8,16 @@ export interface ClientEntity extends Entity {
     lastDir?: string;
     // ... other props
     shadow?: Phaser.GameObjects.Image;
-    nameTag?: Phaser.GameObjects.Text;
-    classTimerText?: Phaser.GameObjects.Text;
-    prefectLight?: Phaser.GameObjects.Light;
     chatBubble?: Phaser.GameObjects.Container;
     chatBubbleTimer?: Phaser.Time.TimerEvent;
+    
+    // Prefect Specific
+    prefectLight?: Phaser.GameObjects.Light;
+    visionCone?: Phaser.GameObjects.Graphics;
+    
+    // UI Helpers
+    nameTag?: Phaser.GameObjects.Text;
+    classTimerText?: Phaser.GameObjects.Text;
     positionBuffer?: { x: number, y: number, timestamp: number }[];
     lastMoveTime?: number;
     serverPos?: { x: number, y: number };

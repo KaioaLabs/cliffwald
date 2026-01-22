@@ -1,9 +1,9 @@
 export const THEME = {
     // House Colors
     HOUSES: {
-        IGNIS: 0xff7777,
-        AXIOM: 0x7777ff,
-        VESPER: 0xaa00ff,
+        IGNIS: 0xff0000, // Bright Red
+        AXIOM: 0x0000ff, // Bright Blue
+        VESPER: 0xffff00, // Bright Yellow
         DEFAULT: 0x8888ff,
         PREFECT: 0x4a148c // Dark Purple / Indigo
     },
@@ -26,6 +26,7 @@ export const THEME = {
         0xccddee, // Blue-ish
         0xeeddaa  // Yellow-ish
     ],
+    TEACHER_SHADOW_OFFSET: 0.15, // Percentage of height
 
     // Spell Colors
     SPELLS: {
@@ -41,5 +42,19 @@ export const THEME = {
         SLEEP: '#202020',
         FREE: '#305030',
         DEFAULT: '#333333'
+    },
+
+    // UI Layout Constants
+    LAYOUT: {
+        PRESTIGE: {
+            WIDTH_OFFSET: 160,
+            START_Y: 20,
+            SPACING_X: 25,
+            PILLAR_WIDTH: 15,
+            PILLAR_MAX_HEIGHT: 40,
+            TOOLTIP_WIDTH: 120,
+            TOOLTIP_HEIGHT: 60,
+            TOOLTIP_OFFSET_Y: 70
+        }
     }
 };

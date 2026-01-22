@@ -23,7 +23,7 @@ export function getStudentScheduleTarget(currentHour: number): RoutineTarget {
     
     // Normalize some names if config isn't 1:1 with Map IDs
     if (zone === "DORMITORIES") zone = "DORM"; // Suffix added by AI later
-    if (zone === "CLASSROOM") zone = "ACADEMIC_WING"; // Or specific class name
+    if (zone === "CLASSROOM") zone = "CLASSROOM"; // Or specific class name
 
     return {
         targetZone: zone,

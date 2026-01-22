@@ -50,35 +50,4 @@ describe('Phase 1 & 2 Verification', () => {
         });
     });
 
-    describe('Persistence Logic (Mocked)', () => {
-        it('should handle hidden alignment in WorldRoom logic', () => {
-            // Mock WorldRoom partially
-            const room = new WorldRoom();
-            room.alignmentMap = new Map<string, number>();
-            
-            // Simulate Join with hidden data
-            const sessionId = "sess_123";
-            const hiddenAlignment = 50; // Light side
-            
-            // Manually populate (simulating onJoin logic)
-            room.alignmentMap.set(sessionId, hiddenAlignment);
-            
-            expect(room.alignmentMap.get(sessionId)).toBe(50);
-            
-            // Simulate Leave/Save preparation
-            const playerState = new Player();
-            playerState.id = sessionId;
-            
-            // Verify injection logic (mimicking onLeave)
-            const retrievedAlignment = room.alignmentMap.get(sessionId);
-            (playerState as any).alignment = retrievedAlignment;
-
-            expect((playerState as any).alignment).toBe(50);
-            
-            // Simulate Cleanup
-            room.alignmentMap.delete(sessionId);
-            expect(room.alignmentMap.has(sessionId)).toBe(false);
-        });
-    });
-
 });

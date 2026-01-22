@@ -13,11 +13,16 @@ export class GameLoopManager {
     }
 
     public update(deltaTime: number) {
+        // 0. Update Time Engine (Virtual Time)
+        timeManager.update(deltaTime);
+
         const now = timeManager.getNow();
         
         // 1. Time Sync
-        if (this.room.state.timeOffset !== timeManager.getOffset()) {
-            this.room.state.timeOffset = timeManager.getOffset();
+        // Only update network variable if diff is significant (>100ms) to save bandwidth
+        const currentOffset = timeManager.getOffset();
+        if (Math.abs(this.room.state.timeOffset - currentOffset) > 100) {
+            this.room.state.timeOffset = currentOffset;
         }
 
         const { hour: currentHour, isNight } = getGameTime(now);
@@ -61,7 +66,8 @@ export class GameLoopManager {
             (sessionId) => 0, // Floor Provider (Always 0)
             (id, text) => this.room.chatManager.handleChat(id, text), // Chat Provider
             (id) => this.room.broadcast("player_jump", { id }), // Jump Callback
-            (prefectId, victimId) => this.room.sendToDetention(victimId) // Catch Callback
+            (prefectId, victimId) => this.room.sendToDetention(victimId), // Catch Callback
+            (id, isSleeping) => this.room.setSleepingState(id, isSleeping) // Sleep Callback
         );
         
         this.room.spellSystem.update(deltaTime);

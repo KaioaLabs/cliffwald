@@ -1,0 +1,3 @@
+@echo off
+echo Starting Water Shader Test...
+start http://localhost:3000/?scene=water

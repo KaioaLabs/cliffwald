@@ -338,3 +338,22 @@
         font-family: monospace; z-index: 9999; pointer-events: none; opacity: 0.9; font-size: 24px;
     }
 }
+@keyframes pulse {
+    0% { opacity: 0.5; transform: scale(0.95); }
+    50% { opacity: 1; transform: scale(1.05); }
+    100% { opacity: 0.5; transform: scale(0.95); }
+}
+
+@keyframes pulse-opacity {
+    0% { opacity: 0.3; }
+    50% { opacity: 1; }
+    100% { opacity: 0.3; }
+}
+
+#tap-to-start {
+    animation: pulse-opacity 2s infinite ease-in-out;
+}
+
+#skip-progress {
+    transition: stroke-dashoffset 0.1s linear;
+}

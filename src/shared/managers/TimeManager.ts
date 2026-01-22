@@ -2,26 +2,57 @@ import { CONFIG } from "../Config";
 
 export class TimeManager {
     private offset: number = 0;
+    private timeScale: number = 1.0;
+    private virtualTime: number = Date.now();
+    private lastRealTime: number = Date.now();
     
     // Returns the virtualized current timestamp
     public getNow(): number {
-        return Date.now() + this.offset;
+        // If scale is 1, just use standard logic to avoid drift
+        if (this.timeScale === 1.0 && this.offset === 0) {
+            return Date.now();
+        }
+        return this.virtualTime;
+    }
+
+    public update(dtMs: number) {
+        // Accumulate virtual time based on scale
+        // dtMs is real elapsed time since last frame
+        this.virtualTime += dtMs * this.timeScale;
+        
+        // Sync offset so clients (who use Date.now() + offset) match our virtual time
+        // virtualTime = Date.now() + offset
+        // offset = virtualTime - Date.now()
+        this.offset = this.virtualTime - Date.now();
+    }
+
+    public setTimeScale(scale: number) {
+        this.timeScale = scale;
+        console.log(`[TimeManager] Time Scale set to: ${scale}x`);
+        // Reset lastRealTime to avoid jumps if called after a pause
+        this.lastRealTime = Date.now();
     }
 
     public getOffset(): number {
-        return this.offset;
+        return Math.floor(this.offset); // Integer for network efficiency
     }
 
     public setOffset(ms: number) {
         this.offset = ms;
+        // Re-align virtual time to this new offset base
+        this.virtualTime = Date.now() + this.offset;
     }
 
     public addTime(minutes: number) {
-        this.offset += minutes * 60 * 1000;
+        const msToAdd = minutes * 60 * 1000;
+        this.virtualTime += msToAdd;
+        this.offset += msToAdd;
     }
 
     public reset() {
         this.offset = 0;
+        this.timeScale = 1.0;
+        this.virtualTime = Date.now();
     }
 
     /**

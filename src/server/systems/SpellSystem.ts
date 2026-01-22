@@ -123,33 +123,48 @@ export class SpellSystem {
              const { isNight } = getGameTime(now);
              
              // Cast to any to access physicsManager (it exists but TS doesn't see it on base Room type sometimes if not casted)
-             const roomAny = this.room as any;
-             const zoneId = roomAny.physicsManager.getPlayerZone(victimId);
+             const zoneId = this.room.physicsManager.getPlayerZone(victimId);
              const zoneDef = zoneId ? ZONE_DATA[zoneId] : null;
 
              const isSanctuary = zoneDef?.isSanctuary || false;
+             const isFormalDuel = attacker.inDuel && victim.inDuel;
+
+             // Logic:
+             // 1. Formal Duels always allowed (Day/Night, any zone?) - Maybe restrict to Duel Zones?
+             // 2. Night: PvP everywhere except Sanctuary.
+             // 3. Day: No PvP (Global Peace).
              
-             if (!isNight) return; 
-             if (isNight && isSanctuary) return;
+             if (isFormalDuel) {
+                 // Pass (Allow combat)
+             } else {
+                 if (!isNight) return; // Day Peace
+                 if (isSanctuary) return; // Sanctuary Protection
+                 
+                 // OFFENSE CHECK: Level 3 (Assault)
+                 if (attacker.currentOffenseLevel < 3) {
+                     attacker.currentOffenseLevel = 3;
+                     console.log(`[DISCIPLINE] ${attacker.username} offense elevated to Level 3 (Assault)`);
+                 }
+             }
 
              // PvP ALLOWED
              attacker.duelScore = (attacker.duelScore || 0) + 1;
              console.log(`[PVP] ${attacker.username} scored against ${victim.username}. Score: ${attacker.duelScore}`);
              
-             if (attacker.duelScore >= 2) {
+             if (attacker.duelScore >= CONFIG.WIN_DUEL_SCORE) {
                  console.log(`[COMBAT] ${attacker.username} defeated ${victim.username}!`);
                  
                  attacker.duelScore = 0;
                  victim.duelScore = 0; 
 
                  if (victim.inDuel) {
-                     roomAny.duelSystem.resolveLoss(victimId);
+                     this.room.duelSystem.resolveLoss(victimId);
                  } else {
-                     roomAny.healthSystem.knockOut(victim, victimId);
+                     this.room.healthSystem.knockOut(victim, victimId);
                  }
 
                  const stopAI = (id: string) => {
-                     const ent = roomAny.entities.get(id);
+                     const ent = this.room.entities.get(id);
                      if (ent?.ai) {
                          ent.ai.state = 'idle';
                          ent.ai.targetId = undefined;
@@ -159,7 +174,7 @@ export class SpellSystem {
                  stopAI(attackerId);
                  stopAI(victimId);
                  
-                 roomAny.prestigeSystem.addPrestige(attackerId, 20);
+                 this.room.prestigeSystem.addPrestige(attackerId, CONFIG.REWARDS.WIN_DUEL);
              }
         }
     }

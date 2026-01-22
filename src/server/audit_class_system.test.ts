@@ -14,9 +14,11 @@ describe("Audit: Class System (AcademicManager)", () => {
 
     beforeEach(() => {
         // Mock LevelRegistry
-        LevelRegistry.getInstance().setData({
-            locations: new Map([["ACADEMIC_WING", { x: 100, y: 100, id: "ACADEMIC_WING" }]]),
-            duelZones: [],
+            LevelRegistry.getInstance().setData({
+                locations: new Map([["CLASSROOM", { x: 100, y: 100, id: "CLASSROOM", width: 100, height: 100 }]]),
+                anchors: new Map(),
+                itemSpawns: [],
+                duelZones: [],
             infirmaryBeds: [],
             infirmaryExit: { x: 0, y: 0 },
             duelExits: new Map()

@@ -37,6 +37,7 @@ export class DebugManager {
         
         // General
         zoom: 1.0,
+        worldView: false,
     };
     
     private cursorLight: Phaser.GameObjects.Light | null = null;
@@ -63,8 +64,11 @@ export class DebugManager {
     private setupGUI() {
         // --- GENERAL ---
         const fGeneral = this.pane.addFolder({ title: 'General', expanded: false });
-        fGeneral.addBinding(this.settings, 'zoom', { min: 0.1, max: 3.0, step: 0.1, label: 'Zoom' })
+        fGeneral.addBinding(this.settings, 'zoom', { min: 0.05, max: 2.0, step: 0.01, label: 'Zoom' })
             .on('change', (ev: any) => this.scene.cameras.main.setZoom(ev.value));
+            
+        fGeneral.addBinding(this.settings, 'worldView', { label: '🌍 World View' })
+            .on('change', (ev: any) => this.toggleWorldView(ev.value));
         
         // --- NETWORK ---
         const fNet = this.pane.addFolder({ title: 'Network', expanded: false });
@@ -117,13 +121,67 @@ export class DebugManager {
 
         // --- TIME ---
         const fTime = this.pane.addFolder({ title: 'Time / World', expanded: true });
+        
+        const setScale = async (scale: number) => {
+            console.log(`[DEBUG] Setting Time Scale: ${scale}x`);
+            try {
+                // Use relative path via Vite Proxy
+                await fetch('/api/debug/time-scale', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ scale })
+                });
+            } catch (e) {
+                console.error("Failed to set time scale:", e);
+            }
+        };
+
         fTime.addBinding(this.settings, 'overrideTime', { label: 'Admin Time' });
+        
+        fTime.addBlade({
+            view: 'separator',
+        });
+
+        fTime.addButton({ title: '⏸ PAUSE (0x)' }).on('click', () => setScale(0));
+        fTime.addButton({ title: '▶ PLAY (1x)' }).on('click', () => setScale(1));
+        fTime.addButton({ title: '⏩ FAST (10x)' }).on('click', () => setScale(10));
+        fTime.addButton({ title: '🚀 HYPER (60x)' }).on('click', () => setScale(60));
+        
         fTime.addBinding(this.settings, 'debugHour', { min: 0, max: 24, step: 0.25, label: 'Game Hour' })
             .on('change', (ev: any) => {
                 if (this.settings.overrideTime && this.scene.network.room) {
                     this.scene.network.room.send("admin_time_jump", { hour: ev.value });
                 }
             });
+    }
+
+    private toggleWorldView(active: boolean) {
+        const cam = this.scene.cameras.main;
+        const MAP_W = 4480;
+        const MAP_H = 5760;
+
+        if (active) {
+            cam.stopFollow();
+            // Calculate "Best Fit" Zoom
+            const zw = cam.width / MAP_W;
+            const zh = cam.height / MAP_H;
+            const bestZoom = Math.min(zw, zh) * 0.95; // 95% fit
+
+            cam.pan(MAP_W / 2, MAP_H / 2, 1000, 'Power2');
+            cam.zoomTo(bestZoom, 1000, 'Power2');
+        } else {
+            // Restore Zoom
+            cam.zoomTo(this.settings.zoom, 500, 'Power2');
+            
+            // Re-attach to Camera Target (which follows player smoothly)
+            if (this.scene.cameraTarget) {
+                cam.pan(this.scene.cameraTarget.x, this.scene.cameraTarget.y, 500, 'Power2', true, (camera: any, progress: number) => {
+                     if (progress === 1) {
+                        cam.startFollow(this.scene.cameraTarget, true, 0.2, 0.2);
+                     }
+                });
+            }
+        }
     }
 
     public update() {

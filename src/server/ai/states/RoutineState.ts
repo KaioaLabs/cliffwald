@@ -13,7 +13,8 @@ export const RoutineState = {
         pathfinder: any, 
         physicsWorld: RAPIER.World,
         frameCount: number,
-        floor: number = 0
+        floor: number = 0,
+        setSleepingState?: (id: string, isSleeping: boolean) => void
     ) => {
         const { ai, body, input, id, facing } = entity;
         if (!ai || !body || !input) return;
@@ -27,8 +28,22 @@ export const RoutineState = {
         let targetZone = schedule.targetZone;
         
         // Resolve dynamic zone names
+        // Forces reload
         if (targetZone === "DORM") {
             targetZone = `DORM_${(ai.house || 'ignis').toUpperCase()}`;
+        }
+
+        // --- VERTICALITY LOGIC ---
+        // If the current target is NOT an upstairs location, ensure we are visible/physically present.
+        // This handles waking up from sleep OR coming back from class.
+        const validKeys = ['sleep', 'eat', 'class'];
+        let targetSpot: any = null;
+        if (ai.routineSpots && validKeys.includes(schedule.activity)) {
+            targetSpot = (ai.routineSpots as any)[schedule.activity];
+        }
+
+        if (!targetSpot?.isUpstairs && setSleepingState) {
+             setSleepingState(String(id), false);
         }
 
         // 2. Determine Exact Target Position (2-Step Logic)
@@ -208,6 +223,15 @@ export const RoutineState = {
                 if (spot && spot.facing) {
                     facing.x = spot.facing.x;
                     facing.y = spot.facing.y;
+                }
+
+                // Check for Upstairs (Sleep or Class)
+                if (spot?.isUpstairs && setSleepingState) {
+                    // Only trigger if activity matches current intent
+                    // (Double check to ensure we don't vanish if we just walked near stairs by accident, 
+                    // but we are "Arrived" here, so it's intentional)
+                    setSleepingState(String(id), true);
+                    return; 
                 }
             }
 

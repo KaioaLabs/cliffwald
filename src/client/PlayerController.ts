@@ -21,10 +21,11 @@ export class PlayerController {
     }
 
     private isInDorm(x: number, y: number): boolean {
-        if (x < 500 || x > 750) return false;
-        const inIgnis = y > 400 && y < 650;
-        const inAxiom = y > 1050 && y < 1250;
-        const inVesper = y > 1700 && y < 1900;
+        const bounds = CONFIG.ENTITY.DORM_BOUNDS;
+        if (x < bounds.MIN_X || x > bounds.MAX_X) return false;
+        const inIgnis = y > bounds.IGNIS_Y[0] && y < bounds.IGNIS_Y[1];
+        const inAxiom = y > bounds.AXIOM_Y[0] && y < bounds.AXIOM_Y[1];
+        const inVesper = y > bounds.VESPER_Y[0] && y < bounds.VESPER_Y[1];
         return inIgnis || inAxiom || inVesper;
     }
 
@@ -47,6 +48,7 @@ export class PlayerController {
         const isEcho = displayName.toLowerCase().includes("student") || displayName.startsWith("Echo of");
         const isPrefect = displayName.includes("Prefect");
         let prefectLight: Phaser.GameObjects.Light | undefined;
+        let prefectCone: Phaser.GameObjects.Graphics | undefined;
 
         if (isPrefect) {
             sprite.setTint(THEME.HOUSES.PREFECT);
@@ -54,6 +56,14 @@ export class PlayerController {
             if (CONFIG.USE_LIGHTS) {
                 prefectLight = this.scene.lights.addLight(x, y, 150, THEME.HOUSES.PREFECT, 2.0);
             }
+            
+            // Initialize Vision Cone
+            prefectCone = this.scene.add.graphics();
+            prefectCone.fillStyle(0xFFD700, 0.3); // Gold/Yellow, semi-transparent
+            prefectCone.slice(0, 0, 150, Phaser.Math.DegToRad(-45), Phaser.Math.DegToRad(45), false);
+            prefectCone.fillPath();
+            prefectCone.setDepth(150); // Above players
+            prefectCone.setVisible(false); // Hidden by default
         } else if (isEcho) {
             const echoTints: Record<string, number> = { 'ignis': THEME.HOUSES.IGNIS, 'axiom': THEME.HOUSES.AXIOM, 'vesper': THEME.HOUSES.VESPER };
             sprite.setTint(echoTints[house] || THEME.HOUSES.DEFAULT);
@@ -61,6 +71,8 @@ export class PlayerController {
             sprite.setTint(THEME.HOUSES.IGNIS);
         } else if (skin === "player_blue") {
             sprite.setTint(THEME.HOUSES.AXIOM);
+        } else if (skin === "player_yellow") {
+            sprite.setTint(THEME.HOUSES.VESPER);
         } else if (skin === "teacher") {
             sprite.setTexture('teacher_idle');
             sprite.setOrigin(0.5, 0.9);
@@ -69,9 +81,13 @@ export class PlayerController {
             sprite.setTint(tints[Math.floor(Math.random() * tints.length)]);
         }
 
+        const houseColors: Record<string, number> = { 'ignis': THEME.HOUSES.IGNIS, 'axiom': THEME.HOUSES.AXIOM, 'vesper': THEME.HOUSES.VESPER };
+        const nameColor = houseColors[house] || THEME.HOUSES.DEFAULT;
+        const hexColor = '#' + nameColor.toString(16).padStart(6, '0');
+
         const nameTag = this.scene.add.text(x, y + CONFIG.NAME_TAG_Y_OFFSET, displayName, {
             fontSize: '10px',
-            color: THEME.UI.TEXT_WHITE,
+            color: hexColor,
             stroke: THEME.UI.TEXT_STROKE,
             strokeThickness: 2,
             align: 'center'
@@ -98,6 +114,7 @@ export class PlayerController {
         entity.nameTag = nameTag;
         entity.classTimerText = classTimerText;
         entity.prefectLight = prefectLight;
+        entity.visionCone = prefectCone;
         entity.isLocal = isLocal;
         entity.lastDir = 'down';
         entity.positionBuffer = [];
@@ -123,10 +140,46 @@ export class PlayerController {
     }
 
     public setNoclip(sessionId: string, enabled: boolean) {
+        // Networked God Mode
+        const gameScene = this.scene as any;
+        if (gameScene.network && gameScene.network.room) {
+            // Only toggle if state differs (prevents spam if UI binds heavily)
+            const state = gameScene.network.room.state.players.get(sessionId);
+            if (state && state.isGhost !== enabled) {
+                gameScene.network.room.send("toggle_god");
+            }
+        }
+    }
+
+    public setGhostMode(sessionId: string, isGhost: boolean) {
         const entity = this.players.get(sessionId);
-        if (entity && entity.collider) {
-            entity.collider.setSensor(enabled);
-            console.log(`[PHYSICS] Noclip ${enabled ? 'ENABLED' : 'DISABLED'} for ${sessionId}`);
+        if (entity) {
+            // Update ECS Input (for Speed Multiplier)
+            if (entity.input) {
+                entity.input.isGhost = isGhost;
+            }
+
+            // Update Visuals
+            if (entity.visual?.sprite) {
+                entity.visual.sprite.setAlpha(isGhost ? 0.5 : 1.0);
+            }
+            if (entity.shadow) {
+                entity.shadow.setVisible(!isGhost);
+            }
+
+            // Update Physics (for Noclip) - ONLY LOCAL PLAYER
+            if (entity.isLocal && entity.body && entity.collider) {
+                 if (isGhost) {
+                    // Ghost Mode: Collide with NOTHING (or Sensors)
+                    // Matches Server: CONFIG.COLLISION_GROUPS.GHOST | CONFIG.COLLISION_GROUPS.SENSOR
+                    const groups = (CONFIG.COLLISION_GROUPS.GHOST << 16) | CONFIG.COLLISION_GROUPS.SENSOR;
+                    entity.collider.setCollisionGroups(groups);
+                } else {
+                    // Normal Mode
+                    const groups = (CONFIG.COLLISION_GROUPS.PLAYER << 16) | CONFIG.COLLISION_GROUPS.PLAYER_MASK;
+                    entity.collider.setCollisionGroups(groups);
+                }
+            }
         }
     }
 
@@ -139,6 +192,7 @@ export class PlayerController {
             if (entity.chatBubble) entity.chatBubble.destroy();
             if (entity.chatBubbleTimer) entity.chatBubbleTimer.remove();
             if (entity.prefectLight) this.scene.lights.removeLight(entity.prefectLight);
+            if (entity.visionCone) entity.visionCone.destroy();
             
             if (entity.body && this.physicsWorld) {
                 this.physicsWorld.removeRigidBody(entity.body);
@@ -176,7 +230,7 @@ export class PlayerController {
                     entity.body.setTranslation({ x: data.x, y: data.y }, true);
                 } 
                 else if (dist > CONFIG.RECONCILIATION_THRESHOLD_SMALL) {
-                    const t = 0.15; 
+                    const t = CONFIG.RECONCILIATION_SMOOTHING; 
                     const newX = Phaser.Math.Linear(localPos.x, data.x, t);
                     const newY = Phaser.Math.Linear(localPos.y, data.y, t);
                     entity.body.setTranslation({ x: newX, y: newY }, true);
@@ -327,13 +381,20 @@ export class PlayerController {
             const sprite = entity.visual!.sprite as Phaser.GameObjects.Sprite;
             const isLocal = entity.isLocal;
             
-            const isVisible = true;
+            // Sync with Schema
+            const gameScene = this.scene as any;
+            const playerState = gameScene.network ? gameScene.network.room?.state.players.get(entity.player.sessionId) : null;
+            const isSleepingUpstairs = playerState?.isSleepingUpstairs || false;
+            const isGhost = playerState?.isGhost || false;
+
+            const isVisible = !isSleepingUpstairs;
             
             sprite.setVisible(isVisible);
             sprite.setActive(isVisible);
+            sprite.setAlpha(isGhost ? 0.5 : 1.0);
             
             if (entity.shadow) {
-                entity.shadow.setVisible(isVisible);
+                entity.shadow.setVisible(isVisible && !isGhost); // No shadow for ghosts
                 entity.shadow.setActive(isVisible);
             }
             if (entity.nameTag) {
@@ -408,7 +469,7 @@ export class PlayerController {
                 
                 let shadowBaseY = smoothedY;
                 if (sprite.getData('isTeacher')) {
-                    shadowBaseY -= (sprite.displayHeight || 64) * 0.15;
+                    shadowBaseY -= (sprite.displayHeight || 64) * THEME.TEACHER_SHADOW_OFFSET;
                 }
 
                 const jumpHeight = Math.abs(entity.visualOffset?.y || 0);

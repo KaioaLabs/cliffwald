@@ -48,7 +48,12 @@ export class SpawnManager {
     };
 
     private prefectIds = new Set<string>();
-    private spawnPoint: {x: number, y: number} = {x: 300, y: 300}; // Default
+    private prefectSpawnPoints: {x: number, y: number, name?: string}[] = [];
+    
+    private merchantIds = new Set<string>();
+    private merchantSpawnPoints: {x: number, y: number, name?: string}[] = [];
+
+    private spawnPoint: {x: number, y: number} = CONFIG.ENTITY.DEFAULT_SPAWN;
 
     constructor(world: ECSWorld, physicsWorld: RAPIER.World, state: GameState, entities: Map<string, Entity>) {
         this.world = world;
@@ -244,38 +249,63 @@ export class SpawnManager {
             const housePeers = StudentData.getByHouse(student.house);
             const studentIndex = housePeers.findIndex(s => s.id === student.id); 
 
-            let sleepPos = registry.getAnchor(`seat_bed_${seatId}`);
-            const sleepFacing = { x: 0, y: -1 }; // Look at headboard
+            let sleepPos: any = null;
+            let sleepFacing = { x: 0, y: -1 }; 
+            let isUpstairs = false;
+            
+            // YEAR 1: Assign Bed
+            if (student.year === 1) {
+                sleepPos = registry.getAnchor(`seat_bed_${seatId}`);
+            }
+
+            // YEAR 2-4 (or fallback): Sleep Upstairs
             if (!sleepPos) {
-                const bedRow = Math.floor(studentIndex / 4);
-                const bedCol = studentIndex % 4;
-                sleepPos = {
-                    x: dormPos.x + (bedCol * TILE_SIZE * 2),
-                    y: dormPos.y + (bedRow * TILE_SIZE * 3) + 20
-                };
+                sleepPos = registry.getAnchor(`stairs_${student.house}_blocked`);
+                if (sleepPos) {
+                    sleepFacing = { x: 0, y: -1 }; 
+                    isUpstairs = true;
+                } else {
+                    sleepPos = { x: dormPos.x + 100, y: dormPos.y + 100 };
+                }
             }
 
             let eatPos = registry.getAnchor(`seat_food_${seatId}`);
-            let eatFacing = { x: 0, y: 1 }; // Default down
+            let eatFacing = { x: 0, y: 1 };
+            // ... (Eat logic remains same, dining hall is huge) ...
             if (!eatPos) {
+                // ... (Existing fallback code) ...
                 const gh = registry.getLocation("GREAT_HALL");
-                let tableOffsetY = student.house === 'ignis' ? -80 : (student.house === 'vesper' ? 80 : 0);
+                const layout = CONFIG.ENTITY.DINING_HALL_LAYOUT;
+                let tableOffsetY = student.house === 'ignis' ? layout.IGNIS_OFFSET_Y : (student.house === 'vesper' ? layout.VESPER_OFFSET_Y : 0);
                 const tableRow = Math.floor(studentIndex / 4); 
                 const tableCol = studentIndex % 4; 
-                
-                // Facing: If row 0, look DOWN at table. If row 1, look UP.
                 eatFacing = tableRow === 0 ? { x: 0, y: 1 } : { x: 0, y: -1 };
-                
                 eatPos = {
-                    x: gh.x + (tableCol * 64) - 96, 
-                    y: gh.y + tableOffsetY + (tableRow === 0 ? -40 : 40)
+                    x: gh.x + (tableCol * layout.TABLE_SPACING_X) + layout.OFFSET_X, 
+                    y: gh.y + tableOffsetY + (tableRow === 0 ? -layout.ROW_OFFSET_Y : layout.ROW_OFFSET_Y)
                 };
             }
 
-            let classPos = registry.getAnchor(`seat_class_${seatId}`);
-            const classFacing = { x: 0, y: -1 }; // Look at teacher
+            let classPos: any = null;
+            let classFacing = { x: 0, y: -1 };
+            let classIsUpstairs = false;
+            
+            // YEAR 1: Go to Classroom
+            if (student.year === 1) {
+                classPos = registry.getAnchor(`seat_class_${seatId}`);
+            } 
+            
+            // YEAR 2-4: Go to Upper Classrooms (Stairs)
             if (!classPos) {
-                classPos = this.seats.class.get(seatId) || { x: 1440, y: 1312 };
+                classPos = registry.getAnchor("stairs_upper_classrooms");
+                if (classPos) {
+                    classIsUpstairs = true;
+                    classFacing = { x: -1, y: 0 };
+                } else {
+                    // Fallback
+                    const lib = registry.getLocation("LIBRARY");
+                    classPos = { x: lib.x, y: lib.y };
+                }
             }
 
             this.spawnCharacter({
@@ -289,9 +319,9 @@ export class SpawnManager {
                 isAI: true,
                 prestige: prestige,
                 routineSpots: { 
-                    sleep: { ...sleepPos, facing: sleepFacing }, 
+                    sleep: { ...sleepPos, facing: sleepFacing, isUpstairs }, 
                     eat: { ...eatPos, facing: eatFacing }, 
-                    class: { ...classPos, facing: classFacing } 
+                    class: { ...classPos, facing: classFacing, isUpstairs: classIsUpstairs } 
                 }
             });
         });
@@ -299,7 +329,7 @@ export class SpawnManager {
 
     public spawnFromMap(mapData: MapData) {
         const npcObjects = parseNPCs(mapData);
-        let npcCounter = 9000;
+        let npcCounter = CONFIG.ENTITY.ID_NPC_START;
 
         npcObjects.forEach(obj => {
             const name = obj.name; // This is the key "Professor Hecate"
@@ -358,11 +388,15 @@ export class SpawnManager {
         const echoName = finalState?.username || `${house.charAt(0).toUpperCase() + house.slice(1)} Student`;
         
         console.log(`[SPAWN] Restoring Echo ${originalId} (${echoName}) at ${pos.x}, ${pos.y}`);
+        
+        // VISUAL PERSISTENCE: Keep the last player's skin on the Echo to maintain variety
+        const persistedSkin = finalState?.skin || (house === 'ignis' ? "player_red" : (house === 'axiom' ? "player_blue" : "player_idle"));
+
         this.spawnCharacter({
             id: originalId,
             numericId: numericId,
             username: echoName,
-            skin: house === 'ignis' ? "player_red" : (house === 'axiom' ? "player_blue" : "player_idle"),
+            skin: persistedSkin,
             house: house as any,
             x: pos.x,
             y: pos.y,
@@ -391,22 +425,49 @@ export class SpawnManager {
     }
 
     private spawnPrefects() {
-        console.log("[SPAWN] Night has fallen. Spawning Hallway Prefect...");
-        const registry = LevelRegistry.getInstance();
-        const hallwayPos = registry.getLocation("ACADEMIC_WING") || { x: 1600, y: 1600 };
+        console.log(`[SPAWN] Night has fallen. Spawning ${this.prefectSpawnPoints.length} Prefects...`);
         
-        const id = `prefect_hallway`;
-        this.spawnCharacter({
-            id: id,
-            numericId: 1000,
-            username: "Hallway Prefect",
-            skin: "player_idle",
-            house: "ignis",
-            x: hallwayPos.x,
-            y: hallwayPos.y,
-            isAI: true
+        if (this.prefectSpawnPoints.length === 0) {
+            // Fallback Legacy Logic
+            const registry = LevelRegistry.getInstance();
+            const hallwayPos = registry.getLocation("CLASSROOM") || { x: 2400, y: 1760 }; 
+            const id = `prefect_hallway`;
+            this.spawnCharacter({
+                id: id,
+                numericId: CONFIG.ENTITY.ID_PREFECT_START,
+                username: "Hallway Prefect",
+                skin: "player_idle",
+                house: "ignis",
+                x: hallwayPos.x,
+                y: hallwayPos.y,
+                isAI: true
+            });
+            this.prefectIds.add(id);
+            return;
+        }
+
+        this.prefectSpawnPoints.forEach((point, index) => {
+            const id = `prefect_${index}`;
+            // Determine name based on spawn point name or generic
+            let name = "Prefect";
+            if (point.name) {
+                if (point.name.includes("court")) name = "Courtyard Prefect";
+                else if (point.name.includes("hall")) name = "Hallway Prefect";
+                else if (point.name.includes("bridge")) name = "Bridge Guard";
+            }
+
+            this.spawnCharacter({
+                id: id,
+                numericId: CONFIG.ENTITY.ID_PREFECT_START + index, // IDs 1000+ are Prefects
+                username: name,
+                skin: "player_idle", // Or player_prefect if available?
+                house: "ignis", // Faction doesn't strictly matter for AI logic, they chase everyone
+                x: point.x,
+                y: point.y,
+                isAI: true
+            });
+            this.prefectIds.add(id);
         });
-        this.prefectIds.add(id);
     }
 
     private despawnPrefects() {
@@ -414,9 +475,14 @@ export class SpawnManager {
         this.prefectIds.clear();
     }
 
-    public loadSeats(mapData: MapData) {
+    public loadSeats(mapData: MapData, extraSpawns?: {x: number, y: number, name?: string}[]) {
         this.seats = parseSeats(mapData);
         
+        if (extraSpawns) {
+            this.prefectSpawnPoints = extraSpawns;
+            console.log(`[SPAWN] Loaded ${extraSpawns.length} Prefect Spawn Points.`);
+        }
+
         // Parse Spawn Point
         const entitiesLayer = mapData.layers.find(l => l.name === "Entities");
         if (entitiesLayer && entitiesLayer.objects) {

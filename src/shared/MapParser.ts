@@ -1,7 +1,6 @@
 import RAPIER from "@dimforge/rapier2d-compat";
 import { CONFIG } from "./Config";
 import { ZONE_DATA } from "./data/ZoneRegistry";
-import * as zlib from "zlib";
 
 // --- Types ---
 
@@ -144,8 +143,19 @@ export function parseNPCs(map: MapData) {
 export function parseEntities(map: MapData) {
     const objects = getObjects(map, "Entities");
     const spawnObj = objects.find(o => o.name === "Spawn" || o.type === "Spawn");
+    
+    const prefectSpawns = objects
+        .filter(o => o.type === "PrefectSpawn")
+        .map(o => ({ x: o.x, y: o.y, name: o.name }));
+
+    const merchantSpawns = objects
+        .filter(o => o.type === "Merchant")
+        .map(o => ({ x: o.x, y: o.y, name: o.name }));
+
     return {
-        spawnPos: spawnObj ? { x: spawnObj.x, y: spawnObj.y } : { x: 256, y: 256 }
+        spawnPos: spawnObj ? { x: spawnObj.x, y: spawnObj.y } : { x: 256, y: 256 },
+        prefectSpawns,
+        merchantSpawns
     };
 }
 

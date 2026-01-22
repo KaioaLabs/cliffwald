@@ -3,48 +3,48 @@ import Phaser from 'phaser';
 export class AssetManager {
     static preload(scene: Phaser.Scene) {
         // Map & Tilesets
-        scene.load.tilemapTiledJSON('map', '/maps/world.json');
-        scene.load.image('tiles', '/maps/tilesets/placeholder_tiles.png');
-        scene.load.image('table', '/maps/tilesets/table.png');
-        scene.load.image('floor_cobble', '/maps/tilesets/floor_320.png');
+        scene.load.tilemapTiledJSON('map', 'maps/world.json');
+        scene.load.image('tiles', 'maps/tilesets/placeholder_tiles.png');
+        scene.load.image('table', 'maps/tilesets/table.png');
+        scene.load.image('floor_cobble', 'maps/tilesets/floor_320.png');
         
         // Player Sprites
         scene.load.spritesheet({
             key: 'player_idle',
-            url: '/sprites/player_idle.png',
-            normalMap: '/sprites/player_idle_n.png',
+            url: 'sprites/player_idle.png',
+            normalMap: 'sprites/player_idle_n.png',
             frameConfig: { frameWidth: 40, frameHeight: 40 }
         });
         scene.load.spritesheet({
             key: 'player_run',
-            url: '/sprites/player_run.png',
-            normalMap: '/sprites/player_run_n.png',
+            url: 'sprites/player_run.png',
+            normalMap: 'sprites/player_run_n.png',
             frameConfig: { frameWidth: 40, frameHeight: 40 }
         });
         scene.load.spritesheet({
             key: 'player_jump',
-            url: '/sprites/player_jump.png',
+            url: 'sprites/player_jump.png',
             frameConfig: { frameWidth: 40, frameHeight: 40 }
         });
 
         // Teacher Sprites
         scene.load.spritesheet({
             key: 'teacher_idle',
-            url: '/sprites/teacher_idle.png',
+            url: 'sprites/teacher_idle.png',
             frameConfig: { frameWidth: 32, frameHeight: 64 }
         });
         scene.load.spritesheet({
             key: 'teacher_run',
-            url: '/sprites/teacher_run.png',
+            url: 'sprites/teacher_run.png',
             frameConfig: { frameWidth: 32, frameHeight: 64 }
         });
 
         // Audio
-        scene.load.audio('audio_circle', '/audio/circolo.mp3');
-        scene.load.audio('audio_square', '/audio/squaro.mp3');
-        scene.load.audio('audio_triangle', '/audio/triangelo.mp3');
-        scene.load.audio('intro_full', '/audio/intro_full.mp3');
-        scene.load.audio('main_theme', '/audio/cliffwald_main_theme.mp3');
+        scene.load.audio('audio_circle', 'audio/circolo.mp3');
+        scene.load.audio('audio_square', 'audio/squaro.mp3');
+        scene.load.audio('audio_triangle', 'audio/triangelo.mp3');
+        scene.load.audio('intro_full', 'audio/intro_full.mp3');
+        scene.load.audio('main_theme', 'audio/cliffwald_main_theme.mp3');
         
         scene.load.on('loaderror', (file: any) => console.error('Asset Load Error:', file.src));
     }

@@ -22,16 +22,17 @@ describe("NPC Behavior & Seating Verification", () => {
         // Mock LevelRegistry
         LevelRegistry.getInstance().setData({
             locations: new Map([
-                ["DORM_IGNIS", { x: 500, y: 500, id: "DORM_IGNIS" }],
-                ["DORM_AXIOM", { x: 800, y: 500, id: "DORM_AXIOM" }],
-                ["DORM_VESPER", { x: 1100, y: 500, id: "DORM_VESPER" }],
-                ["GREAT_HALL", { x: 1000, y: 1000, id: "GREAT_HALL" }]
+                ["GREAT_HALL", { x: 100, y: 100, id: "GREAT_HALL", width: 0, height: 0 }],
+                ["CLASSROOM", { x: 200, y: 200, id: "CLASSROOM", width: 0, height: 0 }],
+                ["COURTYARD", { x: 300, y: 300, id: "COURTYARD", width: 0, height: 0 }],
+                ["DORM_IGNIS", { x: 500, y: 500, id: "DORM_IGNIS", width: 0, height: 0 }]
             ]),
             duelZones: [],
             infirmaryBeds: [],
             infirmaryExit: { x: 0, y: 0 },
             duelExits: new Map(),
-            anchors: new Map()
+            anchors: new Map(),
+            itemSpawns: []
         });
 
         await RAPIER.init();
@@ -100,7 +101,7 @@ describe("NPC Behavior & Seating Verification", () => {
 
         const entity = entities.get("student_ignis_1");
         expect(entity).toBeDefined();
-        expect(entity?.ai?.routineSpots.sleep).toEqual({ x: 500, y: 520 });
+        expect(entity?.ai?.routineSpots?.sleep).toEqual({ x: 500, y: 520 });
         
         const pos = entity?.body?.translation();
         expect(pos?.x).toBe(500);

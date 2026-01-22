@@ -6,6 +6,8 @@ import { MathUtils } from "../utils/MathUtils";
 import { RoutineState } from "../../server/ai/states/RoutineState";
 import { DuelState } from "../../server/ai/states/DuelState";
 import { IdleState } from "../../server/ai/states/IdleState";
+import { getRandomBark, BarkContext } from "../data/BarkRegistry";
+import { getStudentScheduleTarget } from "../utils/ScheduleUtils";
 
 // Shared reuseable objects
 const SHARED_SEARCH_SHAPE = new RAPIER.Ball(24);
@@ -22,7 +24,8 @@ export const AISystem = (
     floorProvider?: (id: string) => number, // New provider
     chatCallback?: (id: string, text: string) => void,
     jumpCallback?: (id: string) => void,
-    catchCallback?: (prefectId: string, victimId: string) => void
+    catchCallback?: (prefectId: string, victimId: string) => void,
+    setSleepingState?: (id: string, isSleeping: boolean) => void
 ) => {
     const entities = world.with("ai", "body", "input");
     frameCount++;
@@ -43,6 +46,31 @@ export const AISystem = (
         // THROTTLE: Interleave AI logic (10Hz) for CPU savings
         const safeId = String(id || "0");
         const numericId = typeof id === 'number' ? id : (parseInt(safeId.replace(/\D/g, "") || "0") || 0);
+
+        // --- BARK SYSTEM (Chat Bubbles) ---
+        if (chatCallback) {
+            if (ai.barkTimer === undefined) ai.barkTimer = Math.random() * 60000 + 30000; // Init: 30-90s
+            
+            ai.barkTimer -= dt;
+            if (ai.barkTimer <= 0) {
+                // Determine Context from Schedule
+                const schedule = getStudentScheduleTarget(currentHour);
+                let context: BarkContext = 'GENERAL';
+                
+                if (schedule.activity === 'class') context = 'CLASS';
+                else if (schedule.activity === 'eat') context = 'EAT';
+                else if (schedule.activity === 'sleep') context = 'SLEEP';
+                else if (ai.state === 'duel') context = 'DUEL';
+                else if (ai.state === 'idle') context = 'IDLE';
+
+                const phrase = getRandomBark(context, ai.house);
+                chatCallback(safeId, phrase);
+                
+                // Reset Timer (45s - 120s) - Less spammy
+                ai.barkTimer = Math.random() * 75000 + 45000;
+            }
+        }
+
         if ((frameCount + numericId) % 3 !== 0) continue;
 
         // --- PREFECT LOGIC (Special Case) ---
@@ -67,7 +95,7 @@ export const AISystem = (
                 IdleState.update(entity, dt, currentHour, castCallback, chatCallback);
                 break;
             case 'routine':
-                RoutineState.update(entity, dt, currentHour, pathfinder, physicsWorld, frameCount, floor);
+                RoutineState.update(entity, dt, currentHour, pathfinder, physicsWorld, frameCount, floor, setSleepingState);
                 break;
             case 'duel':
                 DuelState.update(entity, dt, castCallback!, targetProvider!);
@@ -107,22 +135,47 @@ function handlePrefectAI(
     catchCallback?: (p: string, v: string) => void
 ) {
     const isNight = currentHour >= 22 || currentHour < 5;
-    const { body, input, ai } = entity;
+    const { body, input, ai, facing } = entity;
 
     if (isNight) {
-        // Scan every 10 frames
-        if (frameCount % 10 === 0 && catchCallback) {
+        // Guard Rotation Logic: Rotate 90 degrees every 3 seconds
+        if (frameCount % 180 === 0) {
+            const angles = [0, Math.PI/2, Math.PI, Math.PI*1.5];
+            const nextAngle = angles[Math.floor(Math.random() * angles.length)];
+            facing.x = Math.cos(nextAngle);
+            facing.y = Math.sin(nextAngle);
+        }
+
+        // Scan every 5 frames (faster reaction for cones)
+        if (frameCount % 5 === 0 && catchCallback) {
             const currentPos = body.translation();
+            const visionRadius = CONFIG.PREFECT_VISION_RADIUS || 150;
+            const visionConeAngle = 0.707; // ~45 degrees from center (total 90 deg field of view). cos(45deg) = 0.707
+
             physicsWorld.intersectionsWithShape(currentPos, 0, visionShape, (collider) => {
                 const victimBody = collider.parent();
                 if (!victimBody) return true;
                 
                 const victimId = (victimBody.userData as any)?.sessionId;
                 if (victimId && !victimId.startsWith('prefect_') && !victimId.startsWith('teacher_')) {
-                    // Simple distance check + Wall check would go here
-                    // Assuming caught for simplicity in this refactor step
-                     catchCallback(entity.player?.sessionId || "", victimId);
-                     return false; 
+                    const victimPos = victimBody.translation();
+                    
+                    // 1. Calculate Vector to Victim
+                    const toVictim = { x: victimPos.x - currentPos.x, y: victimPos.y - currentPos.y };
+                    const distSq = toVictim.x * toVictim.x + toVictim.y * toVictim.y;
+                    
+                    if (distSq > visionRadius * visionRadius) return true;
+
+                    // 2. Dot Product for Cone Check
+                    const dist = Math.sqrt(distSq);
+                    const dot = (toVictim.x / dist) * facing.x + (toVictim.y / dist) * facing.y;
+
+                    if (dot > visionConeAngle) {
+                        // 3. Optional: Raycast for walls (Obstruction)
+                        // For now, automatic catch if in cone
+                        catchCallback(entity.player?.sessionId || "", victimId);
+                        return false; 
+                    }
                 }
                 return true;
             });

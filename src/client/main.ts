@@ -1,134 +1,140 @@
-import 'reflect-metadata';
 import Phaser from 'phaser';
-import * as Colyseus from "colyseus.js";
-import { GameState, Player, Projectile, WorldItem } from "../shared/SchemaDef";
-import { CONFIG, getGameTime, getAcademicProgress } from "../shared/Config";
-import { THEME } from "../shared/Theme";
-import { PlayerController } from "./PlayerController";
-import RAPIER from "@dimforge/rapier2d-compat";
-import { buildPhysics } from "../shared/MapParser";
-import { MovementSystem } from "../shared/systems/MovementSystem";
-import { VirtualJoystick } from './VirtualJoystick';
-import { NetworkManager } from './NetworkManager';
-import { DebugManager } from './DebugManager';
-import { GestureManager } from './GestureManager';
-import { SPELL_REGISTRY } from '../shared/items/SpellRegistry';
-import { ShadowUtils } from './ShadowUtils';
-import { UIScene } from './scenes/UIScene';
-import { CardAlbumScene } from './scenes/CardAlbumScene';
+import { PlayerController } from './PlayerController';
 import { AssetManager } from './managers/AssetManager';
 import { UIManager } from './UIManager';
-import { LightManager } from './managers/LightManager';
-import { VisualProjectileManager } from './managers/VisualProjectileManager';
+import { GestureManager } from './GestureManager';
 import { LoginManager } from './managers/LoginManager';
-import { MinigameManager } from './managers/MinigameManager';
+import { DebugManager } from './DebugManager';
+import { VisualProjectileManager } from './managers/VisualProjectileManager';
 import { WorldBuilder } from './managers/WorldBuilder';
+import { ShadowUtils } from './ShadowUtils';
+import { LightManager } from './managers/LightManager';
+import { MinigameManager } from './managers/MinigameManager';
+import { CONFIG, getGameTime, getAcademicProgress } from '../shared/Config';
+import { SPELL_REGISTRY } from '../shared/items/SpellRegistry';
+import { Projectile } from '../shared/SchemaDef';
+import { MovementSystem } from '../shared/systems/MovementSystem';
+import { UIScene } from './scenes/UIScene';
+import { GrassManager } from './managers/GrassManager';
+import { ForceManager } from './managers/ForceManager';
+import { GrassPipeline } from './managers/GrassPipeline';
+import waterFrag from './shaders/water.frag?raw';
+import grassVert from './shaders/grass.vert?raw';
+import grassFrag from './shaders/grass.frag?raw';
+
+import { NetworkManager } from './NetworkManager';
+import { WaterManager } from './managers/WaterManager';
+
+import RAPIER from '@dimforge/rapier2d-compat';
 
 export class GameScene extends Phaser.Scene {
-    network: NetworkManager;
-    uiManager!: UIManager;
-    lightManager!: LightManager;
-    projectileManager!: VisualProjectileManager;
-    loginManager!: LoginManager;
-    minigameManager!: MinigameManager;
-    worldBuilder!: WorldBuilder;
-    
-    room?: Colyseus.Room;
+    // Managers
+    public network!: NetworkManager;
+    public playerController!: PlayerController;
+    public uiManager!: UIManager;
+    public grassManager!: GrassManager;
+    public forceManager!: ForceManager;
+    public projectileManager!: VisualProjectileManager;
+    public lightManager!: LightManager;
+    public minigameManager!: MinigameManager;
+    public debugManager?: DebugManager;
+    public gestureManager!: GestureManager;
+    public loginManager!: LoginManager;
+    public worldBuilder!: WorldBuilder;
+    public waterManager!: WaterManager;
 
-    playerController!: PlayerController;
-    cameraTarget!: Phaser.GameObjects.PointLight | Phaser.GameObjects.Image; 
-    cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
-    wasd?: { W: Phaser.Input.Keyboard.Key, A: Phaser.Input.Keyboard.Key, S: Phaser.Input.Keyboard.Key, D: Phaser.Input.Keyboard.Key };
-    spaceKey?: Phaser.Input.Keyboard.Key;
-    physicsWorld?: RAPIER.World;
-    gestureManager?: GestureManager;
+    // State
+    public authToken: string = "";
+    public skin: string = "player_idle";
+    public room?: any;
+    public itemVisuals: Map<string, Phaser.GameObjects.GameObject> = new Map();
+    public currentLatency: number = 0;
     
-    debugGraphics?: Phaser.GameObjects.Graphics;
-    debugManager?: DebugManager;
+    // Core
+    public physicsWorld!: RAPIER.World;
+    public accumulatedTime: number = 0;
+    public readonly FIXED_TIMESTEP = 1 / 60;
     
-    currentLatency: number = 0;
-    accumulatedTime: number = 0;
-    readonly FIXED_TIMESTEP = 1 / 60;
+    // Input
+    public cursor: any;
+    public wasd: any;
+    public spaceKey: any;
+    public cursors: any;
     
-    authToken: string = "";
-    skin: string = "player_idle";
+    // Camera
+    public cameraTarget: any;
 
     constructor() {
         super('GameScene');
-        this.network = new NetworkManager(this);
-        this.minigameManager = new MinigameManager();
-        this.setupRemoteLogging();
-        
-        window.addEventListener('unhandledrejection', (event) => {
-            console.error('[CRITICAL] Unhandled Rejection:', event.reason);
-        });
-        window.onerror = (msg, url, line, col, error) => {
-            console.error('[CRITICAL] Window Error:', msg, url, line, col, error);
-            return false;
-        };
     }
 
-    setupRemoteLogging() {
-        const oldError = console.error;
-        console.error = (...args: any[]) => {
-            const message = args.join(' ');
-            const urlParams = new URLSearchParams(window.location.search);
-            const user = urlParams.get("dev_user") || "Unknown";
-            
-            // Only log remotely if in dev environment or specifically requested
-            if (window.location.hostname === "localhost") {
-                fetch(`http://${window.location.hostname}:2568/api/logs`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ type: 'error', message, user })
-                }).catch(() => {}); 
-            }
-            
-            oldError.apply(console, args);
-        };
+    async init() {
+        this.network = new NetworkManager();
+        await RAPIER.init();
+        const gravity = { x: 0.0, y: 0.0 };
+        this.physicsWorld = new RAPIER.World(gravity);
     }
 
     preload() {
-        this.cursors = this.input.keyboard?.createCursorKeys();
         AssetManager.preload(this);
     }
-
-    itemVisuals = new Map<string, Phaser.GameObjects.GameObject>();
-
+// ...
     async create() {
         try {
             console.log("Scene Create Start");
             
-            this.scene.launch('UIScene');
-            this.scene.bringToTop('UIScene');
-            const uiScene = this.scene.get('UIScene');
-
-            AssetManager.generateTextures(this);
-
-            await RAPIER.init();
-            this.physicsWorld = new RAPIER.World({ x: 0.0, y: 0.0 });
-
-            try {
-                this.lightManager = new LightManager(this);
-            } catch (e) {
-                console.error("[LIGHTS] Initialization Failed:", e);
+            // --- REGISTER GRASS PIPELINE ---
+            const renderer = this.renderer as Phaser.Renderer.WebGL.WebGLRenderer;
+            if (renderer.pipelines) {
+                renderer.pipelines.add('GrassPipeline', new GrassPipeline({
+                    game: this.game,
+                    vertShader: grassVert,
+                    fragShader: grassFrag
+                }));
             }
 
-            // Build World
-            this.worldBuilder = new WorldBuilder(this, this.physicsWorld, this.lightManager);
-            this.worldBuilder.build();
+            this.scene.launch('UIScene');
+// ...
+            // --- INTERACTIVE GRASS ---
+            this.forceManager = new ForceManager(this);
+            this.grassManager = new GrassManager(this, this.forceManager);
+            this.grassManager.generateTestPatch(CONFIG.SPAWN_POINT.x, CONFIG.SPAWN_POINT.y, 15);
 
             this.projectileManager = new VisualProjectileManager(this);
+// ...
 
             this.playerController = new PlayerController(this, this.physicsWorld);
             AssetManager.createAnimations(this);
+            this.cursors = this.input.keyboard!.createCursorKeys();
             this.wasd = this.input.keyboard?.addKeys('W,A,S,D') as any;
             this.spaceKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+            
+            this.lightManager = new LightManager(this);
+            
+            // --- REGISTER SHADERS ---
+            if (!this.cache.shader.exists('water')) {
+                const baseShader = new Phaser.Display.BaseShader('water', waterFrag);
+                this.cache.shader.add('water', baseShader);
+            }
+
+            this.waterManager = new WaterManager(this);
+            AssetManager.generateTextures(this);
+
+            this.worldBuilder = new WorldBuilder(this, this.physicsWorld as any, this.lightManager, this.waterManager, this.grassManager);
+            this.worldBuilder.build();
 
             this.cameraTarget = this.add.image(1600, 1000, '').setVisible(false);
             this.cameras.main.startFollow(this.cameraTarget, true, 0.2, 0.2);
             
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            // Modern Mobile Detection (2026)
+            // 1. Check UA for obvious mobile devices
+            // 2. Check for Touch Capability + Small Screen (excludes Touch Laptops)
+            const uaMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            const isTouch = navigator.maxTouchPoints > 0 || (window as any).matchMedia("(any-pointer: coarse)").matches;
+            const isSmallScreen = window.innerWidth < 1024;
+            
+            const isMobile = uaMobile || (isTouch && isSmallScreen);
+
             if (isMobile) {
                 this.cameras.main.setZoom(1.5); 
             } else {
@@ -142,6 +148,7 @@ export class GameScene extends Phaser.Scene {
             (window as any).gameClient = this;
             this.uiManager.create();
 
+            const uiScene = this.scene.get('UIScene') as UIScene;
             this.gestureManager = new GestureManager(this, uiScene);
             this.gestureManager.onGestureRecognized = (id: string, score: number, centroid: {x: number, y: number}) => {
                 const sessionId = this.room?.sessionId || "";
@@ -198,7 +205,30 @@ export class GameScene extends Phaser.Scene {
                 }
             });
 
-            this.loginManager.autoLogin();
+            const startLoginFlow = () => {
+                console.log("[MAIN] Starting Login Flow...");
+                this.loginManager.autoLogin();
+            };
+
+            // DEV: Fast Track
+            if (CONFIG.DEV_SKIP_INTRO) {
+                console.log("[DEV] Skipping Intro & Login UI...");
+                // Force UI to Playing state immediately to hide any overlays
+                this.uiManager.setGameState('PLAYING'); 
+                
+                // Hide Intro overlay manually if UIManager doesn't handle it on state change
+                const intro = document.getElementById('intro-screen');
+                if (intro) intro.style.display = 'none';
+                
+                // Auto-Connect as Guest/Dev
+                this.loginManager.guestLogin();
+            } 
+            else if (this.uiManager.isIntroActive()) {
+                console.log("[MAIN] Intro Active - Deferring Login");
+                this.uiManager.onIntroComplete = startLoginFlow;
+            } else {
+                startLoginFlow();
+            }
 
             this.scale.on('resize', this.handleResize, this);
             
@@ -247,6 +277,8 @@ export class GameScene extends Phaser.Scene {
             graphics.strokeTriangle(-20, -17, 20, -17, 0, 23);
         } else if (config.shape === 'square') {
             graphics.strokeRect(-20, -20, 40, 40);
+        } else if (config.shape === 'line') {
+            graphics.lineBetween(0, -30, 0, 30); // Vertical line
         } else {
             graphics.strokeCircle(0, 0, 20);
         }
@@ -490,17 +522,28 @@ export class GameScene extends Phaser.Scene {
     }
 
     update(time: number, delta: number) {
+        if (this.waterManager) this.waterManager.update(time, delta);
+        if (this.grassManager) this.grassManager.update(time); // --- GRASS UPDATE ---
+        
         if (!this.playerController || !this.network || !this.network.room) return;
 
         const localPlayerEnt = this.playerController.players.get(this.network.room.sessionId);
         const localPlayer = localPlayerEnt?.visual?.sprite;
-        if (localPlayer && this.cameraTarget) {
-            if (!this.gestureManager?.isDrawing) {
-                const pointer = this.input.activePointer;
-                const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-                const targetX = (localPlayer.x * 0.85) + (worldPoint.x * 0.15);
-                const targetY = (localPlayer.y * 0.85) + (worldPoint.y * 0.15);
-                this.cameraTarget.setPosition(targetX, targetY);
+        if (localPlayer) {
+            // --- GRASS INTERACTION: Push Force ---
+            const vel = localPlayerEnt?.body?.linvel();
+            if (vel && (Math.abs(vel.x) > 0.1 || Math.abs(vel.y) > 0.1)) {
+                this.forceManager.push(localPlayer.x, localPlayer.y, 30);
+            }
+            
+            if (this.cameraTarget) {
+                if (!this.gestureManager?.isDrawing) {
+                    const pointer = this.input.activePointer;
+                    const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+                    const targetX = (localPlayer.x * 0.85) + (worldPoint.x * 0.15);
+                    const targetY = (localPlayer.y * 0.85) + (worldPoint.y * 0.15);
+                    this.cameraTarget.setPosition(targetX, targetY);
+                }
             }
         }
 
@@ -619,6 +662,7 @@ export class GameScene extends Phaser.Scene {
             this.playerController.addPlayer(sessionId, data.x, data.y, isLocal, data.skin, data.username, data.house);
             
             this.playerController.updatePlayerState(sessionId, data, data.unconsciousUntil);
+            this.playerController.setGhostMode(sessionId, data.isGhost);
 
             if (data.isAttendingClass) {
                 this.playerController.updateClassStatus(sessionId, true, data.classEndsAt);
@@ -627,6 +671,7 @@ export class GameScene extends Phaser.Scene {
             if (typeof data.onChange === 'function') {
                 data.onChange(() => {
                     this.playerController.updateClassStatus(sessionId, data.isAttendingClass, data.classEndsAt);
+                    this.playerController.setGhostMode(sessionId, data.isGhost);
                 });
             }
 
@@ -685,7 +730,34 @@ export class GameScene extends Phaser.Scene {
     }
 }
 
-const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+import { UIScene } from './scenes/UIScene';
+import { CardAlbumScene } from './scenes/CardAlbumScene';
+import { WaterShaderTestScene } from './scenes/WaterShaderTestScene';
+
+// Modern Mobile Detection (2026) for Config
+const uaMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+const isTouch = navigator.maxTouchPoints > 0 || (window as any).matchMedia("(any-pointer: coarse)").matches;
+const isSmallScreen = window.innerWidth < 1024;
+const isMobile = uaMobile || (isTouch && isSmallScreen);
+
+const urlParams = new URLSearchParams(window.location.search);
+const startScene = urlParams.get('scene') === 'water' ? WaterShaderTestScene : GameScene;
+const scenes = [GameScene, UIScene, CardAlbumScene, WaterShaderTestScene];
+
+// Reorder scenes so the startScene is first if needed, 
+// OR just rely on Phaser starting the first one.
+// Phaser starts the first scene in the array.
+if (startScene === WaterShaderTestScene) {
+    scenes.unshift(scenes.splice(scenes.indexOf(WaterShaderTestScene), 1)[0]);
+    
+    // Hide UI overlays for shader test
+    const intro = document.getElementById('intro-screen');
+    if (intro) intro.style.display = 'none';
+    const login = document.getElementById('login-screen');
+    if (login) login.style.display = 'none';
+    const ui = document.getElementById('game-ui');
+    if (ui) ui.style.display = 'none';
+}
 
 const config: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
@@ -700,8 +772,56 @@ const config: Phaser.Types.Core.GameConfig = {
     roundPixels: true,
     render: { maxLights: 50 },
     backgroundColor: '#000000',
-    scene: [GameScene, UIScene, CardAlbumScene],
-    lights: { enable: true, ambientColor: 0x808080 }
+    scene: scenes,
+    lights: { enable: true, ambientColor: 0x808080 },
+    disableVisibilityChange: true,
+    physics: undefined // Explicitly disable Arcade Physics
+};
+
+// --- QA PROBE INJECTION ---
+(window as any).QA_Probe = () => {
+    // Safety check
+    const scene = (window as any).gameClient;
+    if (!scene) return { status: 'NO_GAME' };
+
+    const client = scene.network;
+    if (!client || !client.room) return { status: 'NO_CONNECTION' };
+
+    const state = client.room.state;
+    if (!state) return { status: 'WAITING_FOR_STATE' };
+
+    const myId = client.room.sessionId;
+    const myState = state.players ? state.players.get(myId) : null;
+    
+    // Physics
+    const myEntity = scene.playerController?.players.get(myId);
+    const pos = myEntity?.visual?.sprite ? { x: myEntity.visual.sprite.x, y: myEntity.visual.sprite.y } : { x:0, y:0 };
+    
+    // Environment
+    const now = Date.now() + (state.timeOffset || 0);
+    const time = getGameTime(now);
+
+    return {
+        status: 'ACTIVE',
+        timestamp: now,
+        fps: scene.game?.loop.actualFps || 0,
+        ping: scene.currentLatency || 0,
+        player: {
+            x: Math.round(pos.x),
+            y: Math.round(pos.y),
+            house: myState?.house,
+            gold: myState?.gold,
+            isAttendingClass: myState?.isAttendingClass
+        },
+        environment: {
+            hour: time.hour,
+            isNight: time.isNight,
+            worldTime: state.worldStartTime
+        },
+        ui: {
+            hasModal: document.querySelectorAll('.modal:not(.hidden)').length > 0
+        }
+    };
 };
 
 (window as any).game = new Phaser.Game(config);

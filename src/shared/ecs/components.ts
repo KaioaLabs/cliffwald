@@ -6,6 +6,7 @@ export interface InputComponent {
     up: boolean;
     down: boolean;
     analogDir?: { x: number, y: number };
+    isGhost?: boolean;
 }
 
 export interface FacingComponent {
@@ -40,6 +41,9 @@ export interface AIComponent {
     // Stuck Detection
     stuckTimer?: number;
     lastPos?: { x: number, y: number };
+
+    // Chat / Barks
+    barkTimer?: number;
 }
 
 export interface VisualComponent {

@@ -23,10 +23,10 @@ Both the Editor scripts and the Client code implement the **same math**.
     *   **Shadows:** Renders black polygons projecting from "Furniture" tiles away from the nearest light.
 *   **Key Property:** Shadows dynamically update when Lights or Furniture are moved (Ctrl+R).
 
-### 3.2. Physics & Collisions (Planned)
-*   **Goal:** Visualize the actual Rapier physics bodies, not just the tile squares.
-*   **Implementation:** A script that reads the `collides: true` property from tilesets and draws the specific hitbox (Circle/Rectangle) defined in the Collision Editor of Tiled.
-*   **Benefit:** See exactly where a player can fit between two tables.
+### 3.2. Physics & Collisions (Active)
+*   **Engine:** Rapier2D (Isomorphic).
+*   **Visualization:** Tiled extensions verify "Static Walls" vs "Sensors" colors.
+*   **Soft Body:** The engine uses a "Soft Body" crowd simulation (entities push each other gently) rather than hard blockages, to allow flow in the 120x160 Organic Map.
 
 ### 3.3. Logic & AI Debugging (Planned)
 *   **NPC Paths:** Draw lines connecting patrol points (e.g., `DORM_IGNIS` -> `CLASSROOM`).
@@ -57,4 +57,4 @@ Due to Tiled security sandboxing, scripts must be manually copied to the user's 
 | `kaioa_engine_view.js` | Simulates Shadow Skew & Light Radii | **Active** |
 
 ---
-*Last Updated: January 16, 2026*
+*Last Updated: January 19, 2026 (v3.3 Update)*

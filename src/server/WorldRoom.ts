@@ -25,8 +25,10 @@ import { HealthSystem } from "./systems/HealthSystem";
 import { AcademicManager } from "./managers/AcademicManager";
 import { PhysicsManager } from "./managers/PhysicsManager";
 import { GameLoopManager } from "./managers/GameLoopManager";
+import { SystemBootstrapper } from "./managers/SystemBootstrapper";
 
 import { WorldService } from "./services/WorldService";
+import { ZONE_DATA } from "../shared/data/ZoneRegistry";
 import fs from 'fs';
 
 export class WorldRoom extends Room<GameState> {
@@ -64,22 +66,21 @@ export class WorldRoom extends Room<GameState> {
         this.setState(new GameState());
         this.world = createWorld();
         
-        // --- INITIALIZE MANAGERS (Order Matters) ---
-        // 1. Core Systems
-        this.chatManager = new ChatManager(this);
-        this.physicsManager = new PhysicsManager(this.state, this.entities);
-        this.persistenceSystem = new PersistenceSystem(this.entities, this.state);
+        // --- BOOTSTRAP SYSTEMS ---
+        const systems = SystemBootstrapper.initialize(this);
         
-        // 2. Gameplay Systems
-        this.prestigeSystem = new PrestigeSystem(this);
-        this.itemSystem = new ItemSystem(this);
-        this.shopSystem = new ShopSystem(this);
-        this.spellSystem = new SpellSystem(this);
-        this.duelSystem = new DuelSystem(this);
-        this.healthSystem = new HealthSystem(this);
-        this.spawnManager = new SpawnManager(this.world, this.physicsManager.world, this.state, this.entities);
-        this.academicManager = new AcademicManager(this.state, this.spawnManager, this.chatManager, this.prestigeSystem, this.entities);
-        this.gameLoopManager = new GameLoopManager(this);
+        this.chatManager = systems.chatManager;
+        this.physicsManager = systems.physicsManager;
+        this.persistenceSystem = systems.persistenceSystem;
+        this.prestigeSystem = systems.prestigeSystem;
+        this.itemSystem = systems.itemSystem;
+        this.shopSystem = systems.shopSystem;
+        this.spellSystem = systems.spellSystem;
+        this.duelSystem = systems.duelSystem;
+        this.healthSystem = systems.healthSystem;
+        this.spawnManager = systems.spawnManager;
+        this.academicManager = systems.academicManager;
+        this.gameLoopManager = systems.gameLoopManager;
 
         // 3. Load Map & Logic
         const mapPath = path.join(process.cwd(), "assets/maps/world.json");
@@ -87,10 +88,10 @@ export class WorldRoom extends Room<GameState> {
             await this.loadMapLogic(mapPath);
             
             // Spawn Logic
-            const { spawnPos, mapData } = await this.physicsManager.loadMap(mapPath);
+            const { spawnPos, mapData, prefectSpawns, merchantSpawns } = await this.physicsManager.loadMap(mapPath);
             
             console.log(`[SERVER] Map loaded. Initializing 96 Student Slots...`);
-            this.spawnManager.loadSeats(mapData);
+            this.spawnManager.loadSeats(mapData, [...prefectSpawns, ...merchantSpawns]);
             this.spawnManager.spawnEchoes(96, spawnPos);
             this.spawnManager.spawnFromMap(mapData);
             
@@ -144,37 +145,97 @@ export class WorldRoom extends Room<GameState> {
     get eventQueue() { return this.physicsManager.eventQueue; }
 
     registerMessageHandlers() {
-        this.onMessage("move", (client, input: PlayerInput) => {
+        this.onMessage("move", (client, input: any) => {
             const playerState = this.state.players.get(client.sessionId);
-            if (playerState && playerState.unconsciousUntil > 0) return; 
+            if (!playerState || playerState.unconsciousUntil > 0) return; 
+
+            // SANITIZATION: Validate Input Structure
+            if (typeof input !== 'object' || input === null) return;
 
             const entity = this.entities.get(client.sessionId);
             if (entity && entity.input) {
+                // Boolean Coercion
                 entity.input.left = !!input.left;
                 entity.input.right = !!input.right;
                 entity.input.up = !!input.up;
                 entity.input.down = !!input.down;
-                if (input.analogDir) {
-                    entity.input.analogDir = {
-                        x: Number(input.analogDir.x) || 0,
-                        y: Number(input.analogDir.y) || 0
-                    };
+                
+                // Analog Validation
+                if (input.analogDir && typeof input.analogDir === 'object') {
+                    let x = Number(input.analogDir.x);
+                    let y = Number(input.analogDir.y);
+                    
+                    // Safety Clamp (Prevent Infinity/NaN)
+                    if (!Number.isFinite(x)) x = 0;
+                    if (!Number.isFinite(y)) y = 0;
+                    
+                    // Clamp Magnitude (Prevent Speed Hacks via Input)
+                    // MovementSystem normalizes, but clamping here adds depth defense
+                    x = Math.max(-1, Math.min(1, x));
+                    y = Math.max(-1, Math.min(1, y));
+
+                    entity.input.analogDir = { x, y };
                 } else {
                     entity.input.analogDir = undefined;
                 }
             }
         });
 
-        this.onMessage("cast", (client, data) => {
-            this.handleCast(client.sessionId, data.spellId, data.vx, data.vy);
+        this.onMessage("cast", (client, data: any) => {
+            // SANITIZATION
+            if (!data || typeof data !== 'object') return;
+            
+            const spellId = String(data.spellId || "").slice(0, 32); // Max length check
+            let vx = Number(data.vx);
+            let vy = Number(data.vy);
+
+            // Safety Check
+            if (!Number.isFinite(vx) || !Number.isFinite(vy)) return;
+
+            // Optional: Clamp max velocity here if not handled in SpellSystem
+            // For now, infinite/NaN check is the critical crash fix.
+
+            this.handleCast(client.sessionId, spellId, vx, vy);
         });
 
         this.onMessage("collect", (client, itemId) => this.itemSystem.tryCollectItem(client.sessionId, itemId));
         this.onMessage("buy", (client, itemId) => this.shopSystem.handleBuy(client.sessionId, itemId));
         this.onMessage("ping", (client, timestamp) => client.send("pong", timestamp));
-        this.onMessage("chat", (client, text) => this.chatManager.handleChat(client.sessionId, text));
+        this.onMessage("chat", (client, text: any) => {
+            if (typeof text !== 'string') return;
+            
+            // Truncate to Config limit (or sensible default)
+            const cleanText = text.slice(0, CONFIG.CHAT.MAX_LENGTH || 100).trim();
+            if (cleanText.length > 0) {
+                this.chatManager.handleChat(client.sessionId, cleanText);
+            }
+        });
         this.onMessage("jump", (client) => this.broadcast("player_jump", { id: client.sessionId }));
         
+        this.onMessage("toggle_god", (client) => {
+            // SECURITY: Basic check (in prod, use AuthService roles)
+            // TODO: [DEBT] Add proper Role-Based Access Control (RBAC) here. Only 'ADMIN' should access this.
+            const playerState = this.state.players.get(client.sessionId);
+            if (!playerState) return;
+
+            // Toggle
+            playerState.isGhost = !playerState.isGhost;
+            
+            // Sync to ECS for MovementSystem
+            const entity = this.entities.get(client.sessionId);
+            if (entity && entity.input) {
+                entity.input.isGhost = playerState.isGhost;
+            }
+
+            // Update Physics (Collisions)
+            this.physicsManager.setPlayerGhostMode(client.sessionId, playerState.isGhost);
+
+            // Feedback
+            const status = playerState.isGhost ? "ENABLED" : "DISABLED";
+            client.send("notification", `GOD MODE: ${status}`);
+            console.log(`[DEV] ${playerState.username} toggled God Mode: ${status}`);
+        });
+
         this.onMessage("admin_time_jump", (client, data) => {
              if (data && typeof data.hour === 'number') {
                 timeManager.setGameHour(data.hour);
@@ -220,16 +281,20 @@ export class WorldRoom extends Room<GameState> {
         const player = this.state.players.get(sessionId);
         const entity = this.entities.get(sessionId);
         if (player && entity && entity.body) {
-            console.log(`[DISCIPLINE] Detaining ${player.username}`);
+            console.log(`[DISCIPLINE] Detaining ${player.username} (Level ${player.currentOffenseLevel})`);
             const detentionPos = LevelRegistry.getInstance().getLocation("DETENTION");
             entity.body.setTranslation(detentionPos, true);
             player.x = detentionPos.x;
             player.y = detentionPos.y;
-            player.detentionWork = 50; 
+            
+            // Calculate work units: 50, 100, 200
+            const workMap = [0, 50, 100, 200];
+            player.detentionWork = workMap[player.currentOffenseLevel || 1] || 50; 
+
             this.itemSystem.spawnDetentionTasks();
             const client = this.clients.find(c => c.sessionId === sessionId);
-            if (client) client.send("notification", "YOU HAVE BEEN DETAINED! Complete 5 tasks to leave.");
-            this.chatManager.broadcastSystemMessage(`${player.username} has been sent to DETENTION.`, "PREFECT");
+            if (client) client.send("notification", `YOU HAVE BEEN DETAINED! Level ${player.currentOffenseLevel}. Complete tasks to leave.`);
+            this.chatManager.broadcastSystemMessage(`${player.username} has been sent to DETENTION (Level ${player.currentOffenseLevel}).`, "PREFECT");
         }
     }
 
@@ -247,8 +312,35 @@ export class WorldRoom extends Room<GameState> {
             player.x = dormPos.x;
             player.y = dormPos.y;
             player.detentionWork = 0;
+            player.currentOffenseLevel = 1; // Reset to level 1 (curfew)
             const client = this.clients.find(c => c.sessionId === sessionId);
             if (client) client.send("notification", "You are free! Return to your studies.");
+        }
+    }
+
+    public setSleepingState(id: string, isSleeping: boolean) {
+        const player = this.state.players.get(id);
+        const entity = this.entities.get(id);
+        
+        if (player) {
+            if (player.isSleepingUpstairs === isSleeping) return;
+            player.isSleepingUpstairs = isSleeping;
+        }
+
+        if (entity && entity.body) {
+            if (isSleeping) {
+                // Vanish to Limbo
+                entity.body.setTranslation({ x: -5000, y: -5000 }, true);
+            } else {
+                // Wake up at stairs (Sleep Spot)
+                if (entity.ai && entity.ai.routineSpots && entity.ai.routineSpots.sleep) {
+                    const spot = entity.ai.routineSpots.sleep;
+                    entity.body.setTranslation({ x: spot.x, y: spot.y }, true);
+                } else {
+                    // Fallback
+                    entity.body.setTranslation({ x: 300, y: 300 }, true);
+                }
+            }
         }
     }
 
@@ -266,6 +358,17 @@ export class WorldRoom extends Room<GameState> {
         const lastCast = this.lastCastTimes.get(sessionId) || 0;
         if (now - lastCast < spellConfig.cooldown) return;
         this.lastCastTimes.set(sessionId, now);
+
+        // OFFENSE CHECK: Level 2 (Magic during Curfew)
+        const { isNight } = getGameTime(now);
+        if (isNight && playerState.currentOffenseLevel < 2) {
+            const zoneId = this.physicsManager.getPlayerZone(sessionId);
+            const zoneDef = zoneId ? ZONE_DATA[zoneId] : null;
+            if (!zoneDef?.isSanctuary) {
+                playerState.currentOffenseLevel = 2;
+                console.log(`[DISCIPLINE] ${playerState.username} offense elevated to Level 2 (Magic)`);
+            }
+        }
 
         const pos = entity.body.translation();
         const id = `proj_${sessionId}_${now}`;
@@ -288,8 +391,14 @@ export class WorldRoom extends Room<GameState> {
     async onJoin(client: Client, options: JoinOptions) {
         try {
             const authUser = client.auth as { userId: number, username: string };
-            const targetHouse = options.skin?.includes('red') ? 'ignis' : (options.skin?.includes('blue') ? 'axiom' : 'vesper');
             
+            // Determine House from Skin
+            let targetHouse = 'ignis';
+            if (options.skin?.includes('blue')) targetHouse = 'axiom';
+            else if (options.skin?.includes('yellow') || options.skin?.includes('vesper')) targetHouse = 'vesper';
+            else if (options.skin?.includes('red')) targetHouse = 'ignis';
+            else targetHouse = 'ignis'; // Default
+
             // 2. Initialize Session
             const session = await PlayerService.initializeSession(authUser.userId, authUser.username, { ...options, house: targetHouse });
             const house = session.dbPlayer.house as 'ignis' | 'axiom' | 'vesper';
@@ -373,7 +482,7 @@ export class WorldRoom extends Room<GameState> {
             playerState.y = pos.y;
             playerState.isAttendingClass = false; 
             playerState.classEndsAt = 0;
-            (playerState as any).alignment = entity.metadata.alignment || 0;
+            playerState.alignment = entity.metadata.alignment || 0;
             
             await PlayerService.saveSession(dbId, playerState);
         }

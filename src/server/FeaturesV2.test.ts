@@ -65,7 +65,9 @@ describe('Feature Verification V2', () => {
                 duelZones: [],
                 infirmaryBeds: MOCK_INFIRMARY_BEDS,
                 infirmaryExit: {x: 1600, y: 1050},
-                duelExits: new Map()
+                duelExits: new Map(),
+                anchors: new Map(),
+                itemSpawns: []
             });
 
             healthSystem = new HealthSystem(mockRoom);
@@ -98,7 +100,9 @@ describe('Feature Verification V2', () => {
 
         beforeEach(() => {
             LevelRegistry.getInstance().setData({
-                locations: new Map([["DETENTION", {x: 500, y: 2800, id: "DETENTION"}]]),
+                locations: new Map([["DETENTION", {x: 500, y: 2800, id: "DETENTION", width: 0, height: 0}]]),
+                anchors: new Map(),
+                itemSpawns: [],
                 duelZones: [],
                 infirmaryBeds: [],
                 infirmaryExit: null,
@@ -131,6 +135,8 @@ describe('Feature Verification V2', () => {
                 duelZones: MOCK_DUEL_ZONES,
                 infirmaryBeds: [],
                 infirmaryExit: null,
+                anchors: new Map(),
+                itemSpawns: [],
                 duelExits: MOCK_DUEL_EXITS
             });
 
@@ -158,8 +164,8 @@ describe('Feature Verification V2', () => {
 
         it('should start countdown when 2 players enter Ring 1', () => {
             const r1 = MOCK_DUEL_ZONES[0];
-            mockRoom.entities.get('a')!.body.translation = () => ({ x: r1.x, y: r1.y });
-            mockRoom.entities.get('b')!.body.translation = () => ({ x: r1.x + 10, y: r1.y + 10 });
+            mockRoom.entities.get('a')!.body!.translation = () => ({ x: r1.x, y: r1.y });
+            mockRoom.entities.get('b')!.body!.translation = () => ({ x: r1.x + 10, y: r1.y + 10 });
 
             duelSystem.update();
 
@@ -172,21 +178,21 @@ describe('Feature Verification V2', () => {
         it('should repel 3rd player if match is active/starting', () => {
             const r1 = MOCK_DUEL_ZONES[0];
             // Alice & Bob inside
-            mockRoom.entities.get('a')!.body.translation = () => ({ x: r1.x, y: r1.y });
-            mockRoom.entities.get('b')!.body.translation = () => ({ x: r1.x + 10, y: r1.y + 10 });
+            mockRoom.entities.get('a')!.body!.translation = () => ({ x: r1.x, y: r1.y });
+            mockRoom.entities.get('b')!.body!.translation = () => ({ x: r1.x + 10, y: r1.y + 10 });
             duelSystem.update(); // Alice & Bob start countdown
 
             // Charlie enters
-            mockRoom.entities.get('c')!.body.translation = () => ({ x: r1.x + 5, y: r1.y + 5 });
+            mockRoom.entities.get('c')!.body!.translation = () => ({ x: r1.x + 5, y: r1.y + 5 });
             duelSystem.update();
 
-            expect(mockRoom.entities.get('c')!.body.applyImpulse).toHaveBeenCalled();
+            expect(mockRoom.entities.get('c')!.body!.applyImpulse).toHaveBeenCalled();
         });
 
         it('should end match if player leaves during active duel', async () => {
             const r1 = MOCK_DUEL_ZONES[0];
-            mockRoom.entities.get('a')!.body.translation = () => ({ x: r1.x, y: r1.y });
-            mockRoom.entities.get('b')!.body.translation = () => ({ x: r1.x + 10, y: r1.y + 10 });
+            mockRoom.entities.get('a')!.body!.translation = () => ({ x: r1.x, y: r1.y });
+            mockRoom.entities.get('b')!.body!.translation = () => ({ x: r1.x + 10, y: r1.y + 10 });
             
             duelSystem.update(); // Pre-match
             
@@ -196,14 +202,14 @@ describe('Feature Verification V2', () => {
             duelSystem.update(); // Now Active (FIGHT!)
             
             // Alice leaves
-            mockRoom.entities.get('a')!.body.translation = () => ({ x: 0, y: 0 });
+            mockRoom.entities.get('a')!.body!.translation = () => ({ x: 0, y: 0 });
             duelSystem.update();
 
             expect(p1.inDuel).toBe(false);
             expect(mockRoom.chatManager.broadcastSystemMessage).toHaveBeenCalledWith(expect.stringContaining('out! Winner:'));
             // Both Alice and Bob should be ejected
-            expect(mockRoom.entities.get('a')!.body.setTranslation).toHaveBeenCalled();
-            expect(mockRoom.entities.get('b')!.body.setTranslation).toHaveBeenCalled();
+            expect(mockRoom.entities.get('a')!.body!.setTranslation).toHaveBeenCalled();
+            expect(mockRoom.entities.get('b')!.body!.setTranslation).toHaveBeenCalled();
         });
 
         it('should allow simultaneous matches in different rings', () => {
@@ -211,11 +217,11 @@ describe('Feature Verification V2', () => {
             const r2 = MOCK_DUEL_ZONES[1];
 
             // Ring 1: Alice & Bob
-            mockRoom.entities.get('a')!.body.translation = () => ({ x: r1.x, y: r1.y });
-            mockRoom.entities.get('b')!.body.translation = () => ({ x: r1.x + 5, y: r1.y + 5 });
+            mockRoom.entities.get('a')!.body!.translation = () => ({ x: r1.x, y: r1.y });
+            mockRoom.entities.get('b')!.body!.translation = () => ({ x: r1.x + 5, y: r1.y + 5 });
             
             // Ring 2: Charlie (alone for now)
-            mockRoom.entities.get('c')!.body.translation = () => ({ x: r2.x, y: r2.y });
+            mockRoom.entities.get('c')!.body!.translation = () => ({ x: r2.x, y: r2.y });
 
             duelSystem.update();
 
@@ -225,4 +231,3 @@ describe('Feature Verification V2', () => {
     });
 
 });
-

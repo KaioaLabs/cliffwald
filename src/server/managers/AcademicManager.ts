@@ -74,11 +74,12 @@ export class AcademicManager {
                     } else {
                         // Check if player moved away (Cancel Class)
                         const pos = entity.body.translation();
+                        const academicCfg = CONFIG.ACADEMIC;
                         let nearAnyDesk = false;
                         for (const seatPos of this.spawnManager.seats.class.values()) {
                              const dx = pos.x - seatPos.x;
                              const dy = pos.y - seatPos.y;
-                             if (dx*dx + dy*dy < 2500) { // 50px radius squared
+                             if (dx*dx + dy*dy < academicCfg.LEAVE_DESK_DISTANCE_SQ) { 
                                  nearAnyDesk = true;
                                  break;
                              }
@@ -98,17 +99,15 @@ export class AcademicManager {
                 const vel = entity.body.linvel();
                 if (Math.abs(vel.x) < 0.1 && Math.abs(vel.y) < 0.1) {
                      const pos = entity.body.translation();
+                     const academicCfg = CONFIG.ACADEMIC;
                      let foundDesk = false;
                      
-                     // Optimization: Use squared distance and avoid sqrt inside loop
-                     // Even better: Check bounding box first
-                     // 30px radius = 900 sq px
                      for (const [seatId, seatPos] of this.spawnManager.seats.class) {
-                         if (Math.abs(pos.x - seatPos.x) > 30 || Math.abs(pos.y - seatPos.y) > 30) continue; // Fast reject
+                         if (Math.abs(pos.x - seatPos.x) > 30 || Math.abs(pos.y - seatPos.y) > 30) continue; 
 
                          const dx = pos.x - seatPos.x;
                          const dy = pos.y - seatPos.y;
-                         if (dx*dx + dy*dy < 900) { 
+                         if (dx*dx + dy*dy < academicCfg.DESK_PROXIMITY_SQ) { 
                              foundDesk = true;
                              break;
                          }
@@ -146,15 +145,18 @@ export class AcademicManager {
     private completeClass(sessionId: string, playerState: any) {
         playerState.isAttendingClass = false;
         playerState.classEndsAt = 0;
-        // Reward (Legacy fallback)
-        this.prestigeSystem.addPrestige(sessionId, 5);
-        this.prestigeSystem.addGold(sessionId, 20);
-        playerState.xp += 50;
+        
+        const rewards = CONFIG.REWARDS;
+        this.prestigeSystem.addPrestige(sessionId, rewards.ATTENDANCE);
+        this.prestigeSystem.addGold(sessionId, rewards.CLASS_GOLD);
+        playerState.xp += rewards.CLASS_XP;
         this.chatManager.broadcastSystemMessage(`${playerState.username} finished class!`, "TEACHER");
     }
 
     private handleEchoAttendance(entity: Entity, playerState: any, course: number, day: number, scheduleIdx: number, location: string, now: number) {
-        let targetLoc = LevelRegistry.getInstance().getLocation("ACADEMIC_WING");
+        // For "class" activity, we target the CLASSROOM zone
+        let targetLoc = LevelRegistry.getInstance().getLocation("CLASSROOM");
+        if (!targetLoc) targetLoc = { x: 0, y: 0, width: 0, height: 0, id: 'void' };
         if (location === "Forest") targetLoc = LevelRegistry.getInstance().getLocation("FOREST");
 
         const key = `${course}_${day}_${scheduleIdx}_${entity.id}`; // using numeric ID for stability

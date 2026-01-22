@@ -4,6 +4,7 @@ export interface StudentDef {
     house: 'ignis' | 'axiom' | 'vesper';
     skin: string;
     gender: 'm' | 'f';
+    year: number;
 }
 
 const ROSTER: StudentDef[] = [];
@@ -16,19 +17,21 @@ const NAMES = {
 
 let globalId = 1;
 
-// Generate 96 Students (32 per house)
+// Generate 96 Students (32 per house = 8 students * 4 years)
 (['ignis', 'axiom', 'vesper'] as const).forEach(house => {
     const list = NAMES[house];
     for (let i = 0; i < 32; i++) {
-        const name = `${list[i % list.length]} ${String.fromCharCode(65 + (i % 26))}.`; // Diverse names
+        const name = `${list[i % list.length]} ${String.fromCharCode(65 + (i % 26))}.`; 
         const skin = house === 'ignis' ? "player_red" : (house === 'axiom' ? "player_blue" : "player_idle");
-        
+        const year = Math.floor(i / 8) + 1; // 0-7=Year 1, 8-15=Year 2, etc.
+
         ROSTER.push({
             id: globalId++,
             name: name,
             house: house,
             skin: skin,
-            gender: i % 2 === 0 ? 'm' : 'f'
+            gender: i % 2 === 0 ? 'm' : 'f',
+            year: year
         });
     }
 });

@@ -10,6 +10,10 @@ export const MovementSystem = (world: ECSWorld) => {
         const { body, input } = entity;
         let speed = CONFIG.PLAYER_SPEED;
         
+        if (input.isGhost) {
+            speed *= CONFIG.PHYSICS.GHOST_SPEED_MULTIPLIER;
+        }
+        
         let vx = 0;
         let vy = 0;
 
@@ -43,8 +47,9 @@ export const MovementSystem = (world: ECSWorld) => {
         }
 
         // For Dynamic bodies with damping, we need a strong velocity kick
-        const moveSpeed = speed * 1.5; 
-        body.setLinvel({ x: vx * 1.5, y: vy * 1.5 }, true);
+        // Refactored to use CONFIG.PHYSICS.VELOCITY_MULTIPLIER
+        const multiplier = CONFIG.PHYSICS.VELOCITY_MULTIPLIER; 
+        body.setLinvel({ x: vx * multiplier, y: vy * multiplier }, true);
 
         // Update Facing
         if ((vx !== 0 || vy !== 0) && entity.facing) {

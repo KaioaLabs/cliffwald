@@ -1,3 +1,5 @@
+import 'reflect-metadata';
+import 'reflect-metadata';
 import { Schema, type, MapSchema, ArraySchema } from "@colyseus/schema";
 import { CONFIG } from "./Config";
 
@@ -34,6 +36,13 @@ export class Player extends Schema {
     
     // Discipline
     @type("number") detentionWork: number = 0; // Remaining 'work units' to be free
+    @type("number") currentOffenseLevel: number = 1; // 1 (Curfew), 2 (Magic), 3 (Assault)
+    
+    // Verticality
+    @type("boolean") isSleepingUpstairs: boolean = false;
+
+    // Dev / God Mode
+    @type("boolean") isGhost: boolean = false;
 }
 
 export class WorldItem extends Schema {

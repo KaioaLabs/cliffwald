@@ -51,16 +51,19 @@ describe("AISystem MMO Behaviors", () => {
     beforeEach(() => {
         LevelRegistry.getInstance().setData({
             locations: new Map([
-                ["DORM_IGNIS", { x: 500, y: 500, id: "DORM_IGNIS" }],
-                ["GREAT_HALL", { x: 1000, y: 1000, id: "GREAT_HALL" }],
-                ["CLASSROOM", { x: 800, y: 800, id: "CLASSROOM" }],
-                ["COURTYARD", { x: 600, y: 600, id: "COURTYARD" }]
+                ["GREAT_HALL", { x: 100, y: 100, id: "GREAT_HALL", width: 0, height: 0 }],
+                ["CLASSROOM", { x: 200, y: 200, id: "CLASSROOM", width: 0, height: 0 }],
+                ["COURTYARD", { x: 300, y: 300, id: "COURTYARD", width: 0, height: 0 }],
+                ["DORM_IGNIS", { x: 400, y: 400, id: "DORM_IGNIS", width: 0, height: 0 }],
+                ["DORM_AXIOM", { x: 400, y: 400, id: "DORM_AXIOM", width: 0, height: 0 }],
+                ["DORM_VESPER", { x: 400, y: 400, id: "DORM_VESPER", width: 0, height: 0 }]
             ]),
             duelZones: [],
             infirmaryBeds: [],
             infirmaryExit: { x: 0, y: 0 },
             duelExits: new Map(),
-            anchors: new Map()
+            anchors: new Map(),
+            itemSpawns: []
         });
 
         world = createWorld();

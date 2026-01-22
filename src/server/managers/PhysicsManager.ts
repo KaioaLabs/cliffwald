@@ -24,7 +24,6 @@ export class PhysicsManager {
 
     // Sync Optimization
     private syncTimer = 0;
-    private readonly SYNC_RATE = 100; // 10Hz sync (Client interpolates)
 
     constructor(state: GameState, entities: Map<string, Entity>) {
         this.state = state;
@@ -35,7 +34,13 @@ export class PhysicsManager {
         this.eventQueue = new RAPIER.EventQueue(true);
     }
 
-    public async loadMap(mapPath: string): Promise<{ spawnPos: {x: number, y: number}, mapData: MapData, navGrids: Map<number, number[][]> }> {
+    public async loadMap(mapPath: string): Promise<{ 
+        spawnPos: {x: number, y: number}, 
+        prefectSpawns: {x: number, y: number, name?: string}[], 
+        merchantSpawns: {x: number, y: number, name?: string}[],
+        mapData: MapData, 
+        navGrids: Map<number, number[][]> 
+    }> {
         const mapFile = await fs.readFile(mapPath, "utf-8");
         const mapData = JSON.parse(mapFile) as MapData;
         
@@ -50,6 +55,8 @@ export class PhysicsManager {
         
         return { 
             spawnPos: entitiesResult.spawnPos, 
+            prefectSpawns: entitiesResult.prefectSpawns || [],
+            merchantSpawns: entitiesResult.merchantSpawns || [],
             mapData, 
             navGrids: result.navGrids 
         };
@@ -107,7 +114,7 @@ export class PhysicsManager {
         });
 
         this.syncTimer += deltaTime;
-        if (this.syncTimer >= this.SYNC_RATE) {
+        if (this.syncTimer >= CONFIG.NETWORK.SYNC_RATE) {
             this.syncTimer = 0;
             this.syncState();
         }
@@ -157,5 +164,24 @@ export class PhysicsManager {
         
         bodiesToRemove.forEach(b => this.world.removeRigidBody(b));
         console.log(`[PHYSICS] Cleared ${bodiesToRemove.length} static bodies.`);
+    }
+
+    public setPlayerGhostMode(sessionId: string, isGhost: boolean) {
+        const entity = this.entities.get(sessionId);
+        if (entity && entity.body) {
+            const collider = entity.body.collider(0); // Assuming 1 collider per player
+            if (collider) {
+                if (isGhost) {
+                    // Ghost Group: Hits NOTHING (or only Sensors/Zones if we want zone triggers)
+                    // Let's allow Sensors so we can test Zone Logic in God Mode
+                    const groups = (CONFIG.COLLISION_GROUPS.GHOST << 16) | CONFIG.COLLISION_GROUPS.SENSOR;
+                    collider.setCollisionGroups(groups);
+                } else {
+                    // Restore Normal Player Group
+                    const groups = (CONFIG.COLLISION_GROUPS.PLAYER << 16) | CONFIG.COLLISION_GROUPS.PLAYER_MASK;
+                    collider.setCollisionGroups(groups);
+                }
+            }
+        }
     }
 }

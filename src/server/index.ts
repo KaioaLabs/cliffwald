@@ -8,12 +8,41 @@ import { WorldRoom } from "./WorldRoom";
 import { AuthService } from "./services/AuthService";
 import { initDatabase } from "./init_db";
 import { seedAdmins } from "./seed_admins";
+import { timeManager } from "../shared/managers/TimeManager";
 
 const port = Number(process.env.PORT || 2568);
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+// --- DEBUG TIME SCALE API ---
+app.post("/api/debug/time-scale", (req, res) => {
+    try {
+        const { scale } = req.body;
+        if (typeof scale !== 'number') return res.status(400).json({ error: "Invalid scale" });
+        
+        timeManager.setTimeScale(scale);
+        console.log(`[DEBUG] Time Scale updated to ${scale}x via API`);
+        res.json({ success: true, scale });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post("/api/debug/time-jump", (req, res) => {
+    try {
+        const { hour } = req.body;
+        if (typeof hour !== 'number') return res.status(400).json({ error: "Invalid hour" });
+        
+        timeManager.setGameHour(hour);
+        console.log(`[DEBUG] Time Jump to ${hour}:00 via API`);
+        res.json({ success: true, hour });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+// ----------------------------
 
 // --- DIAGNOSTIC ROUTE ---
 app.get("/ping", (req, res) => {

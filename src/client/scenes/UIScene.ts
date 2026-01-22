@@ -26,8 +26,13 @@ export class UIScene extends Phaser.Scene {
         this.createPrestigeUI();
 
         // ... mobile logic ...
-        // Robust check: OS is mobile OR device supports touch
-        const isMobile = !this.sys.game.device.os.desktop || this.sys.game.device.input.touch;
+        // Modern Mobile Detection (2026)
+        // Ensure we don't trigger "Mobile Mode" (Joystick) on Touch Laptops (Large Screens)
+        const uaMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const isTouch = navigator.maxTouchPoints > 0 || (window as any).matchMedia("(any-pointer: coarse)").matches;
+        const isSmallScreen = this.scale.width < 1024; // Use game scale width
+
+        const isMobile = uaMobile || (isTouch && isSmallScreen);
         
         if (isMobile) {
             this.joystick = new VirtualJoystick(this, 0, 0);
@@ -40,8 +45,9 @@ export class UIScene extends Phaser.Scene {
     }
 
     createPrestigeUI() {
-        const startX = this.scale.width - 160;
-        const startY = 20;
+        const layout = THEME.LAYOUT.PRESTIGE;
+        const startX = this.scale.width - layout.WIDTH_OFFSET;
+        const startY = layout.START_Y;
         const houses = [
             { id: 'ignis', color: THEME.HOUSES.IGNIS, label: 'I' },
             { id: 'axiom', color: THEME.HOUSES.AXIOM, label: 'A' },
@@ -49,13 +55,13 @@ export class UIScene extends Phaser.Scene {
         ];
 
         houses.forEach((house, index) => {
-            const x = startX + (index * 25);
+            const x = startX + (index * layout.SPACING_X);
             
             // Background
-            this.add.rectangle(x, startY + 20, 15, 40, 0x000000, 0.5).setOrigin(0.5, 0);
+            this.add.rectangle(x, startY + 20, layout.PILLAR_WIDTH, layout.PILLAR_MAX_HEIGHT, 0x000000, 0.5).setOrigin(0.5, 0);
             
             // Fill
-            const fill = this.add.rectangle(x, startY + 60, 15, 0, house.color).setOrigin(0.5, 1);
+            const fill = this.add.rectangle(x, startY + 60, layout.PILLAR_WIDTH, 0, house.color).setOrigin(0.5, 1);
             
             // Label
             const text = this.add.text(x, startY + 5, '0', {
@@ -69,14 +75,14 @@ export class UIScene extends Phaser.Scene {
 
         // Hit Area for Tooltip (Covers all 3 pillars)
         // 3 pillars * 25px = 75px wide approx.
-        const centerX = startX + 25; 
-        this.prestigeHitArea = this.add.zone(centerX, startY + 30, 80, 60)
+        const centerX = startX + layout.SPACING_X; 
+        this.prestigeHitArea = this.add.zone(centerX, startY + 30, layout.SPACING_X * 3.2, 60)
             .setInteractive({ cursor: 'pointer' });
 
         // Tooltip Container
-        this.tooltipContainer = this.add.container(startX, startY + 70).setVisible(false).setDepth(100);
+        this.tooltipContainer = this.add.container(startX, startY + layout.TOOLTIP_OFFSET_Y).setVisible(false).setDepth(100);
         
-        const bg = this.add.rectangle(0, 0, 120, 60, 0x000000, 0.9).setOrigin(0.5, 0);
+        const bg = this.add.rectangle(0, 0, layout.TOOLTIP_WIDTH, layout.TOOLTIP_HEIGHT, 0x000000, 0.9).setOrigin(0.5, 0);
         bg.setStrokeStyle(1, 0xFFFFFF);
         this.tooltipContainer.add(bg);
 
@@ -117,12 +123,13 @@ export class UIScene extends Phaser.Scene {
     }
 
     repositionPrestigeUI(width: number) {
-        const startX = width - 160;
+        const layout = THEME.LAYOUT.PRESTIGE;
+        const startX = width - layout.WIDTH_OFFSET;
         const houses = ['ignis', 'axiom', 'vesper'];
         houses.forEach((id, index) => {
             const p = this.pillars.get(id);
             if (p) {
-                const x = startX + (index * 25);
+                const x = startX + (index * layout.SPACING_X);
                 p.fill.x = x;
                 p.text.x = x;
             }
@@ -130,25 +137,26 @@ export class UIScene extends Phaser.Scene {
         
         // Move Hit Area
         if (this.prestigeHitArea) {
-             const centerX = startX + 25; 
-             this.prestigeHitArea.setPosition(centerX, 20 + 30);
+             const centerX = startX + layout.SPACING_X; 
+             this.prestigeHitArea.setPosition(centerX, layout.START_Y + 30);
         }
 
         // Move Tooltip
         if (this.tooltipContainer) {
-            this.tooltipContainer.setPosition(startX + 25, 20 + 70);
+            this.tooltipContainer.setPosition(startX + layout.SPACING_X, layout.START_Y + layout.TOOLTIP_OFFSET_Y);
         }
     }
 
     updatePoints(ignis: number, axiom: number, vesper: number) {
         this.currentPoints = { ignis, axiom, vesper }; // Store for tooltip
+        const layout = THEME.LAYOUT.PRESTIGE;
 
         const maxDisplay = Math.max(ignis, axiom, vesper, 100); // Scale relative to max
         
         const updatePillar = (id: string, val: number) => {
             const p = this.pillars.get(id);
             if (p) {
-                const height = (val / maxDisplay) * 40;
+                const height = (val / maxDisplay) * layout.PILLAR_MAX_HEIGHT;
                 p.fill.height = height;
                 p.text.setText(val.toString());
             }

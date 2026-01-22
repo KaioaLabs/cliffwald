@@ -1,7 +1,8 @@
 import { Client, Room } from 'colyseus.js';
 import { GameState, Player, Projectile } from '../shared/SchemaDef';
 import { PlayerInput } from '../shared/types/NetworkTypes';
-import { MapSchema } from '@colyseus/schema';
+import { MapSchema, ArraySchema } from '@colyseus/schema';
+import { CONFIG } from '../shared/Config';
 
 export class NetworkManager {
     private client: Client;
@@ -25,9 +26,14 @@ export class NetworkManager {
     constructor(scene?: Phaser.Scene) {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = window.location.hostname;
-        const port = (host === "localhost" || host === "127.0.0.1") ? ":2568" : (window.location.port ? ':' + window.location.port : '');
+        const port = CONFIG.NETWORK.DEFAULT_PORT;
         
-        const url = `${protocol}//${host}${port}`;
+        // Development vs Production Logic
+        // In Prod, we might proxy via Nginx (no port), or use same port.
+        // For now, let's strictly use the config port for local dev alignment.
+        const portSuffix = (host === "localhost" || host === "127.0.0.1") ? `:${port}` : (window.location.port ? ':' + window.location.port : '');
+        
+        const url = `${protocol}//${host}${portSuffix}`;
         console.log(`[NET] Connecting to: ${url}`);
         this.client = new Client(url);
     }
@@ -85,24 +91,25 @@ export class NetworkManager {
         });
 
         // Helper for Colyseus Version Compatibility
-        const attach = <T>(collection: any | undefined, event: 'onAdd' | 'onRemove', cb: (item: T, key: string) => void) => {
+        const attach = <T>(collection: MapSchema<T> | ArraySchema<T> | undefined, event: 'onAdd' | 'onRemove', cb: (item: T, key: string) => void) => {
             if (!collection) return;
             try {
-                const col = collection as any; 
                 // We wrap the callback 'cb' to handle latency
-                const wrappedCb = (item: T, key: string) => {
-                    this.handleLatency(() => cb(item, key));
+                const wrappedCb = (item: T, key: string | number) => {
+                    this.handleLatency(() => cb(item, String(key)));
                 };
 
-                if (typeof col[event] === 'function') {
-                    col[event](wrappedCb);
+                if (typeof collection[event] === 'function') {
+                    // @ts-ignore - Colyseus types are tricky with generic constraints here, but logic is sound
+                    collection[event](wrappedCb);
                 } else {
-                    col[event] = wrappedCb;
+                    // Fallback for older versions or if type defs miss it
+                    (collection as any)[event] = wrappedCb;
                 }
 
                 // TRIGGER FOR EXISTING ITEMS (Fix for race condition)
-                if (event === 'onAdd' && col.forEach) {
-                    col.forEach((item: T, key: string) => wrappedCb(item, key));
+                if (event === 'onAdd' && collection.forEach) {
+                    collection.forEach((item: T, key: string | number) => wrappedCb(item, String(key)));
                 }
             } catch (e) {
                 console.error(`[NET] Failed to attach ${event}:`, e);
@@ -151,7 +158,7 @@ export class NetworkManager {
             if (this.room) {
                 this.room.send("ping", Date.now());
             }
-        }, 1000);
+        }, CONFIG.NETWORK.PING_INTERVAL);
     }
 
     public sendCast(spellId: string, vx: number, vy: number) {

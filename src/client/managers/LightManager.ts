@@ -14,6 +14,7 @@ export class LightManager {
     private scene: Phaser.Scene;
     private windows: WindowObject[] = [];
     private sunPosition: { x: number, y: number } = { x: 0, y: 0 };
+    private currentSunColor: number = 0xffffff;
     
     // Override
     private overrideEnabled: boolean = false;
@@ -95,6 +96,10 @@ export class LightManager {
     public getSunPosition() {
         return this.sunPosition;
     }
+    
+    public getSunColor() {
+        return this.currentSunColor;
+    }
 
     public getSunHeight(hour: number): number {
         const trans = CONFIG.LIGHTING_CONFIG.TRANSITIONS;
@@ -154,6 +159,8 @@ export class LightManager {
             rayAlpha = 0.15; 
             lightColor = this.colorToInt(palette.NIGHT);
         }
+        
+        this.currentSunColor = lightColor;
 
         // 4. Update Windows with CULLING
         const viewRect = camera.worldView;

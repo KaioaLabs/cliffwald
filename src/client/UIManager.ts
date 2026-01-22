@@ -61,58 +61,87 @@ export class UIManager {
         this.bindDOMUI();
         this.setupEventListeners();
         
+        // Check for Dev/Test Mode skip
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('dev_user') || urlParams.has('skip_intro') || CONFIG.DEV_SKIP_INTRO) {
+            console.log("[UIManager] Dev mode detected: Skipping Intro.");
+            this.introPlayed = true;
+        }
+
         // Check if intro needed (could check localStorage)
         if (!this.introPlayed) {
             this.startIntro();
+        } else {
+             // If no intro, go straight to login state visually
+             this.setGameState('LOGIN');
         }
-
-        // TRANSITION: Login -> Game
-        const loginScreen = document.getElementById('login-screen');
-        const gameUI = document.getElementById('game-ui');
-        
-        if (loginScreen) loginScreen.classList.remove('hidden'); // Ensure visible behind intro
-        if (gameUI) gameUI.classList.add('hidden'); // Ensure hidden
     }
     
+    public isIntroActive(): boolean {
+        return !this.introPlayed;
+    }
+
+    public onIntroComplete?: () => void;
+    
     private startIntro() {
+        console.log("[UIManager] startIntro() called");
         const screen = document.getElementById('intro-screen');
         const subtitles = document.getElementById('intro-subtitles');
-        const skip = document.getElementById('intro-skip');
+        const skipText = document.getElementById('intro-skip'); // Keep for hint
+        const tapPrompt = document.getElementById('tap-to-start');
+        const skipCircle = document.getElementById('skip-circle');
+        const skipProgress = document.getElementById('skip-progress');
         
-        if (!screen) return;
+        if (!screen || !tapPrompt) {
+            console.error("[UIManager] Critical intro elements missing!");
+            this.finishIntro();
+            return;
+        }
 
         screen.classList.remove('hidden');
         if (subtitles) subtitles.classList.remove('hidden');
-        if (skip) skip.classList.remove('hidden');
+        if (skipText) skipText.classList.remove('hidden');
+        tapPrompt.classList.remove('hidden');
 
-        // Audio Auto-Play Attempt
-        if (this.scene.cache.audio.exists('intro_full')) {
-            this.introAudio = this.scene.sound.add('intro_full', { volume: 0.5 });
+        // STATE 1: WAIT FOR START
+        const onStartInteraction = () => {
+            console.log("[UIManager] Interaction detected. Starting cinematic.");
             
-            // Try to play immediately
-            try {
-                this.introAudio.play();
-            } catch (e) {
-                console.warn("Audio autoplay blocked. Waiting for interaction.");
+            // Remove start listeners
+            window.removeEventListener('click', onStartInteraction);
+            window.removeEventListener('keydown', onStartInteraction);
+            window.removeEventListener('touchstart', onStartInteraction);
+
+            // Hide Prompt
+            tapPrompt.classList.add('hidden');
+
+            // Unlock & Play Audio
+            if (this.scene.sound.locked) {
+                this.scene.sound.unlock();
             }
-            
-            // Fallback unlocker
-            const unlockAudio = () => {
-                if (this.scene.sound.locked) {
-                    this.scene.sound.unlock();
-                }
-                if (this.introAudio && !this.introAudio.isPlaying && !this.introPlayed) {
-                    this.introAudio.play();
-                }
-                window.removeEventListener('click', unlockAudio);
-                window.removeEventListener('touchstart', unlockAudio);
-            };
-            
-            window.addEventListener('click', unlockAudio);
-            window.addEventListener('touchstart', unlockAudio);
-        }
-        
-        // Subtitles Loop
+
+            if (this.scene.cache.audio.exists('intro_full')) {
+                this.introAudio = this.scene.sound.add('intro_full', { volume: 0.5 });
+                this.introAudio.play();
+            } else {
+                console.warn("[UIManager] Audio 'intro_full' missing.");
+            }
+
+            // Start Subtitles
+            this.startSubtitlesLoop();
+
+            // Enable Skip Logic
+            this.enableSkipLogic(screen, skipCircle, skipProgress);
+        };
+
+        // Add one-time listeners for start
+        window.addEventListener('click', onStartInteraction);
+        window.addEventListener('keydown', onStartInteraction);
+        window.addEventListener('touchstart', onStartInteraction);
+    }
+
+    private startSubtitlesLoop() {
+        const subtitles = document.getElementById('intro-subtitles');
         const startTime = Date.now();
         let lastText = "";
 
@@ -140,28 +169,62 @@ export class UIManager {
                 }
             }
         });
+    }
 
-        // Skip Logic (Hold)
-        let holdTimeout: any;
-        const startHold = () => {
-            if (skip) {
-                skip.style.color = '#fff';
-                skip.innerText = "SKIPPING...";
-            }
-            holdTimeout = setTimeout(() => this.finishIntro(), 1000); 
+    private enableSkipLogic(screen: HTMLElement, skipCircle: HTMLElement | null, skipProgress: HTMLElement | null) {
+        if (!skipCircle || !skipProgress) return;
+
+        let holdInterval: any;
+        let holdDuration = 0;
+        const TARGET_DURATION = 1500; // 1.5s to skip
+        const CIRCUMFERENCE = 339.29; // 2 * PI * 54
+
+        const updateVisuals = () => {
+            const progress = Math.min(holdDuration / TARGET_DURATION, 1);
+            const offset = CIRCUMFERENCE - (progress * CIRCUMFERENCE);
+            skipProgress.style.strokeDashoffset = offset.toString();
         };
+
+        const startHold = (e: Event) => {
+            if (e.type === 'mousedown' && (e as MouseEvent).button !== 0) return; // Only Left Click
+            
+            skipCircle.classList.remove('hidden');
+            holdDuration = 0;
+            updateVisuals();
+
+            clearInterval(holdInterval);
+            holdInterval = setInterval(() => {
+                holdDuration += 100; // Update every 100ms
+                updateVisuals();
+
+                if (holdDuration >= TARGET_DURATION) {
+                    clearInterval(holdInterval);
+                    this.finishIntro();
+                }
+            }, 100);
+        };
+
         const endHold = () => {
-            if (skip) {
-                skip.style.color = '#666';
-                skip.innerText = "HOLD SCREEN TO SKIP";
-            }
-            clearTimeout(holdTimeout);
+            clearInterval(holdInterval);
+            holdDuration = 0;
+            skipCircle.classList.add('hidden');
+            updateVisuals(); // Reset
         };
         
-        screen.addEventListener('mousedown', startHold);
-        screen.addEventListener('mouseup', endHold);
-        screen.addEventListener('touchstart', startHold);
-        screen.addEventListener('touchend', endHold);
+        this.addListener(screen, 'mousedown', startHold);
+        this.addListener(screen, 'touchstart', startHold);
+        
+        this.addListener(screen, 'mouseup', endHold);
+        this.addListener(screen, 'mouseleave', endHold);
+        this.addListener(screen, 'touchend', endHold);
+        
+        // Also support SPACE to skip
+        this.addListener(window, 'keydown', (e: any) => {
+            if (e.code === 'Space' && holdDuration === 0) startHold(e);
+        });
+        this.addListener(window, 'keyup', (e: any) => {
+            if (e.code === 'Space') endHold();
+        });
     }
 
     private finishIntro() {
@@ -185,6 +248,12 @@ export class UIManager {
         if (this.scene.cache.audio.exists('main_theme')) {
             const theme = this.scene.sound.add('main_theme', { volume: 0.3, loop: true });
             theme.play();
+        }
+
+        // TRANSITION: Now show Login
+        this.setGameState('LOGIN');
+        if (this.onIntroComplete) {
+            this.onIntroComplete();
         }
     }
 
