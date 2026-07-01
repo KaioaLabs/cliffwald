@@ -89,6 +89,7 @@ rtk proxy powershell -NoProfile -ExecutionPolicy Bypass -File "D:\cliffwald\Clif
 - Physical Android hardware thermal/GPU validation is still required before claiming final mobile readiness.
 - iOS packaging/signing requires Apple/Xcode tooling or a remote Mac.
 - Production online control plane still needs a minimal supported EOS/session/database design before real deployment.
+- The UE demo clock still runs at technical-demo speed; the final product cadence is documented as a 5h36m canonical in-fiction day and an 8-week real-world school year.
 - Longer runtime soak should be repeated after major gameplay or networking changes.
 
 ## Cleanup Status

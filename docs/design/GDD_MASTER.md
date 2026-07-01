@@ -97,9 +97,18 @@ Short rule: **AI controls presence, not property. AI controls theatre, not progr
 
 ## 6. Time And Schedule
 
-### 6.1 School Day
+### 6.1 Academic Clock
 
-The school follows a compressed day/night rhythm. Exact timings can change through tuning, but the structure is stable:
+The canonical product target is an **8-week real-world school year/course** made of **8 academic months**. Each academic month lasts one real-world week and contains 30 in-fiction calendar days, so a full course contains 240 in-fiction calendar days.
+
+That makes one canonical in-fiction 24-hour day last **5 hours and 36 minutes** in real time.
+
+- **4 hours and 12 minutes day:** breakfast, class, lunch, free time, dinner and social play.
+- **1 hour and 24 minutes night:** curfew, stealth, forbidden routes and higher-risk play.
+
+This cadence is the source of truth for the persistent world calendar, exams, house competition, seasons and course completion. It also avoids locking a player who logs in at the same real-world hour into the same in-game time every day.
+
+The school follows a compressed day/night rhythm. Exact bell timings inside the day block can change through tuning, but the structure is stable:
 
 | Phase | Activity | Main Function |
 | --- | --- | --- |
@@ -110,7 +119,19 @@ The school follows a compressed day/night rhythm. Exact timings can change throu
 | Evening | Dinner | Social regrouping before riskier night play. |
 | Night | Curfew | Stealth, forbidden routes, PvPvE pressure. |
 
-### 6.2 Respect For Player Time
+### 6.2 Session Loops
+
+Important distinction:
+
+- The **5h36 canonical day** is the persistent calendar and simulation unit.
+- Shorter **40-48 minute school loops** are useful references for Roblox-like session pacing, temporary events, demos or condensed activities, but they are not the canonical day.
+- The **8-week school year** is the seasonal progression, content and house-competition cadence.
+
+The year must never be calculated from 40-minute literal days. A 40-minute literal day would create 2,016 in-fiction days in an 8-week course, which is too noisy for a readable school calendar.
+
+Seasonal systems should treat any short loop as activity pacing, while exams, house rankings, story beats and year-end outcomes advance on the 8-week course calendar.
+
+### 6.3 Respect For Player Time
 
 Classes and schedules should create immersion, not FOMO punishment. Players should gain benefits from attending live events, but the design must avoid locking core progression behind narrow real-time windows.
 

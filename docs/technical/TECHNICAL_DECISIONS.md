@@ -129,6 +129,11 @@ Decision: the minimum UE vertical slice must run the school with zero connected 
 
 - `ACliffwaldSchoolGameState` is the server-authoritative school clock. It replicates day, time and phase.
 - The initial compressed schedule advances through sleep, breakfast, class, lunch, free time, dinner and curfew.
+- Current UE demo clock speed is deliberately accelerated: `GameMinutesPerRealSecond = 4.0`, so a 24-hour clock loop lasts `6` real minutes. This is a technical-demo setting, not the final product cadence.
+- Product target cadence is a canonical `5h36m` real-time 24-hour in-fiction day. If represented as a 24-hour clock, that target is `0.0714286` game minutes per real second: one in-fiction hour lasts `14` real minutes.
+- With the current 75/25 product split, day/social/academic play lasts `4h12m` and night/curfew play lasts `1h24m`.
+- The 8-week school year/course cadence is 8 academic months of 30 in-fiction days each. Short `40-48` minute school loops may be used for events, condensed activities or demos, but they are not the persistent calendar unit.
+- Avoid an exact `6h` canonical day unless the academic calendar changes; it divides evenly into 24 real-world hours and would make players who log in at the same real-world hour repeatedly see the same in-game time.
 - `ACliffwaldPrototypeWorld` spawns `96` Echo actors on the server for the full zero-human roster.
 - `ACliffwaldEchoStudentActor` reads the replicated school phase and moves to deterministic phase anchors for dorm, dining, class and free-time areas.
 - Echo actor tick is throttled to `0.2s`, net update frequency is reduced to `5Hz` with `1Hz` minimum, and cull distance remains finite. This is the intended starting shape for mobile-friendly replication.
