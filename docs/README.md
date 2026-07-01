@@ -11,6 +11,7 @@ This folder separates product design, technical decisions, execution plans and h
 
 ## Supporting Documents
 
+- `docs/design/TIME_CADENCE_RESEARCH.md` - Evidence, hypotheses and playtest plan for school-day/night/course cadence.
 - `docs/technical/DEV_SETUP.md` - Local Unreal setup, validation and cleanup commands.
 - `docs/security/ZERO_TRUST.md` - Server-authority and persistence safety policy.
 - `docs/management/PROJECT_HISTORY.md` - Historical notes that explain what was removed from the legacy prototype and why.

@@ -97,16 +97,18 @@ Short rule: **AI controls presence, not property. AI controls theatre, not progr
 
 ## 6. Time And Schedule
 
-### 6.1 Academic Clock
+### 6.1 Time Cadence Status
 
-The canonical product target is an **8-week real-world school year/course** made of **8 academic months**. Each academic month lasts one real-world week and contains 30 in-fiction calendar days, so a full course contains 240 in-fiction calendar days.
+The exact real-time duration of an in-fiction day is **not final**.
 
-That makes one canonical in-fiction 24-hour day last **5 hours and 36 minutes** in real time.
+Time cadence must be treated as a playtest hypothesis, not as a truth derived from math alone. Current research lives in `docs/design/TIME_CADENCE_RESEARCH.md`.
 
-- **4 hours and 12 minutes day:** breakfast, class, lunch, free time, dinner and social play.
-- **1 hour and 24 minutes night:** curfew, stealth, forbidden routes and higher-risk play.
+Known design anchors:
 
-This cadence is the source of truth for the persistent world calendar, exams, house competition, seasons and course completion. It also avoids locking a player who logs in at the same real-world hour into the same in-game time every day.
+- Roblox-like school loops often land around **40-48 minutes** for a full school routine, but this supports session pacing more than a believable academic calendar.
+- MMO/life-sim day/night cycles commonly sit around **60-120 minutes**, which helps players experience multiple phases without making each phase vanish instantly.
+- Persistent roleplay school servers can tolerate **multi-hour** day cycles, but that risks making short sessions feel blocked by the current phase.
+- A **5h36m** day is a mathematically consistent calendar candidate for an 8-week course made of 8 30-day academic months, but it is not yet validated as fun.
 
 The school follows a compressed day/night rhythm. Exact bell timings inside the day block can change through tuning, but the structure is stable:
 
@@ -119,17 +121,25 @@ The school follows a compressed day/night rhythm. Exact bell timings inside the 
 | Evening | Dinner | Social regrouping before riskier night play. |
 | Night | Curfew | Stealth, forbidden routes, PvPvE pressure. |
 
-### 6.2 Session Loops
+### 6.2 Decision Method
 
-Important distinction:
+The final cadence should be chosen from player feeling and telemetry, not from a spreadsheet alone.
 
-- The **5h36 canonical day** is the persistent calendar and simulation unit.
-- Shorter **40-48 minute school loops** are useful references for Roblox-like session pacing, temporary events, demos or condensed activities, but they are not the canonical day.
-- The **8-week school year** is the seasonal progression, content and house-competition cadence.
+Before the cadence is locked, the game should test at least these variants:
 
-The year must never be calculated from 40-minute literal days. A 40-minute literal day would create 2,016 in-fiction days in an 8-week course, which is too noisy for a readable school calendar.
+- **48-minute session loop:** fast school-day feeling, close to Roblox school benchmarks.
+- **90-minute social loop:** one substantial session can see several phases without rushing every class.
+- **144-minute MMO loop:** avoids same-real-hour lock-in and gives day/night content more room.
+- **4-6 hour roleplay loop:** persistent-school feel, but likely needs strong catch-up and low FOMO.
 
-Seasonal systems should treat any short loop as activity pacing, while exams, house rankings, story beats and year-end outcomes advance on the 8-week course calendar.
+Evaluation criteria:
+
+- A 30-60 minute mobile session must still produce meaningful progress.
+- Classes should create school identity without overwhelming players or removing free time.
+- Night must last long enough for stealth, secrets and social tension to matter.
+- Players should not spend most of a session waiting for the "right" time window.
+- Echoes should make the world feel continuous without making offline progression feel mandatory.
+- The 8-week school year/course target must remain readable, or be deliberately changed.
 
 ### 6.3 Respect For Player Time
 
