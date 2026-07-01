@@ -1,111 +1,76 @@
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-logs_client.txt
-logs_server.txt
-mmo_debug_log.txt
-vibe_logs.txt
-
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-tmp_chrome_data_*
-
-# Dependency directories
-node_modules/
-jspm_packages/
-
-# TypeScript v1 declaration files
-typings/
-
-# Optional npm cache directory
-.npm
-
-# Optional eslint cache
-.eslintcache
-
-# Optional REPL history
-.node_repl_history
-
-# Output of 'npm pack'
-*.tgz
-
-# Yarn Integrity file
-.yarn-integrity
-
-# dotenv environment variables file
+# Local secrets
 .env
-.env.test
+.env.*
+!.env.example
+!*.env.example
 
-# parcel-bundler cache (https://parceljs.org/)
-.cache
-
-# next.js build output
-.next
-
-# nuxt.js build output
-.nuxt
-
-# vuepress build output
-.vuepress/dist
-
-# Serverless directories
-.serverless/
-
-# FuseBox cache
-.fusebox/
-
-# DynamoDB Local files
-.dynamodb/
-
-# OS metadata
+# OS and editor metadata
 .DS_Store
 Thumbs.db
-
-# Build artifacts
-dist/
-build/
-dist-client/
-dist-server/
-
-# IDEs
 .idea/
 .vscode/
 *.swp
 *.swo
 
-# Backup files
-*.bak
+# Logs, runtime state and temporary files
+logs/
+*.log
+pids/
+*.pid
+*.seed
+*.pid.lock
 *.tmp
-
-# Tiled Binaries
-Tiled/
-*.exe
-
-# Prisma Generated Binaries (Keep TS files)
-src/generated/**/*.node
-src/generated/**/*.dll
-src/generated/**/*.so
-src/generated/**/*.tmp*
-
-# External Assets & Reference
-assets_External/
-OLD_REFERENCE_*.docx
-assets/merlin_*.png
-
-# Logs & Test Artifacts
+*.bak
+*.profraw
+tmp_chrome_data_*
+artifacts/
 screenshots/
 test-results/
-server_log.txt
-server_err.txt
-logs_client.txt
-logs_server.txt
-mmo_debug_log.txt
-vibe_logs.txt
-tmp_chrome_data_*
-pids
+__pycache__/
+*.pyc
+
+# Legacy web/2D prototype outputs kept out of the UE baseline
+node_modules/
+.npm/
+.npm-cache/
+dist/
+build/
+dist-client/
+dist-server/
+src/generated/client/
+*.db
+*.sqlite
+*.sqlite3
+Cliffwald2D/
+Cliffwald_UEFN/
+uefn/
+.roo/
+docs/audit/
+docs/research/
+tmp_youtube_*
+
+# Root-level scratch art/media dumps, not deliberate project assets
+/*.blend
+/*.blend1
+/*.glb
+/*.obj
+/*.mtl
+/*.aup3
+/*.mp4
+/*.webp
+
+# Unreal Engine generated/editor-local files
+Cliffwald_UnrealMMO/.vs/
+Cliffwald_UnrealMMO/*.sln
+Cliffwald_UnrealMMO/Build/
+Cliffwald_UnrealMMO/Saved/
+Cliffwald_UnrealMMO/Intermediate/
+Cliffwald_UnrealMMO/Binaries/
+Cliffwald_UnrealMMO/DerivedDataCache/
+Cliffwald_UnrealMMO/Packaged/
+Cliffwald_UnrealMMO/PackagedAndroid/
+Cliffwald_UnrealMMO/PackagedServer/
+Cliffwald_UnrealMMO/PackagedSourceClient/
+Cliffwald_UnrealMMO/Plugins/**/Binaries/
+Cliffwald_UnrealMMO/Plugins/**/Intermediate/
+Cliffwald_UnrealMMO/Plugins/**/Saved/

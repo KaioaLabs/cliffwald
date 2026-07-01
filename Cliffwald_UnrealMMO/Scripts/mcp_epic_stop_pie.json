@@ -1,0 +1,13 @@
+{
+  "jsonrpc": "2.0",
+  "id": 14,
+  "method": "tools/call",
+  "params": {
+    "name": "call_tool",
+    "arguments": {
+      "toolset_name": "EditorToolset.EditorAppToolset",
+      "tool_name": "StopPIE",
+      "arguments": {}
+    }
+  }
+}

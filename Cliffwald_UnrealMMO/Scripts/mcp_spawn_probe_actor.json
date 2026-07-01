@@ -1,0 +1,18 @@
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "method": "tools/call",
+  "params": {
+    "name": "control_actor",
+    "arguments": {
+      "action": "spawn",
+      "actorName": "CodexAccessProbe",
+      "className": "PointLight",
+      "location": {
+        "x": 0,
+        "y": 0,
+        "z": 300
+      }
+    }
+  }
+}

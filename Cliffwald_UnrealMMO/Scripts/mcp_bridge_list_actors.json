@@ -1,0 +1,12 @@
+{
+  "jsonrpc": "2.0",
+  "id": 15,
+  "method": "tools/call",
+  "params": {
+    "name": "control_actor",
+    "arguments": {
+      "action": "list",
+      "limit": 5
+    }
+  }
+}

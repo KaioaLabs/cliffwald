@@ -1,275 +1,378 @@
-# CLIFFWALD ONLINE – GAME DESIGN DOCUMENT (MASTER)
+# Cliffwald Online - Game Design Document
 
-**Versión:** 4.0 (The Occlusion Update - Enero 2026)
-**Estado:** Diseño Cerrado para Prototipo.
+**Version:** 5.0
+**Status:** Product design source of truth
+**Last updated:** 2026-06-29
 
----
+## 1. High Concept
 
-## 1. HIGH CONCEPT
-**Cliffwald Online** es un Juego Online de nicho ("Small World") de **Simulación Académica Viva**. Un escenario teatral persistente donde ~100 estudiantes (jugadores o IAs) conviven bajo la autoridad absoluta del tiempo.
+Cliffwald Online is a persistent magical-school simulation where up to 96 student bodies exist as a living school population. Each student can be controlled by a human when online or by an AI Echo when offline, so the school stays socially alive without letting AI alter the real player's persistent progress or property.
 
----
+Cliffwald is not a generic MMORPG with a school skin. It is a social school-life simulation with MMO-scale presence: classes, houses, routines, friendships, rivalries, secrets, rules, curfew, duels, exploration and consequences.
 
-## 2. SISTEMA DE TIEMPO: "LA DICTADURA DEL RELOJ"
+## 2. Design Pillars
 
-### 2.1. El Reloj Atmosférico (Ritmo Arcade)
-*   **Ciclo Total:** 45 Minutos Reales.
-*   **Día (30 Min):** Vida académica y social.
-*   **Noche (15 Min):** Toque de Queda. Peligro y sigilo.
+1. **The school is always alive.** Every student body keeps existing in the world. Login changes control, not existence.
+2. **Humans own progress.** AI Echoes provide presence and theatre, but never spend, lose, trade, degrade or persist real player state.
+3. **Time creates drama.** The school day, curfew and calendar structure social pressure without turning play into mandatory chores.
+4. **Social systems matter.** Houses, reputation, rumors, duels and relationships are core progression, not decoration.
+5. **Magic is expressive.** Spells should support combat, exploration, mischief, utility and social play.
+6. **Rules create stories.** Prefects, sanctuaries, forbidden zones and school authority create risk, not arbitrary punishment.
+7. **Small world, high density.** Cliffwald should feel compact, readable and socially dense rather than huge and empty.
 
-### 2.2. Horario y Compromiso (Low Grind)
+## 3. Non-Negotiable Product Rules
 
-| Hora | Actividad | Ubicación | Mecánica |
-| :--- | :--- | :--- | :--- |
-| **07:00 - 08:30** | Desayuno | Dining Hall | Buff de Regeneración. |
-| **08:30 - 12:30** | Clase Mañana | Classroom | **Minijuego (3-5 min)**. |
-| **12:30 - 14:00** | Comida | Dining Hall | Socialización. |
-| **14:00 - 20:00** | Tiempo Libre | Central Courtyard | Social / Exploración / Duelos. |
-| **20:00 - 22:00** | Cena | Dining Hall | Socialización. |
-| **22:00 - 07:00** | Toque de Queda | Dormitorios | **Zona PvPvE Activa**. |
+- One school instance represents a finite roster of persistent student bodies.
+- A player never disappears from the school fiction purely because they logged out.
+- Offline AI is a live skin, not a second player with account authority.
+- Negative persistent consequences require human agency online.
+- Player-owned inventory, currency, stats, grades, cards and equipment cannot be changed by offline AI.
+- The GDD is engine-agnostic. Technical stack choices live in `docs/technical/TECHNICAL_DECISIONS.md`.
 
----
+## 4. Target Experience
 
-## 3. POBLACIÓN E IDENTIDAD (SISTEMA DE POSESIÓN)
+The player should feel like a student inside a strange, compact magical academy where their character has a public life even when they are not online. They log in to reclaim a body that has remained socially present, then choose whether to study, duel, sneak out, investigate secrets, trade, socialize or help their house.
 
-### 3.1. Arquitectura "Teatro de Autómatas"
+The fantasy is not "grind monsters forever." The fantasy is "my school exists, my house remembers me, and the day keeps moving."
 
-El servidor mantiene vivos ~100 cuerpos ("Echos") permanentemente en teoría, pero en la versión actual (MVP) se simula el **Primer Año** visualmente.
+## 5. Population And Possession
 
-*   **Población Implementada:** 96 Estudiantes Totales (3 Casas x 8 Estudiantes/Año x 4 Años).
-*   **Estructura Académica:** La escuela consta de 4 cursos (Primer a Cuarto Año).
-*   **Sala Común vs Dormitorios:**
-    *   Lo que se ve en el mapa es la **Sala Común** de cada casa (Zona Social).
-    *   Las **8 Camas Visibles** corresponden a los alumnos de **Primer Año** (Jugadores).
-*   **Verticalidad Mágica (Veteranos - 2º a 4º Año):**
-    *   **Persistencia Real:** Los 72 alumnos veteranos **nunca desaparecen** del servidor. Siguen existiendo y simulándose.
-    *   **Rutina de Noche:** Caminan hacia la "Escalera de los Dormitorios". Al llegar, entran en estado **"Sleeping Upstairs"** (se vuelven invisibles e intangibles), simulando que han subido a sus habitaciones privadas en pisos superiores.
-    *   **Rutina de Mañana:** Bajan por las escaleras (se hacen visibles) y comienzan su día.
-*   **Restricción de Acceso:** Solo las instalaciones de Primer Año (Planta Baja) son accesibles.
-    *   **Escaleras a Aulas Superiores:** Situadas junto al aula de primero, bloqueadas. Los alumnos de cursos superiores las usan para "ir a clase" (desaparecen al subir).
-    *   **Escaleras a Dormitorios:** Situadas en las Salas Comunes.
-*   **Conexión (Login):** El jugador posee un cuerpo disponible de su casa (Primer Año).
-*   **Desconexión (Logout):** El cuerpo se convierte en "Echo" (NPC).
-*   **Variedad Visual:** El Echo mantiene la última skin equipada por el jugador.
+### 5.1 Student Roster
 
-### 3.2. Gestión de Límite (Hard Cap)
+The target school roster is **96 persistent student bodies**. This is the product cap for one school instance: connected humans plus offline Echoes together fill the same finite roster. The roster uses 96 as a deliberate school-scale cap: large enough to feel socially dense, small enough to keep routines, moderation, mobile performance and server authority tractable.
 
-El servidor es una instancia única para la comunidad.
+| Concept | Definition |
+| --- | --- |
+| Student body | The persistent in-world character slot. |
+| Human control | A connected player actively controlling their student. |
+| Echo control | AI control of that student while the human is offline. |
+| Student identity | Name, house, appearance, public personality and social memory. |
 
-*   **Capacidad:** 24 Jugadores simultáneos (Escalable a ~100 en futuras fases).
-*   **Regla del Jugador #101:** Si el servidor está lleno, los nuevos jugadores entran en **Cola de Espera**. No se expulsa a nadie.
+### 5.2 Control Transfer
 
----
+- **Login:** The human possesses their assigned student body.
+- **Logout:** The body remains in the world as an Echo.
+- **Reconnect:** The human reclaims the same student body.
+- **Visible continuity:** Name, house and appearance remain visible across control changes.
+- **Full roster:** player #97 cannot create a hidden extra body inside the same school instance; they must wait, join another instance, or use a future spectator/onboarding flow.
 
-## 4. SISTEMA DE MAGIA Y COMBATE
+### 5.2.1 Echo Population Guarantee
 
-### 4.1. Magia Gestual ($1 Unistroke)
-*   **Input:** Dibujo real (Ratón/Táctil).
-*   **Validación:** Cliente con validación de servidor.
+The school should appear full even when fewer than 96 humans are connected.
 
-### 4.2. Reglas de Espacio y PvP (Santuarios)
+- Online humans control their bodies directly.
+- Disconnected humans are represented by Echo AI.
+- Empty reserved roster slots can be represented by seeded Echo students until assigned to real accounts.
+- Echo AI is expected to support the full remaining roster, up to 96 visible presences in one school instance.
+- If zero humans are connected, all 96 bodies remain present as autonomous Echoes and the school day continues.
+- The simulation may reduce animation, decision frequency, dialogue frequency or network update rate for distant Echoes, but the fiction should remain that the school population exists.
 
-| Tipo de Zona | Ejemplo | PvP State | Regla Especial |
-| :--- | :--- | :--- | :--- |
-| **Santuario Absoluto** | Dorms, Infirmary | **Desactivado** | Magia de daño bloqueada 24/7. |
-| **Zona Condicional** | Pasillos, Patio | **Noche** | PvP activo de 22:00 a 07:00. |
-| **Zona Salvaje** | The Wild Woods | **Siempre** | PvP activo 24/7. |
+### 5.3 Echo Safety Contract
 
----
+The Echo offline is a **live skin** of the player: it maintains public presence, routine and social texture, but it has zero authority over the player's persistent record.
 
-## 5. ARQUITECTURA Y GEOGRAFÍA (THE FANG V3.1)
+Allowed Echo activity:
 
-### 5.1. Estructura Geográfica "The Fang" (Compacto & Centrado)
-El mapa es un lienzo de **500x500 Tiles (16km²)**. El castillo se sitúa en el **Centro (Offset 190, 170)** sobre una península con forma de colmillo.
+- Move through the school.
+- Follow schedules.
+- Attend class visually.
+- Eat, sleep and socialize.
+- Speak with contextual barks.
+- React to events.
+- Stand in duel/training zones.
+- Use theatrical or visual magic when design calls for it.
+- Preserve the illusion that the student still belongs to the school.
 
-*   **Diseño Compacto:** Se ha eliminado el espacio muerto. Las habitaciones son densas (25x25 tiles) y los pasillos estrechos (3 tiles) para fomentar la interacción social y los cuellos de botella en PvP.
-*   **Norte (High Ground):** Torre de la Casa **Ignis**. Punto más alto y defendible.
-*   **Ala Oeste (The Dungeon):** Zona baja y oscura. Contiene el Dormitorio **Vesper**, los Baños Prefectales, la Sala de Castigo (Detention) y el Jardín Secreto.
-*   **Ala Este (The Study):** Zona académica. Contiene el Dormitorio **Axiom**, las Aulas (Classroom), la Biblioteca y la Enfermería.
-*   **Centro (The Hub):** 
-    *   **Courtyard:** Patio central abierto con obstáculos tácticos (fuentes, esquinas).
-    *   **The Cloister:** Pasillos columnados (**Pillared Arcades**) de 3 tiles de ancho.
-*   **Sur (The Gate):** 
-    *   **Great Hall:** Comedor masivo y punto de reunión social.
-    *   **The Isthmus (Bridge):** El único puente de tierra hacia el continente. Cuello de botella estratégico.
-*   **Mainland (Continente):** Al sur del puente. Contiene los bosques salvajes y el **Puesto del Mercader Ambulante (Carro)**.
+Forbidden Echo authority:
 
-### 5.2. Pasadizos Secretos y "Double Risk"
-Para mitigar el bloqueo de los Prefectos, existen rutas ocultas. Sin embargo, estas rutas son **Zonas PvP (Sin Ley)**, lo que implica un riesgo doble: evitar la autoridad o arriesgarse a ser atacado por rivales.
+- No persistent stat changes.
+- No gold spending or loss.
+- No XP, grade, academic point or prestige mutation.
+- No alignment, sanction or detention persistence.
+- No inventory, card, equipment, trade, buy, sell or consume mutation.
+- No build changes.
+- No irreversible narrative decisions.
 
-| Nombre | Conexión | Tipo | Riesgo |
-| :--- | :--- | :--- | :--- |
-| **The Plumbing** | Vesper ↔ Baños | Túnel de alcantarillado estrecho (3 tiles). | **PvP Activo**. Claustrofóbico. |
-| **Study Bridge** | Library ↔ Axiom | Pasarela oculta tras estanterías (2 tiles). | **PvP Activo**. Cuello de botella. |
-| **Hidden Archive** | Library (Secreto) | Sala oculta de conocimiento prohibido. | **PvP Activo**. Sin salida fácil. |
-| **Troublemaker's Crack**| Ignis ↔ Detention | Grieta en el muro. | **PvP Activo**. |
-
----
-
-## 6. SISTEMA DE DISCIPLINA (PREFECTOS)
-
-### 6.1. La Guardia Nocturna (Night Watch)
-Durante la noche (22:00 - 07:00), los Prefectos patrullan el castillo.
-
-*   **Población:** 4 Prefectos simultáneos.
-    *   2 en el Patio Central (Bloqueo visual cruzado).
-    *   1 en el Gran Comedor (Roamer).
-    *   1 en el Puente del Istmo (Guardia de Frontera).
-*   **Mecánica de Visión (Conic Vision):**
-    *   **No Persiguen:** Los prefectos no corren detrás de los alumnos. Son centinelas.
-    *   **Cono de Visión:** Tienen una linterna con un cono de luz visible (90 grados, 150px).
-    *   **Captura Instantánea:** Si un alumno toca el cono de luz, es teletransportado inmediatamente a **Detention**.
-    *   **Rotación:** Los prefectos giran periódicamente para escanear su entorno.
-
-### 6.2. Niveles de Castigo (Severity)
-La duración de la estancia en **Detention** (unidades de trabajo pendientes) depende de la gravedad de la infracción cometida al ser capturado:
-
-| Nivel | Infracción | Carga de Trabajo |
-| :--- | :--- | :--- |
-| **I** | Estar fuera del dormitorio en Toque de Queda. | 50 Unidades |
-| **II** | Infracción Nivel I + Uso de Magia detectado. | 100 Unidades |
-| **III** | Infracción Nivel II + Haber causado daño/KO a otro alumno. | 200 Unidades |
-
----
-
-## 7. BIBLIA DE DATOS (DATABASE TABLES)
-
-### 7.1. Las Tres Facciones (Houses)
-
-*Nota: Los colores actuales son **provisionales** para maximizar la distinción visual entre alumnos durante el prototipado.*
-
-| Casa | Color | Ubicación | Filosofía | Bark Flavor |
-| :--- | :--- | :--- | :--- | :--- |
-| **IGNIS** | Rojo | Torre Norte | Valor y Fuego | "For glory!", "Let's duel!" |
-| **AXIOM** | Azul | Ala Este | Lógica y Hielo | "Logic dictates victory." |
-| **VESPER** | Amarillo | Mazmorra Oeste | Ambición y Sombra | "Ambition is not a sin." |
-
-### 7.2. El Claustro y Personal de la Escuela
-
-| Nombre | Rol | Ubicación Principal | Comportamiento |
-| :--- | :--- | :--- | :--- |
-| **Headmaster Aris** | Director | Great Hall / Office | Estático / Orador |
-| **Professor Hecate** | Maestra | Classroom | Enseñanza / Patrulla |
-| **Professor Merlin** | Maestro | Library / Classroom | Enseñanza |
-| **Matron Pomfrey** | Sanadora | Infirmary | Estático (Cura) |
-| **Prefects (x4)** | Seguridad | Puntos Estratégicos | Patrulla Nocturna (Cono de Visión) |
-| **Caretaker Filch** | Conserje | Pasillos (Noche) | Patrulla (Alerta Prefectos) |
-
-### 7.3. Comerciantes y NPCs Externos
-
-| Nombre | Rol | Ubicación Principal | Comportamiento |
-| :--- | :--- | :--- | :--- |
-| **Traveling Merchant**| Mercader | Mainland (Forest) | **Vendedor Ambulante (Carro) - Day Only** |
-
-### 7.4. Fórmulas Académicas (Recompensas)
-
-| Grado | Puntuación Minijuego | XP Ganada | Oro Ganado | Prestigio |
-| :--- | :--- | :--- | :--- | :--- |
-| **S** | 90 - 100 | 100 XP | 100g | +20 |
-| **A** | 70 - 89 | 75 XP | 50g | +10 |
-| **B** | 50 - 69 | 50 XP | 20g | +5 |
-| **F** | < 50 | 0 XP | 0g | 0 |
-
-### 7.5. Métricas de Equilibrio (Balance Specs)
-
-**Economía (Precios Base):**
-*   **Common:** 10 Oro.
-*   **Rare:** 50 Oro.
-*   **Legendary:** 200 Oro.
-
-**Ciclo de Items:**
-*   **Spawn Rate:** 1 Item cada 30 segundos.
-*   **World Cap:** Máximo 20 items sueltos en el suelo simultáneamente.
-
-**Combate y Salud:**
-*   **Duel Timeout:** 60 segundos.
-*   **Tiempo Inconsciente:** 10 segundos tras ser derrotado (Knockout).
-*   **Repulsión de Anillo:** Fuerza 200,000 (Impulso físico).
-
-### 7.6. Hechizos y Gestos (The Triad)
-
-| Gesto | Nombre | Color | Velocidad | Ventaja (RPS) |
-| :--- | :--- | :--- | :--- | :--- |
-| **Círculo** | Escudo | Azul | N/A | Vence a **Triángulo** |
-| **Triángulo** | Proyectil | Rojo | 400 | Vence a **Cuadrado** |
-| **Cuadrado** | Área | Magenta | 400 | Vence a **Círculo** |
-| **Línea** | Misil | Amarillo | 600 | Neutro (Daño Rápido) |
-
-### 7.7. Equipamiento (Inventory)
-
-| ID | Nombre | Tipo | Rareza | Efecto Base |
-| :--- | :--- | :--- | :--- | :--- |
-| `robe_plain` | Plain Work Robe | Robe | Common | Defense: Low |
-| `robe_silk` | Silk Robe | Robe | Rare | Magic Defense: Med |
-| `robe_velvet` | Velvet Robe | Robe | Legendary | Defense: High |
-| `boots_leather`| Leather Boots | Boots | Common | Agility: Low |
-| `boots_dragon` | Dragon Skin Boots| Boots | Legendary | Agility: High |
-| `acc_spectacles`| Spectacles | Acc | Rare | Accuracy: High |
-
-### 7.8. Álbum de Cromos (Collectibles)
-
-| ID | Nombre | Rareza | Descripción / Lore |
-| :--- | :--- | :--- | :--- |
-| `card_4` | Merlin | Legendary | Master of prophecy and advisor. |
-| `card_5` | Morgan le Fay | Legendary | Enchantress of Avalon. |
-| `card_1` | Abe no Seimei | Legendary | Japanese onmyoji master. |
-| `card_6` | Nicholas Flamel | Rare | Master Alchemist of the Magnum Opus. |
-| `card_2` | Baba Yaga | Rare | Slavic witch of the mortar. |
-| `card_13`| Cassandra | Common | Prophetess cursed by disbelief. |
-| `card_vampire`| Vampire | Rare | Drinks blood for HP Drain. |
-
-### 7.9. Consumibles e Ingredientes
-
-| ID | Nombre | Tipo | Efecto |
-| :--- | :--- | :--- | :--- |
-| `pot_antidote` | Antidote | Potion | Cures Poison |
-| `food_rock_cake`| Rock Cake | Food | Small HP Heal |
-| `mat_wolfsbane` | Wolfsbane | Plant | Toxic Ingredient |
-| `mat_bezoar` | Bezoar | Object | Universal Antidote |
-| `mat_mandrake` | Mandrake Root | Plant | Cure Petrify / Revive |
-
-### 7.10. Registro de Barks (NPC Chat)
-
-| Contexto | Frase de Ejemplo | Probabilidad |
-| :--- | :--- | :--- |
-| **GENERAL** | "Has anyone seen my toad?" | Alta |
-| **CLASS** | "Is this on the exam?" | Contextual |
-| **EAT** | "Delicious! I could eat a dragon." | Contextual |
-| **SLEEP** | "Zzz... Five more minutes..." | Contextual |
-| **DUEL** | "Watch out! Shields up!" | Contextual |
-
----
-
-## 8. APÉNDICE B: LORE & MECÁNICAS OCULTAS
-
-### 8.1. El Ciclo (Intro Lore)
-*   **Texto Sagrado:** "Time is a ruthless circle. Every thousand years the stars return to their origin, and the sky bleeds."
-*   **Propósito:** Cliffwald se abre porque "El Ciclo lo demanda".
-
-### 8.2. Mecánicas de Minijuegos (Clases)
-*   **Nota Técnica:** Todos los minijuegos se procesan localmente en el cliente para evitar saturación de red. El servidor solo recibe y valida la puntuación final.
-*   **Charms (Encantamientos):** *Runic Timing*. Un cursor gira. Pulsa [ESPACIO] cuando esté en la zona verde superior. 5 Intentos.
-*   **Potions (Pociones):** *Cauldron Stir*. Machaca [ESPACIO] para mantener la temperatura en la zona óptima (40-60%) mientras se enfría.
-*   **History (Historia):** *Memory Sequence*. Memoriza y repite una secuencia de 5 flechas (⬆️ ⬅️ ➡️ ⬇️).
-
----
-
-## 9. ANEXO TÉCNICO
-*   **Engine:** Phaser 3 (Client) + Colyseus (Server).
-*   **Physics:** Rapier2D (Isomorphic).
-*   **Database:** SQLite (Dev) / PostgreSQL (Prod) via Prisma.
-
-## 10. ESTÁNDAR DE ARTE (TILED LAYERS)
-
-Para lograr un acabado visual AAA ("Sea of Stars"), el mapa sigue una estricta jerarquía de capas que gestiona la **Oclusión (2.5D)**. Todo artista debe respetar este orden:
-
-| Orden | Capa (Nombre Tiled) | Contenido Permitido | Propósito |
-| :--- | :--- | :--- | :--- |
-| **5 (Top)** | `L5_Overhead` | Cimeras de muros, Techos, Copas de árboles, Arcos de puerta. | **Oclusión:** Tapa al jugador cuando camina por "detrás" (Norte). |
-| **4** | **ENTIDADES** | Jugadores, NPCs, Proyectiles. | Renderizado dinámico por el motor. |
-| **3** | `L4_Walls_Base` | La cara vertical de los muros, Troncos, Fuentes. | **Colisión:** El jugador choca físicamente contra esto. |
-| **2** | `L3_Deco_Ground` | Alfombras, Caminos, Manchas, Papeles. | **Detalle:** Se pinta sobre el suelo sin borrarlo (Transparente). |
-| **1** | `L2_Floors` | Suelos de madera, Piedra, Pavimento. | **Estructura:** Define dónde se puede caminar. |
-| **0 (Bot)** | `L1_Terrain` | Agua, Hierba, Tierra. | **Fondo Infinito:** Capa de seguridad. Nunca debe tener huecos. |
-
-**Regla de Oro:** Si borras un edificio, debe quedar hierba debajo (`L1`), no vacío. La edición debe ser no-destructiva.
+Short rule: **AI controls presence, not property. AI controls theatre, not progress.**
+
+## 6. Time And Schedule
+
+### 6.1 School Day
+
+The school follows a compressed day/night rhythm. Exact timings can change through tuning, but the structure is stable:
+
+| Phase | Activity | Main Function |
+| --- | --- | --- |
+| Morning | Breakfast | Social gathering, buffs, school atmosphere. |
+| Class block | Lessons | Academic minigames, subject progression, house prestige. |
+| Midday | Lunch | Social play, rumors, informal planning. |
+| Afternoon | Free time | Exploration, duels, secrets, trading, errands. |
+| Evening | Dinner | Social regrouping before riskier night play. |
+| Night | Curfew | Stealth, forbidden routes, PvPvE pressure. |
+
+### 6.2 Respect For Player Time
+
+Classes and schedules should create immersion, not FOMO punishment. Players should gain benefits from attending live events, but the design must avoid locking core progression behind narrow real-time windows.
+
+Offline Echo presence can preserve social continuity, but real progression should be earned through human play or explicitly approved positive offline systems.
+
+## 7. Houses And Social Structure
+
+The school has three core houses:
+
+| House | Identity | School Space | Social Flavor |
+| --- | --- | --- | --- |
+| Ignis | Courage, fire, glory | High ground / tower | Bold, duel-prone, heroic. |
+| Axiom | Logic, ice, discipline | Study wing | Analytical, strategic, academic. |
+| Vesper | Ambition, shadow, secrets | Lower/dungeon wing | Cunning, secretive, opportunistic. |
+
+House systems should support:
+
+- House points and prestige.
+- Friendly rivalry.
+- Shared goals.
+- House chat or local identity.
+- House-specific spaces, rumors and traditions.
+- Social pressure without enabling griefing.
+
+## 8. Core Loops
+
+### 8.1 Daily Loop
+
+1. Wake or log in.
+2. Check time, schedule, house state and active rumors/events.
+3. Attend class, socialize or pursue side goals.
+4. Use free time for duels, exploration, trading, secrets or preparation.
+5. Decide whether to obey curfew or risk night play.
+6. Earn social, academic or exploratory rewards.
+
+### 8.2 Session Loop
+
+1. Reclaim your student body.
+2. See what your house/school has been doing.
+3. Pick a meaningful short-term goal.
+4. Interact with students, systems and spaces.
+5. Leave the body as an Echo when done.
+
+### 8.3 Season Loop
+
+Season-scale progression should include:
+
+- Academic milestones.
+- House standings.
+- Secret discoveries.
+- Social arcs and rivalries.
+- School-wide events.
+- A climactic event where collective actions matter.
+
+## 9. Academic System
+
+The academic system should be lightweight, readable and varied.
+
+Core expectations:
+
+- Classes have subjects, professors and minigames.
+- Academic rewards should feel meaningful but not mandatory in every time window.
+- Subjects can unlock spells, lore, areas, cosmetics or social privileges.
+- Echoes can attend visually but do not mutate real player grades or stats.
+
+Initial subject examples:
+
+| Subject | Activity Fantasy | Possible Reward |
+| --- | --- | --- |
+| Charms | Timing, gesture, precision | Utility spell progress. |
+| Potions | Ingredient control, rhythm | Consumable knowledge. |
+| History | Memory, lore, pattern recall | Secrets, cards, rumors. |
+
+## 10. Magic And Combat
+
+Magic should be expressive first and competitive second.
+
+### 10.1 Spell Roles
+
+- **Duel spells:** Shield, projectile, area, missile, counterplay.
+- **Utility spells:** Open, reveal, repair, illuminate, distract.
+- **Exploration spells:** Secret detection, traversal, puzzle interactions.
+- **Social/mischief spells:** Harmless expression, theatrics, pranks with guardrails.
+
+### 10.2 PvP Rules
+
+| Zone Type | Example | PvP Rule |
+| --- | --- | --- |
+| Sanctuary | Dorms, infirmary | Damage disabled. |
+| Conditional | Halls, courtyard | PvP enabled only under time/event rules. |
+| Wild/Forbidden | Woods, secret passages | PvP enabled, higher risk. |
+
+Combat must include anti-griefing safeguards. A school simulation dies quickly if new or casual players become targets with no recourse.
+
+## 11. Discipline And Authority
+
+Prefects and school staff create rules pressure.
+
+Design goals:
+
+- Curfew should create tension, not resentment.
+- Detection should be readable and avoid invisible punishment.
+- Punishment should be recoverable and proportionate.
+- Offline Echoes should not receive persistent punishments.
+- Human players who choose risk should understand the consequences.
+
+Initial punishment scale:
+
+| Level | Cause | Example Consequence |
+| --- | --- | --- |
+| I | Curfew violation | Short detention/task. |
+| II | Curfew plus magic | Longer detention/task. |
+| III | Harmful action/KO | Serious but recoverable consequence. |
+
+## 12. World Design
+
+Cliffwald should be compact and socially dense.
+
+Core spaces:
+
+- Great Hall / dining hall.
+- Classrooms.
+- Library.
+- Courtyard.
+- House common rooms.
+- Dormitories or implied dormitory access.
+- Infirmary.
+- Detention room.
+- Secret passages.
+- Forbidden woods or exterior danger zone.
+- Merchant/traveling vendor space.
+
+World rules:
+
+- Important routes should create encounters.
+- Secret routes should carry tradeoffs.
+- Safe spaces must exist.
+- The school layout should support schedules and social clustering.
+
+## 13. Economy, Items And Collections
+
+Economy should be light and school-flavored, not a grind treadmill.
+
+Supported item categories:
+
+- Robes, boots and accessories.
+- Consumables and ingredients.
+- Collectible cards.
+- Class/event rewards.
+- Cosmetic or social items.
+
+AI Echoes do not buy, sell, trade, consume or lose real player items.
+
+## 14. NPCs And Roles
+
+Role categories:
+
+- Students / Echoes.
+- Professors.
+- Prefects.
+- Headmaster.
+- Caretaker.
+- Healer/matron.
+- Traveling merchant.
+- Special event characters.
+
+NPCs should support school atmosphere, schedule believability, guidance, rumors and events.
+
+## 15. Director Tools
+
+Cliffwald needs tools for running a living school.
+
+Expected capabilities:
+
+- Trigger events.
+- Adjust schedule/calendar.
+- Broadcast school announcements.
+- Seed rumors or mysteries.
+- Inspect house standings.
+- Control or spawn staff/NPC events.
+- Moderate toxic behavior.
+- Review suspicious actions.
+
+Director tools are a product pillar, not just admin cheats.
+
+## 16. Safety, Moderation And Anti-Griefing
+
+Social safety is core design.
+
+Required systems:
+
+- Report/block/mute tools.
+- Admin/moderation visibility.
+- Anti-cheat on rewards, items, movement and spells.
+- PvP boundaries and sanctuaries.
+- Protection against trade/item scams.
+- Clear distinction between playful rivalry and harassment.
+
+## 17. Content Data Seeds
+
+### 17.1 Houses
+
+| House | Color Direction | Flavor Bark |
+| --- | --- | --- |
+| Ignis | Warm/red/fire | "For glory!" |
+| Axiom | Cool/blue/ice | "Logic dictates victory." |
+| Vesper | Shadow/gold/violet | "Ambition is not a sin." |
+
+### 17.2 Staff
+
+| Name | Role | Primary Function |
+| --- | --- | --- |
+| Headmaster Aris | Headmaster | Announcements, ceremonies, authority. |
+| Professor Hecate | Professor | Classes and guidance. |
+| Professor Merlin | Professor | Lore, library, secrets. |
+| Matron Pomfrey | Healer | Recovery and sanctuary. |
+| Prefects | Discipline | Curfew and rule pressure. |
+| Caretaker Filch | Patrol | Night pressure and alerts. |
+
+### 17.3 Example Items
+
+| ID | Name | Type | Rarity |
+| --- | --- | --- | --- |
+| robe_plain | Plain Work Robe | Robe | Common |
+| robe_silk | Silk Robe | Robe | Rare |
+| robe_velvet | Velvet Robe | Robe | Legendary |
+| boots_leather | Leather Boots | Boots | Common |
+| boots_dragon | Dragon Skin Boots | Boots | Legendary |
+| acc_spectacles | Spectacles | Accessory | Rare |
+
+### 17.4 Example Collectibles
+
+| ID | Name | Rarity |
+| --- | --- | --- |
+| card_4 | Merlin | Legendary |
+| card_5 | Morgan le Fay | Legendary |
+| card_1 | Abe no Seimei | Legendary |
+| card_6 | Nicholas Flamel | Rare |
+| card_2 | Baba Yaga | Rare |
+| card_13 | Cassandra | Common |
+
+## 18. Acceptance Criteria
+
+Cliffwald reaches its intended MVP fantasy when:
+
+- A school instance maintains 96 visible student bodies.
+- Human players can connect, disconnect and reconnect without breaking identity continuity.
+- Offline Echoes keep presence while protecting persistent player records.
+- With zero connected humans, the clock, classes, meals, curfew and Echo routines continue autonomously.
+- A normal day visibly moves students through breakfast, class, lunch, free time, dinner and curfew.
+- Players can attend class, socialize, duel, explore and interact with house systems.
+- Rules, sanctuaries and discipline are readable.
+- The world feels populated during low human concurrency.
+- Server authority protects stats, items and rewards.
+
+## 19. Open Design Decisions
+
+- Exact human concurrency target at MVP versus later scale.
+- How much positive offline progression, if any, is allowed.
+- Whether Echo theatrical magic can affect other connected players visually only or mechanically.
+- How seasons/end-of-year events resolve house competition.
+- How to balance curfew risk for casual players.
+- Final engine/platform choice.
+
+Technical decisions for these items belong in `docs/technical/TECHNICAL_DECISIONS.md` once made.

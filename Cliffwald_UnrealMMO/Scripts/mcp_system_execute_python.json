@@ -1,0 +1,12 @@
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "tools/call",
+  "params": {
+    "name": "system_control",
+    "arguments": {
+      "action": "execute_python",
+      "code": "import unreal\nunreal.log('Codex MCP smoke test: Cliffwald editor Python control is alive')\nprint('mcp_python_ok')"
+    }
+  }
+}

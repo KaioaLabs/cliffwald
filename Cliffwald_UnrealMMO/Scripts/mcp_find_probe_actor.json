@@ -1,0 +1,12 @@
+{
+  "jsonrpc": "2.0",
+  "id": 5,
+  "method": "tools/call",
+  "params": {
+    "name": "control_actor",
+    "arguments": {
+      "action": "find_by_name",
+      "actorName": "CodexAccessProbe"
+    }
+  }
+}
