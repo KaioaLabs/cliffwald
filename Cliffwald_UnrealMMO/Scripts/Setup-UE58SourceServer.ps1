@@ -10,6 +10,8 @@ param(
     [switch]$BuildServer,
     [switch]$CookClient,
     [switch]$CookServer,
+    [switch]$NoUBA,
+    [int]$MaxParallelActions = 0,
     [switch]$SkipGitHubAccessCheck
 )
 
@@ -43,6 +45,25 @@ function Invoke-Checked {
     finally {
         Pop-Location
     }
+}
+
+function Get-BuildExecutorArgs {
+    $args = @()
+    if ($NoUBA) {
+        $args += "-NoUBA"
+    }
+    if ($MaxParallelActions -gt 0) {
+        $args += "-MaxParallelActions=$MaxParallelActions"
+    }
+    return $args
+}
+
+function Get-UatExecutorArgs {
+    $args = @()
+    if ($NoUBA) {
+        $args += "-NoUBA"
+    }
+    return $args
 }
 
 $sourceParent = Split-Path -Parent $SourceRoot
@@ -144,20 +165,20 @@ $engineBuild = Join-Path $SourceRoot "Engine\Build\BatchFiles\Build.bat"
 $runUat = Join-Path $SourceRoot "Engine\Build\BatchFiles\RunUAT.bat"
 
 if ($BuildEditor) {
-    Invoke-Checked $engineBuild @("UE5Editor", "Win64", "Development", "-WaitMutex", "-NoHotReload", "-NoLiveCoding") $SourceRoot
+    Invoke-Checked $engineBuild (@("UE5Editor", "Win64", "Development", "-WaitMutex", "-NoHotReload", "-NoLiveCoding") + (Get-BuildExecutorArgs)) $SourceRoot
 }
 
 if ($BuildClient) {
-    Invoke-Checked $engineBuild @("Cliffwald", "Win64", "Development", "-Project=$ProjectPath", "-WaitMutex", "-NoHotReload", "-NoLiveCoding") $ProjectRoot
+    Invoke-Checked $engineBuild (@("Cliffwald", "Win64", "Development", "-Project=$ProjectPath", "-WaitMutex", "-NoHotReload", "-NoLiveCoding") + (Get-BuildExecutorArgs)) $ProjectRoot
 }
 
 if ($BuildServer) {
-    Invoke-Checked $engineBuild @("CliffwaldServer", "Win64", "Development", "-Project=$ProjectPath", "-WaitMutex", "-NoHotReload", "-NoLiveCoding") $ProjectRoot
+    Invoke-Checked $engineBuild (@("CliffwaldServer", "Win64", "Development", "-Project=$ProjectPath", "-WaitMutex", "-NoHotReload", "-NoLiveCoding") + (Get-BuildExecutorArgs)) $ProjectRoot
 }
 
 if ($CookClient) {
     $archiveDir = Join-Path $ProjectRoot "PackagedSourceClient"
-    Invoke-Checked $runUat @(
+    Invoke-Checked $runUat (@(
         "BuildCookRun",
         "-project=$ProjectPath",
         "-noP4",
@@ -170,12 +191,12 @@ if ($CookClient) {
         "-pak",
         "-archive",
         "-archivedirectory=$archiveDir"
-    ) $ProjectRoot
+    ) + (Get-UatExecutorArgs)) $ProjectRoot
 }
 
 if ($CookServer) {
     $archiveDir = Join-Path $ProjectRoot "PackagedServer"
-    Invoke-Checked $runUat @(
+    Invoke-Checked $runUat (@(
         "BuildCookRun",
         "-project=$ProjectPath",
         "-noP4",
@@ -190,5 +211,5 @@ if ($CookServer) {
         "-pak",
         "-archive",
         "-archivedirectory=$archiveDir"
-    ) $ProjectRoot
+    ) + (Get-UatExecutorArgs)) $ProjectRoot
 }

@@ -1,5 +1,7 @@
 #include "CliffwaldSchoolGameState.h"
 #include "Cliffwald.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "Net/UnrealNetwork.h"
 
 namespace CliffwaldSchoolClock
@@ -30,7 +32,7 @@ void ACliffwaldSchoolGameState::Tick(float DeltaSeconds)
         return;
     }
 
-    MinuteAccumulator += DeltaSeconds * GameMinutesPerRealSecond;
+    MinuteAccumulator += DeltaSeconds * GetGameMinutesPerRealSecond();
     const int32 WholeMinutes = FMath::FloorToInt(MinuteAccumulator);
     if (WholeMinutes <= 0)
     {
@@ -48,6 +50,21 @@ void ACliffwaldSchoolGameState::GetLifetimeReplicatedProps(TArray<FLifetimePrope
     DOREPLIFETIME(ACliffwaldSchoolGameState, DayIndex);
     DOREPLIFETIME(ACliffwaldSchoolGameState, SchoolMinute);
     DOREPLIFETIME(ACliffwaldSchoolGameState, CurrentPhase);
+    DOREPLIFETIME(ACliffwaldSchoolGameState, RealMinutesPerSchoolDay);
+}
+
+void ACliffwaldSchoolGameState::BeginPlay()
+{
+    Super::BeginPlay();
+
+    if (HasAuthority())
+    {
+        ApplyRuntimeClockOverrides();
+
+        UE_LOG(LogCliffwald, Log, TEXT("School clock configured: RealMinutesPerSchoolDay=%.3f GameMinutesPerRealSecond=%.6f."),
+            RealMinutesPerSchoolDay,
+            GetGameMinutesPerRealSecond());
+    }
 }
 
 FString ACliffwaldSchoolGameState::GetClockLabel() const
@@ -60,6 +77,12 @@ FString ACliffwaldSchoolGameState::GetClockLabel() const
 FString ACliffwaldSchoolGameState::GetPhaseLabel() const
 {
     return FString(GetPhaseName(CurrentPhase));
+}
+
+float ACliffwaldSchoolGameState::GetGameMinutesPerRealSecond() const
+{
+    const float SafeRealSecondsPerDay = FMath::Max(RealMinutesPerSchoolDay * 60.0f, 1.0f);
+    return static_cast<float>(CliffwaldSchoolClock::MinutesPerDay) / SafeRealSecondsPerDay;
 }
 
 ECliffwaldSchoolPhase ACliffwaldSchoolGameState::PhaseForMinute(int32 MinuteOfDay)
@@ -122,6 +145,25 @@ void ACliffwaldSchoolGameState::AdvanceSchoolMinutes(int32 MinutesToAdvance)
     const int32 NewDayIndex = (TotalMinutes / CliffwaldSchoolClock::MinutesPerDay) + 1;
     const int32 NewSchoolMinute = TotalMinutes % CliffwaldSchoolClock::MinutesPerDay;
     ApplyClock(NewDayIndex, NewSchoolMinute);
+}
+
+void ACliffwaldSchoolGameState::ApplyRuntimeClockOverrides()
+{
+    float CommandLineRealMinutesPerSchoolDay = 0.0f;
+    if (FParse::Value(FCommandLine::Get(), TEXT("CliffwaldRealMinutesPerSchoolDay="), CommandLineRealMinutesPerSchoolDay))
+    {
+        if (FMath::IsFinite(CommandLineRealMinutesPerSchoolDay) && CommandLineRealMinutesPerSchoolDay > 0.0f)
+        {
+            RealMinutesPerSchoolDay = CommandLineRealMinutesPerSchoolDay;
+        }
+        else
+        {
+            UE_LOG(LogCliffwald, Warning, TEXT("Ignoring invalid CliffwaldRealMinutesPerSchoolDay override: %.3f."),
+                CommandLineRealMinutesPerSchoolDay);
+        }
+    }
+
+    RealMinutesPerSchoolDay = FMath::Clamp(RealMinutesPerSchoolDay, 0.1f, 1440.0f);
 }
 
 void ACliffwaldSchoolGameState::ApplyClock(int32 InDayIndex, int32 InSchoolMinute)

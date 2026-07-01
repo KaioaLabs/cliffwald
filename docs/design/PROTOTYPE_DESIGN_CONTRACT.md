@@ -280,6 +280,15 @@ Replacement:
 
 ### 4.1 Time Cadence
 
+Use two separate test modes:
+
+- **Fast simulation:** `1-6` real minutes per school day for engineering correctness, soak, phase transitions and zero-human autonomous-school validation.
+- **Candidate cadence:** `48`, `90`, `144`, `336+` real minutes per school day for player-feel testing.
+
+Fast simulation is still real online infrastructure when it runs through the authoritative dedicated server. It accelerates the school clock, not the whole engine. Echoes should not walk faster, physics should not run faster and replication should not be hidden behind global time dilation. This mode is not valid evidence for pacing feel, but it is the right way to find day-cycle bugs without waiting real product time.
+
+Route and arrival checks are separate tests: run them at real movement speeds and candidate phase durations, or explicitly test "can every Echo reach its target within this phase" as a route budget problem.
+
 Test candidates:
 
 - **48-minute full cycle:** fast school-session feel.

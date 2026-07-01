@@ -35,6 +35,9 @@ Assert-FileContains "Source\Cliffwald\Public\CliffwaldRoster.h" "MaxStudentBodie
 Assert-FileContains "Source\Cliffwald\Private\CliffwaldPrototypeWorld.cpp" "Roster::MaxStudentBodiesPerShard" "Prototype world must use the shared roster cap."
 Assert-FileContains "Source\Cliffwald\Private\CliffwaldGameMode.cpp" "Roster presence check: Humans=%d ActiveEchoes=%d TotalVisible=%d Cap=%d" "GameMode must log roster-cap evidence."
 Assert-FileContains "Source\Cliffwald\Private\CliffwaldHud.cpp" "Roster::MaxStudentBodiesPerShard" "HUD must read the shared roster cap."
+Assert-FileContains "Config\DefaultGame.ini" "RealMinutesPerSchoolDay=6\.0" "School-day duration must be centralized in DefaultGame.ini."
+Assert-FileContains "Source\Cliffwald\Private\CliffwaldSchoolGameState.cpp" "CliffwaldRealMinutesPerSchoolDay" "School clock must support a command-line day-duration override for playtests."
+Assert-FileContains "Scripts\Test-AutonomousSchool.ps1" "RealMinutesPerSchoolDay" "Autonomous smoke must expose school-day duration override for cadence tests."
 
 Assert-FileContains "Source\Cliffwald\Private\CliffwaldEchoStudentActor.cpp" "PrimaryActorTick.TickInterval = 0.2f" "Echo tick interval must stay mobile-friendly."
 Assert-FileContains "Source\Cliffwald\Private\CliffwaldEchoStudentActor.cpp" "SetNetUpdateFrequency\(5.0f\)" "Echo net update frequency must stay throttled."

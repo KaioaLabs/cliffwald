@@ -3,6 +3,7 @@ param(
     [int]$ServerWarmupSeconds = 35,
     [int]$ExpectedEchoCount = 96,
     [int]$ExpectedPhaseTransitions = 2,
+    [double]$RealMinutesPerSchoolDay = 0.0,
     [switch]$KeepRunning
 )
 
@@ -33,7 +34,14 @@ Remove-Item -LiteralPath $ServerLog -ErrorAction SilentlyContinue
 $server = $null
 
 try {
-    $server = & (Join-Path $PSScriptRoot "Start-DedicatedServer.ps1") -Port $Port -LogPath $ServerLog
+    $extraArgs = @()
+    $clockOverrideRequested = $RealMinutesPerSchoolDay -gt 0.0
+    if ($clockOverrideRequested) {
+        $formattedDayDuration = $RealMinutesPerSchoolDay.ToString("0.###", [Globalization.CultureInfo]::InvariantCulture)
+        $extraArgs += "-CliffwaldRealMinutesPerSchoolDay=$formattedDayDuration"
+    }
+
+    $server = & (Join-Path $PSScriptRoot "Start-DedicatedServer.ps1") -Port $Port -LogPath $ServerLog -ExtraArgs $extraArgs
     Start-Sleep -Seconds $ServerWarmupSeconds
 
     $endpoint = Get-NetUDPEndpoint -ErrorAction SilentlyContinue | Where-Object LocalPort -EQ $Port
@@ -47,6 +55,7 @@ try {
     $schoolSpawnCount = Count-Matches $ServerLog "Spawned 96 autonomous Echo students"
     $zeroHumanRosterCount = Count-Matches $ServerLog "Roster presence check: Humans=0 ActiveEchoes=96 TotalVisible=96 Cap=96"
     $schoolPhaseCount = Count-Matches $ServerLog "School clock phase advanced"
+    $schoolClockConfigCount = Count-Matches $ServerLog "School clock configured: RealMinutesPerSchoolDay"
     $joinSucceeded = Count-Matches $ServerLog "Join succeeded"
     $humanClaimedCount = Count-Matches $ServerLog "yielded Echo control to human player"
 
@@ -58,6 +67,9 @@ try {
         ExpectedEchoCount = $ExpectedEchoCount
         SchoolSpawnCount = $schoolSpawnCount
         ZeroHumanRosterCount = $zeroHumanRosterCount
+        RealMinutesPerSchoolDayOverride = $RealMinutesPerSchoolDay
+        ClockOverrideRequested = $clockOverrideRequested
+        SchoolClockConfigCount = $schoolClockConfigCount
         SchoolPhaseCount = $schoolPhaseCount
         ExpectedPhaseTransitions = $ExpectedPhaseTransitions
         JoinSucceeded = $joinSucceeded
@@ -69,7 +81,7 @@ try {
 
     $result | Format-List
 
-    if ($echoCount -ne $ExpectedEchoCount -or $schoolSpawnCount -lt 1 -or $zeroHumanRosterCount -lt 1 -or $schoolPhaseCount -lt $ExpectedPhaseTransitions -or $joinSucceeded -ne 0 -or $humanClaimedCount -ne 0 -or $serverBad -ne 0 -or $serverIrisWarnings -ne 0) {
+    if ($echoCount -ne $ExpectedEchoCount -or $schoolSpawnCount -lt 1 -or $zeroHumanRosterCount -lt 1 -or ($clockOverrideRequested -and $schoolClockConfigCount -lt 1) -or $schoolPhaseCount -lt $ExpectedPhaseTransitions -or $joinSucceeded -ne 0 -or $humanClaimedCount -ne 0 -or $serverBad -ne 0 -or $serverIrisWarnings -ne 0) {
         throw "Autonomous school server test failed"
     }
 }

@@ -94,10 +94,12 @@ Official references:
 - Bootstrap caveat: do not exclude `IOS` in this UE source branch. Win64 `BuildCookRun` still compiles AutomationTool platform scripts, and excluding iOS removed `IOS.Automation` resources such as `GreenCheck.png`, breaking the official cook/archive path.
 - Source setup script: `rtk proxy powershell -NoProfile -ExecutionPolicy Bypass -File "D:\cliffwald\Cliffwald_UnrealMMO\Scripts\Setup-UE58SourceServer.ps1"`
 - Validated source pipeline: `Setup-UE58SourceServer.ps1 -Bootstrap -BuildServer -CookServer -CookClient` after the source clone already exists.
+- Keep Unreal Build Accelerator as the normal build path when the workstation has enough headroom. For constrained local rebuilds while the PC is busy, use `Setup-UE58SourceServer.ps1 -BuildServer -NoUBA -MaxParallelActions 4` before attempting a full cook. This is a temporary build-executor throttle, not a rejection of UBA and not a gameplay or engine patch.
 - Packaged dedicated server: `D:\cliffwald\Cliffwald_UnrealMMO\PackagedServer\WindowsServer\CliffwaldServer.exe`.
 - Source-matched packaged client: `D:\cliffwald\Cliffwald_UnrealMMO\PackagedSourceClient\Windows\Cliffwald.exe`.
 - Validated dedicated smoke command: `rtk proxy powershell -NoProfile -ExecutionPolicy Bypass -File "D:\cliffwald\Cliffwald_UnrealMMO\Scripts\Test-DedicatedServer.ps1"`.
 - Latest autonomous-school smoke result: UDP `0.0.0.0:7777`, `96` Echo AI presences, `0` connected clients, `2` school-clock phase transitions, `0` fatal/error/ensure counts and `0` server Iris startup warnings.
+- Latest fast-clock autonomous smoke result: `RealMinutesPerSchoolDay=1`, UDP `0.0.0.0:7777`, `96` Echo AI presences, `0` connected clients, `6` school-clock phase transitions in 35s, `0` fatal/error/ensure counts and `0` server Iris startup warnings.
 - Latest dedicated client smoke result: UDP `0.0.0.0:7777`, Iris active, `96` Echo AI presences, one local client joined/welcomed, `2` school-clock phase transitions, `0` fatal/error/ensure counts, `0` client movement-base warnings and `0` server Iris startup warnings.
 - Latest reconnect soak result: `3` connect/disconnect cycles, `3` human slot claims, `3` Echo restorations, roster cap stayed at `96`, `0` server/client errors and `0` Iris startup warnings.
 - Latest server perf result: 120s autonomous dedicated-server run, `96` Echoes, `0` joins, `4` school phase transitions, peak working set about `295.51 MB`, peak private memory about `192.28 MB`, `0` server errors and `0` Iris warnings. Evidence CSV: `D:\cliffwald\Cliffwald_UnrealMMO\Saved\Logs\CliffwaldServerPerf.csv`.
@@ -129,8 +131,11 @@ Decision: the minimum UE vertical slice must run the school with zero connected 
 
 - `ACliffwaldSchoolGameState` is the server-authoritative school clock. It replicates day, time and phase.
 - The initial compressed schedule advances through sleep, breakfast, class, lunch, free time, dinner and curfew.
-- Current UE demo clock speed is deliberately accelerated: `GameMinutesPerRealSecond = 4.0`, so a 24-hour clock loop lasts `6` real minutes. This is a technical-demo setting, not the final product cadence.
-- Product cadence is unresolved and must remain configurable. `5h36m`, `144m`, `90m` and `48m` cycles are research candidates, not hardcoded targets.
+- Current UE demo clock speed is deliberately accelerated through one config value: `[/Script/Cliffwald.CliffwaldSchoolGameState] RealMinutesPerSchoolDay=6.0` in `Config/DefaultGame.ini`. This makes the 24-hour school loop last `6` real minutes for local smokes.
+- Product cadence is unresolved and must remain configurable. `5h36m`, `144m`, `90m` and `48m` cycles are research candidates, not hardcoded targets. Development/playtest runs can override the config with `-CliffwaldRealMinutesPerSchoolDay=<minutes>` or `Scripts/Test-AutonomousSchool.ps1 -RealMinutesPerSchoolDay <minutes>`.
+- Use two explicit clock modes: fast schedule simulation for correctness and candidate cadence for player feel. Fast simulation may run school days in `1-6` real minutes to test autonomous Echo routines, phase transitions, server stability and persistence invariants.
+- Fast schedule simulation accelerates the school clock only. It must not use global engine time dilation as the normal path, because that would also distort physics, movement, animation, networking timers and online evidence. Echo movement speed remains real-time; very fast days are valid for state-machine coverage, not for route-arrival or feel conclusions.
+- Player-feel tests must run at candidate product durations because accelerated time is not valid evidence for pacing, stress, FOMO or night/class feel. Travel/arrival tests must run separately at real movement speeds and candidate phase durations.
 - The time-cadence research record is `docs/design/TIME_CADENCE_RESEARCH.md`.
 - Future implementation should expose game minutes per real second and phase boundaries through supported server config/data assets, then log playtest telemetry for rush, waiting, phase participation and Echo believability.
 - `ACliffwaldPrototypeWorld` spawns `96` Echo actors on the server for the full zero-human roster.

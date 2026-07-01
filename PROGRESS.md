@@ -22,7 +22,9 @@ Active project:
 - Source-matched dedicated server/client package path has been validated.
 - The zero-human school runs with `96` Echo student bodies.
 - The school clock advances through routine phases with no connected players.
+- Fast autonomous-school iteration has passed with `RealMinutesPerSchoolDay=1`, `96` Echoes, `0` humans and `6` phase transitions in a 35s smoke.
 - True slot possession is implemented: a human reclaims one of the 96 student bodies and the Echo yields.
+- School-day duration is centralized in `Config/DefaultGame.ini` as `RealMinutesPerSchoolDay` and can be overridden per playtest/server launch. The current engineering default is a fast `6` minute school day for autonomous-world iteration, not a product cadence claim.
 - Reconnect soak has passed with Echo restoration and roster cap remaining `96`.
 - Server perf gate has passed for a 120s autonomous run with `96` Echoes, zero joins, multiple phase transitions and no Iris warnings.
 - Android toolchain preflight passes with SDK platforms `android-34/android-35`, NDK `27.2.12479018` and Java `21` from Android Studio JBR.
