@@ -1,0 +1,33 @@
+# Keep source files stable across Windows/macOS/Linux.
+* text=auto eol=lf
+
+# Unreal binary assets.
+*.uasset binary
+*.umap binary
+*.ubulk binary
+*.uexp binary
+
+# Common generated/package binaries.
+*.apk binary
+*.pak binary
+*.ucas binary
+*.utoc binary
+*.dll binary
+*.pdb binary
+*.exe binary
+*.so binary
+*.dylib binary
+
+# Media and design assets.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.mp3 binary
+*.wav binary
+*.aup3 binary
+*.aseprite binary
+*.blend binary
+*.glb binary
+*.obj binary
+*.mtl binary
