@@ -11,6 +11,7 @@ This folder separates product design, technical decisions, execution plans and h
 
 ## Supporting Documents
 
+- `docs/design/PROTOTYPE_DESIGN_CONTRACT.md` - Definitive prototype design contract: locked decisions, rejected ideas and playtest hypotheses.
 - `docs/design/audits/GDD_V3_3_ZERO_TRUST_AUDIT.md` - Zero-trust review of the older v3.3 sanctuary/PvP draft against current product and technical reality.
 - `docs/design/inbox/GDD_V3_3_SANCTUARY_PVP_DRAFT.md` - Preserved non-authoritative user-provided draft text used by the audit.
 - `docs/design/TIME_CADENCE_RESEARCH.md` - Evidence, hypotheses and playtest plan for school-day/night/course cadence.

@@ -1,8 +1,9 @@
 # Cliffwald Online - Game Design Document
 
-**Version:** 5.0
+**Version:** 5.1
 **Status:** Product design source of truth
-**Last updated:** 2026-06-29
+**Last updated:** 2026-07-01
+**Prototype contract:** `docs/design/PROTOTYPE_DESIGN_CONTRACT.md`
 
 ## 1. High Concept
 
@@ -27,6 +28,8 @@ Cliffwald is not a generic MMORPG with a school skin. It is a social school-life
 - Offline AI is a live skin, not a second player with account authority.
 - Negative persistent consequences require human agency online.
 - Player-owned inventory, currency, stats, grades, cards and equipment cannot be changed by offline AI.
+- Real players reclaim their assigned student identity; they do not rent disposable bodies that other humans can overwrite.
+- Client-side input may provide prediction and presentation, but spell outcomes, rewards, cooldowns, PvP effects and protected persistence are server-authoritative.
 - The GDD is engine-agnostic. Technical stack choices live in `docs/technical/TECHNICAL_DECISIONS.md`.
 
 ## 4. Target Experience
@@ -226,15 +229,19 @@ Magic should be expressive first and competitive second.
 - **Exploration spells:** Secret detection, traversal, puzzle interactions.
 - **Social/mischief spells:** Harmless expression, theatrics, pranks with guardrails.
 
+Gesture input can be tactile and locally responsive, but it is not a client-authoritative gameplay result. The client may predict animation, sound and visual feedback; the server must validate the request and resolve gameplay outcomes.
+
 ### 10.2 PvP Rules
 
 | Zone Type | Example | PvP Rule |
 | --- | --- | --- |
 | Sanctuary | Dorms, infirmary | Damage disabled. |
-| Conditional | Halls, courtyard | PvP enabled only under time/event rules. |
-| Wild/Forbidden | Woods, secret passages | PvP enabled, higher risk. |
+| Conditional | Halls, courtyard | PvP enabled only under time/event/opt-in rules. |
+| Wild | Wyrdwood, secret passages | PvP enabled, higher risk. |
 
 Combat must include anti-griefing safeguards. A school simulation dies quickly if new or casual players become targets with no recourse.
+
+Night conflict should begin as marked routes, risky secret areas, consensual duels or explicit wild zones. Broad open PvP across normal school spaces is a playtest risk, not a default MVP truth.
 
 ## 11. Discipline And Authority
 
@@ -271,7 +278,7 @@ Core spaces:
 - Infirmary.
 - Detention room.
 - Secret passages.
-- Forbidden woods or exterior danger zone.
+- Wyrdwood or exterior danger zone.
 - Merchant/traveling vendor space.
 
 World rules:
@@ -355,11 +362,11 @@ Required systems:
 | Name | Role | Primary Function |
 | --- | --- | --- |
 | Headmaster Aris | Headmaster | Announcements, ceremonies, authority. |
-| Professor Hecate | Professor | Classes and guidance. |
-| Professor Merlin | Professor | Lore, library, secrets. |
-| Matron Pomfrey | Healer | Recovery and sanctuary. |
+| Professor Cael | Professor | Classes and guidance. |
+| Professor Orlen | Professor | Lore, library, secrets. |
+| Matron Vale | Healer | Recovery and sanctuary. |
 | Prefects | Discipline | Curfew and rule pressure. |
-| Caretaker Filch | Patrol | Night pressure and alerts. |
+| Caretaker Orrin | Patrol | Night pressure and alerts. |
 
 ### 17.3 Example Items
 
@@ -376,12 +383,12 @@ Required systems:
 
 | ID | Name | Rarity |
 | --- | --- | --- |
-| card_4 | Merlin | Legendary |
-| card_5 | Morgan le Fay | Legendary |
-| card_1 | Abe no Seimei | Legendary |
-| card_6 | Nicholas Flamel | Rare |
-| card_2 | Baba Yaga | Rare |
-| card_13 | Cassandra | Common |
+| card_4 | Arcanist Orlen | Legendary |
+| card_5 | Lady Morrane | Legendary |
+| card_1 | The Star-Scribe | Legendary |
+| card_6 | Alchemist Vey | Rare |
+| card_2 | Mother Yara | Rare |
+| card_13 | Cassia of the Bell Tower | Common |
 
 ## 18. Acceptance Criteria
 
