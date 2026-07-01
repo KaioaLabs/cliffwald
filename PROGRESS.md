@@ -90,6 +90,7 @@ rtk proxy powershell -NoProfile -ExecutionPolicy Bypass -File "D:\cliffwald\Clif
 - iOS packaging/signing requires Apple/Xcode tooling or a remote Mac.
 - Production online control plane still needs a minimal supported EOS/session/database design before real deployment.
 - The UE demo clock still runs at technical-demo speed; product time cadence is deliberately unresolved and now tracked as a zero-trust playtest/research question.
+- The older GDD v3.3 sanctuary/PvP draft has been preserved and audited as non-authoritative input; client-authoritative spells, shared-body reassignment, fixed 45-minute cadence and freeform AI chat are not accepted as final design.
 - Longer runtime soak should be repeated after major gameplay or networking changes.
 
 ## Cleanup Status
